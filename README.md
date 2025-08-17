@@ -1,50 +1,178 @@
-# Welcome to your Expo app 👋
+# KotaPay - Mobile Payment Application
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A modern React Native mobile payment application built with Expo, featuring comprehensive financial services including money transfers, bill payments, virtual cards, and more.
 
-## Get started
+## 🚀 Features
 
-1. Install dependencies
+### Core Functionality
+- **Money Transfers**: Send and receive money instantly
+- **Bill Payments**: Pay for utilities, airtime, data, cable TV, and betting
+- **Virtual Cards**: Create and manage virtual debit cards
+- **QR Payments**: Scan and generate QR codes for payments
+- **Contact Management**: Manage payment contacts with ease
+- **Transaction History**: Track all your financial activities
 
+### User Experience
+- **Modern UI/UX**: Clean, intuitive interface with haptic feedback
+- **Profile Management**: Comprehensive user profile with security settings
+- **Notifications**: Real-time payment notifications
+- **Biometric Security**: Fingerprint and Face ID authentication
+- **Multi-language Support**: English and local language options
+
+## 🛠 Tech Stack
+
+- **Framework**: React Native with Expo SDK 53
+- **Language**: TypeScript
+- **Navigation**: React Navigation v7
+- **Icons**: Lucide React Native
+- **State Management**: React Context API
+- **Backend**: Appwrite (optional)
+- **Development**: VS Code with extensive tooling
+
+## 🏗 Installation
+
+### Prerequisites
+- Node.js (v18 or later)
+- npm or yarn
+- Expo CLI
+- iOS Simulator (for iOS development)
+- Android Studio/Emulator (for Android development)
+
+### Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/kotapay.git
+   cd kotapay
+   ```
+
+2. **Install dependencies**
    ```bash
    npm install
    ```
 
-2. Start the app
-
+3. **Start the development server**
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+4. **Run on device/simulator**
+   - **iOS**: Press `i` to open in iOS Simulator
+   - **Android**: Press `a` to open in Android Emulator
+   - **Web**: Press `w` to open in web browser
+   - **Physical Device**: Scan QR code with Expo Go app
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 📂 Project Structure
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+kotapay/
+├── src/
+│   ├── components/          # Reusable UI components
+│   ├── screens/             # Application screens
+│   │   ├── profile/         # Profile-related screens
+│   │   └── ...
+│   ├── navigation/          # Navigation configuration
+│   ├── services/            # API and external services
+│   ├── contexts/            # React Context providers
+│   ├── theme/               # Design system and styling
+│   ├── types/               # TypeScript type definitions
+│   └── utils/               # Utility functions
+├── assets/                  # Static assets (images, fonts)
+├── logo/                    # Network provider logos
+├── ios/                     # iOS native code
+└── ...
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## 🎨 Key Features Detail
 
-## Learn more
+### Payment Services
+- **Send Money**: Transfer funds to contacts or via phone number
+- **Request Money**: Request payments from other users
+- **Bill Payments**: Comprehensive bill payment system
+- **Airtime/Data**: Mobile recharge services
+- **Cable TV**: DSTV, GOTV, StarTimes subscriptions
+- **Betting**: Sports betting payments
 
-To learn more about developing your project with Expo, look at the following resources:
+### Security Features
+- **PIN Authentication**: 4-digit security PIN
+- **Biometric Auth**: Fingerprint/Face ID support
+- **Two-Factor Authentication**: Enhanced security options
+- **Session Management**: Secure session handling
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Virtual Cards
+- **Create Cards**: Generate virtual debit cards
+- **Card Management**: Freeze/unfreeze, set limits
+- **Transaction Tracking**: Monitor card usage
+- **Top-up**: Add funds to virtual cards
 
-## Join the community
+## 🔧 Configuration
 
-Join our community of developers creating universal apps.
+### Environment Setup
+Create a `.env` file in the root directory:
+```env
+EXPO_PUBLIC_API_URL=your_api_url
+EXPO_PUBLIC_APPWRITE_ENDPOINT=your_appwrite_endpoint
+EXPO_PUBLIC_APPWRITE_PROJECT_ID=your_project_id
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## 🚀 Deployment
+
+### EAS Build
+```bash
+# Install EAS CLI
+npm install -g @expo/eas-cli
+
+# Configure EAS
+eas build:configure
+
+# Build for iOS
+eas build --platform ios
+
+# Build for Android
+eas build --platform android
+```
+
+## 🧪 Testing
+
+```bash
+# Run TypeScript checks
+npx tsc --noEmit
+
+# Run ESLint
+npx expo lint
+
+# Clear cache
+npx expo start --clear
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License.
+
+## 👨‍💻 Author
+
+**Bullionhead**
+- GitHub: [@bullionhead](https://github.com/bullionhead)
+
+## 📊 Project Status
+
+- ✅ Core payment functionality
+- ✅ User authentication & profiles  
+- ✅ Virtual card management
+- ✅ Bill payment services
+- ✅ QR code functionality
+- ✅ Modern UI/UX design
+- 🔄 Backend integration (in progress)
+- 🔄 Advanced security features (in progress)
+
+---
+
+**KotaPay** - Making payments simple, secure, and accessible for everyone.

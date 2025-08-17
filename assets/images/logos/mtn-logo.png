@@ -1,0 +1,12 @@
+**Note: This is a placeholder for the MTN logo image file**
+
+In a real implementation, this would be the actual MTN logo PNG file.
+For development purposes, you would:
+1. Download the official MTN logo from their brand guidelines
+2. Resize to appropriate dimensions (e.g., 32x32px or 48x48px)
+3. Save as PNG with transparent background
+4. Replace this placeholder file
+
+MTN Brand Colors:
+- Primary: #FFCC00 (Yellow)
+- Secondary: #000000 (Black)

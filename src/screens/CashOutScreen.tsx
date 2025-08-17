@@ -1,0 +1,668 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  SafeAreaView,
+  TextInput,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import {
+  ChevronLeft,
+  Landmark,
+  Phone,
+  MapPin,
+  Eye,
+  EyeOff,
+  Download,
+  CheckCircle,
+} from 'lucide-react-native';
+import { RootStackParamList } from '../types';
+import { colors, spacing, shadows, borderRadius, iconSizes } from '../theme';
+import { 
+  cashOutService, 
+  CashOutMethod as PayoutMethod, 
+  CashOutTransaction 
+} from '../services/CashOutService';
+import PinEntryModal from '../components/PinEntryModal';
+import { notificationService } from '../services/notifications';
+
+type CashOutScreenNavigationProp = StackNavigationProp<RootStackParamList>;
+
+interface LocalPayoutMethod extends PayoutMethod {
+  icon: React.ComponentType<any>;
+}
+
+const CashOutScreen: React.FC = () => {
+  const navigation = useNavigation<CashOutScreenNavigationProp>();
+  
+  // State management
+  const [amount, setAmount] = useState('');
+  const [selectedMethod, setSelectedMethod] = useState<LocalPayoutMethod | null>(null);
+  const [showBalance, setShowBalance] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [transaction, setTransaction] = useState<CashOutTransaction | null>(null);
+  
+  // Mock user balance and tier limit
+  const userBalance = 15000;
+  const tierLimit = 50000; // Daily cash-out limit
+  
+  // Payout methods configuration
+  const payoutMethods: LocalPayoutMethod[] = [
+    {
+      id: 'bank_transfer',
+      name: 'Bank Transfer',
+      icon: Landmark,
+      fee: 50,
+      processingTime: '1-2 business days',
+      description: 'Direct transfer to your bank account',
+      isAvailable: true,
+      limits: {
+        min: 100,
+        max: 100000,
+        daily: 50000,
+      },
+    },
+    {
+      id: 'mobile_money',
+      name: 'Mobile Money',
+      icon: Phone,
+      fee: 25,
+      processingTime: 'Instant',
+      description: 'Transfer to your mobile money wallet',
+      isAvailable: true,
+      limits: {
+        min: 50,
+        max: 25000,
+        daily: 25000,
+      },
+    },
+    {
+      id: 'agent_pickup',
+      name: 'Agent Pickup',
+      icon: MapPin,
+      fee: 75,
+      processingTime: '30 minutes',
+      description: 'Collect cash from nearest agent location',
+      isAvailable: true,
+      limits: {
+        min: 100,
+        max: 10000,
+        daily: 10000,
+      },
+    },
+  ];
+
+  // Calculate total amount including fees
+  const calculateTotal = () => {
+    const baseAmount = parseFloat(amount) || 0;
+    const fee = selectedMethod?.fee || 0;
+    return baseAmount + fee;
+  };
+
+  // Validate amount
+  const validateAmount = () => {
+    const numAmount = parseFloat(amount);
+    if (!numAmount || numAmount <= 0) {
+      Alert.alert('Invalid Amount', 'Please enter a valid amount');
+      return false;
+    }
+    if (numAmount > userBalance) {
+      Alert.alert('Insufficient Funds', 'Amount exceeds your available balance');
+      return false;
+    }
+    if (numAmount > tierLimit) {
+      Alert.alert('Limit Exceeded', `Daily cash-out limit is ₦${tierLimit.toLocaleString()}`);
+      return false;
+    }
+    return true;
+  };
+
+  // Handle cash-out initiation
+  const handleCashOut = () => {
+    if (!validateAmount() || !selectedMethod) {
+      Alert.alert('Error', 'Please select a payout method');
+      return;
+    }
+    setShowPinModal(true);
+  };
+
+  // Handle PIN verification and transaction processing
+  const handlePinVerified = async (enteredPin: string) => {
+    setShowPinModal(false);
+    setLoading(true);
+
+    try {
+      // Process cash-out using the service
+      const newTransaction = await cashOutService.processCashOut(
+        parseFloat(amount),
+        selectedMethod?.id || '',
+        {}, // Account details would be collected in a real implementation
+        enteredPin
+      );
+
+      setTransaction(newTransaction);
+      setShowSuccess(true);
+
+      // Send push notification
+      if (selectedMethod) {
+        await notificationService.sendMoneySentNotification({
+          transactionId: newTransaction.reference,
+          amount: parseFloat(amount),
+          currency: '₦',
+          senderName: 'You',
+          recipientName: selectedMethod.name,
+          message: 'Cash-out initiated',
+        });
+      }
+    } catch (err) {
+      console.error('Transaction error:', err);
+      Alert.alert('Error', 'Failed to process cash-out. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Download receipt
+  const downloadReceipt = () => {
+    Alert.alert('Receipt', 'Receipt download started');
+  };
+
+  // Reset to initial state
+  const resetForm = () => {
+    setAmount('');
+    setSelectedMethod(null);
+    setShowSuccess(false);
+    setTransaction(null);
+  };
+
+  // Success Screen Component
+  const SuccessScreen = () => (
+    <View style={styles.successContainer}>
+      <View style={styles.successIcon}>
+        <CheckCircle size={40} color={colors.white} />
+      </View>
+      
+      <Text style={styles.successTitle}>Cash-Out Initiated!</Text>
+      <Text style={styles.successSubtitle}>
+        Your cash-out request has been submitted successfully
+      </Text>
+      
+      <View style={styles.transactionCard}>
+        <View style={styles.transactionRow}>
+          <Text style={styles.transactionLabel}>Amount</Text>
+          <Text style={styles.transactionValue}>₦{transaction?.amount.toLocaleString()}</Text>
+        </View>
+        <View style={styles.transactionRow}>
+          <Text style={styles.transactionLabel}>Fee</Text>
+          <Text style={styles.transactionValue}>₦{transaction?.fee}</Text>
+        </View>
+        <View style={styles.transactionRow}>
+          <Text style={styles.transactionLabel}>Method</Text>
+          <Text style={styles.transactionValue}>{transaction?.method?.name}</Text>
+        </View>
+        <View style={styles.transactionRow}>
+          <Text style={styles.transactionLabel}>Reference</Text>
+          <Text style={styles.transactionValue}>{transaction?.reference}</Text>
+        </View>
+        <View style={styles.transactionRow}>
+          <Text style={styles.transactionLabel}>Status</Text>
+          <Text style={[styles.transactionValue, styles.pendingStatus]}>
+            {transaction?.status.toUpperCase()}
+          </Text>
+        </View>
+      </View>
+      
+      <TouchableOpacity style={styles.downloadButton} onPress={downloadReceipt}>
+        <Download size={iconSizes.sm} color={colors.primary} />
+        <Text style={styles.downloadText}>Download Receipt</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.doneButton} onPress={resetForm}>
+        <Text style={styles.doneButtonText}>Done</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // PIN Entry Modal Component (placeholder - would import actual PinEntryModal)
+  const PinModal = () => (
+    <PinEntryModal
+      visible={showPinModal}
+      onClose={() => setShowPinModal(false)}
+      onPinEntered={handlePinVerified}
+      title="Enter PIN"
+      subtitle="Confirm your transaction PIN to proceed with cash-out"
+      allowBiometric={true}
+    />
+  );
+
+  if (showSuccess) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <SuccessScreen />
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <ChevronLeft size={24} color="#000d10" />
+          </TouchableOpacity>
+          <View style={styles.headerPlaceholder} />
+          <Text style={styles.headerTitle}>Cash-Out</Text>
+          <View style={styles.headerPlaceholder} />
+        </View>
+
+        {/* Balance Card */}
+        <View style={styles.balanceCard}>
+          <View style={styles.balanceHeader}>
+            <Text style={styles.balanceLabel}>Available Balance</Text>
+            <TouchableOpacity onPress={() => setShowBalance(!showBalance)}>
+              {showBalance ? (
+                <EyeOff size={iconSizes.sm} color={colors.secondaryText} />
+              ) : (
+                <Eye size={iconSizes.sm} color={colors.secondaryText} />
+              )}
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.balanceAmount}>
+            {showBalance ? `₦${userBalance.toLocaleString()}` : '••••••'}
+          </Text>
+          <Text style={styles.balanceSubtext}>
+            Daily limit: ₦{tierLimit.toLocaleString()}
+          </Text>
+        </View>
+
+        {/* Amount Input */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Enter Amount</Text>
+          <View style={styles.amountInputContainer}>
+            <Text style={styles.currencySymbol}>₦</Text>
+            <TextInput
+              style={styles.amountInput}
+              value={amount}
+              onChangeText={setAmount}
+              placeholder="0.00"
+              keyboardType="numeric"
+              placeholderTextColor={colors.secondaryText}
+            />
+          </View>
+          {amount && parseFloat(amount) > tierLimit && (
+            <Text style={styles.warningText}>
+              Amount exceeds daily limit of ₦{tierLimit.toLocaleString()}
+            </Text>
+          )}
+        </View>
+
+        {/* Payout Methods */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Select Payout Method</Text>
+          {payoutMethods.map((method) => (
+            <TouchableOpacity
+              key={method.id}
+              style={[
+                styles.methodCard,
+                selectedMethod?.id === method.id && styles.selectedMethodCard,
+              ]}
+              onPress={() => setSelectedMethod(method)}
+            >
+              <View style={styles.methodIcon}>
+                <method.icon 
+                  size={iconSizes.md} 
+                  color={selectedMethod?.id === method.id ? colors.primary : colors.secondaryText} 
+                />
+              </View>
+              <View style={styles.methodInfo}>
+                <Text style={styles.methodName}>{method.name}</Text>
+                <Text style={styles.methodDescription}>{method.description}</Text>
+                <Text style={styles.methodTime}>{method.processingTime}</Text>
+              </View>
+              <View style={styles.methodFee}>
+                <Text style={styles.feeAmount}>₦{method.fee}</Text>
+                <Text style={styles.feeLabel}>Fee</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Fee Preview */}
+        {amount && selectedMethod && (
+          <View style={styles.feePreview}>
+            <Text style={styles.feePreviewTitle}>Transaction Summary</Text>
+            <View style={styles.feeRow}>
+              <Text style={styles.feeLabel}>Amount</Text>
+              <Text style={styles.feeValue}>₦{parseFloat(amount).toLocaleString()}</Text>
+            </View>
+            <View style={styles.feeRow}>
+              <Text style={styles.feeLabel}>Processing Fee</Text>
+              <Text style={styles.feeValue}>₦{selectedMethod.fee}</Text>
+            </View>
+            <View style={[styles.feeRow, styles.totalRow]}>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalValue}>₦{calculateTotal().toLocaleString()}</Text>
+            </View>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Action Button */}
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={[
+            styles.cashOutButton,
+            (!amount || !selectedMethod || loading) && styles.disabledButton,
+          ]}
+          onPress={handleCashOut}
+          disabled={!amount || !selectedMethod || loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={colors.white} />
+          ) : (
+            <Text style={styles.cashOutButtonText}>
+              Cash-Out ₦{amount ? parseFloat(amount).toLocaleString() : '0'}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <PinModal />
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollView: {
+    flex: 1,
+    paddingHorizontal: spacing.md,
+  },
+  header: {
+    backgroundColor: '#FFF0F5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    paddingTop: spacing.xl,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerPlaceholder: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000d10',
+    textAlign: 'center',
+  },
+  balanceCard: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.large,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    ...shadows.medium,
+  },
+  balanceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  balanceLabel: {
+    fontSize: 14,
+    color: colors.secondaryText,
+  },
+  balanceAmount: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  balanceSubtext: {
+    fontSize: 12,
+    color: colors.secondaryText,
+  },
+  section: {
+    marginBottom: spacing.lg,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.md,
+  },
+  amountInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.medium,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    ...shadows.small,
+  },
+  currencySymbol: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: colors.text,
+    marginRight: spacing.sm,
+  },
+  amountInput: {
+    flex: 1,
+    fontSize: 24,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  warningText: {
+    fontSize: 12,
+    color: colors.error,
+    marginTop: spacing.xs,
+  },
+  methodCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.medium,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    ...shadows.small,
+  },
+  selectedMethodCard: {
+    borderColor: colors.primary,
+  },
+  methodIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  methodInfo: {
+    flex: 1,
+  },
+  methodName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  methodDescription: {
+    fontSize: 12,
+    color: colors.secondaryText,
+    marginBottom: spacing.xs,
+  },
+  methodTime: {
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  methodFee: {
+    alignItems: 'flex-end',
+  },
+  feeAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  feeLabel: {
+    fontSize: 12,
+    color: colors.secondaryText,
+  },
+  feePreview: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.medium,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    ...shadows.small,
+  },
+  feePreviewTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.md,
+  },
+  feeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  feeValue: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  totalRow: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  totalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  totalValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  footer: {
+    padding: spacing.md,
+    backgroundColor: 'transparent',
+    borderTopWidth: 0,
+  },
+  cashOutButton: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.medium,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+  },
+  disabledButton: {
+    backgroundColor: colors.secondaryText,
+  },
+  cashOutButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
+  },
+  // Success Screen Styles
+  successContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  successIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.success,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  successSubtitle: {
+    fontSize: 16,
+    color: colors.secondaryText,
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+  },
+  transactionCard: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.large,
+    padding: spacing.lg,
+    width: '100%',
+    marginBottom: spacing.lg,
+    ...shadows.medium,
+  },
+  transactionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  transactionLabel: {
+    fontSize: 14,
+    color: colors.secondaryText,
+  },
+  transactionValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  pendingStatus: {
+    color: colors.warning,
+  },
+  downloadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.medium,
+    marginBottom: spacing.lg,
+  },
+  downloadText: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '600',
+    marginLeft: spacing.sm,
+  },
+  doneButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.medium,
+  },
+  doneButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
+  },
+});
+
+export default CashOutScreen;

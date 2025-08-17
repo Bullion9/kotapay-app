@@ -1,26 +1,48 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * KotaPay Color System - Updated Professional Payment App Colors
+ * Re-export from the new theme system
  */
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+import { colors } from '../src/theme';
 
-export const Colors = {
+export { colors as Colors } from '../src/theme';
+
+// For backward compatibility, also export as the old structure
+export const OldColors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    text: colors.text,
+    background: colors.background,
+    card: colors.card,
+    border: colors.border,
+    tint: colors.primary,
+    primary: colors.primary,
+    secondary: colors.seaGreen,
+    accent: colors.accent,
+    error: colors.error,
+    success: colors.success,
+    warning: colors.accent,
+    info: colors.primary,
+    muted: colors.secondaryText,
+    icon: colors.secondaryText,
+    tabIconDefault: colors.secondaryText,
+    tabIconSelected: colors.primary,
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    text: colors.white,
+    background: colors.primary,
+    card: colors.darkOlive,
+    border: colors.secondaryText,
+    tint: colors.accent,
+    primary: colors.accent,
+    secondary: colors.seaGreen,
+    accent: colors.accent,
+    error: colors.error,
+    success: colors.success,
+    warning: colors.accent,
+    info: colors.accent,
+    muted: colors.secondaryText,
+    icon: colors.secondaryText,
+    tabIconDefault: colors.secondaryText,
+    tabIconSelected: colors.accent,
   },
 };

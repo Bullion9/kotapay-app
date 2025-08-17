@@ -1,0 +1,12 @@
+**Note: This is a placeholder for the GLO logo image file**
+
+In a real implementation, this would be the actual GLO logo PNG file.
+For development purposes, you would:
+1. Download the official Globacom logo from their brand guidelines
+2. Resize to appropriate dimensions (e.g., 32x32px or 48x48px)
+3. Save as PNG with transparent background
+4. Replace this placeholder file
+
+GLO Brand Colors:
+- Primary: #00B04F (Green)
+- Secondary: #FFFFFF (White)

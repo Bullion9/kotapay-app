@@ -1,0 +1,338 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity,
+  FlatList,
+  Dimensions,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { PlusCircle } from 'lucide-react-native';
+import { colors, spacing, borderRadius, shadows } from '../theme';
+
+type RootStackParamList = {
+  CreateVirtualCardScreen: undefined;
+  VirtualCardDetailScreen: { cardId: string };
+};
+
+type NavigationProp = StackNavigationProp<RootStackParamList>;
+
+interface VirtualCard {
+  id: string;
+  lastFourDigits: string;
+  expiryDate: string;
+  status: 'Active' | 'Frozen' | 'Expired';
+  balance: number;
+  cardType: string;
+  gradientColors: string[];
+}
+
+const { width: screenWidth } = Dimensions.get('window');
+const cardWidth = screenWidth * 0.85;
+
+const VirtualCardHubScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
+  
+  // Mock data for virtual cards
+  const [virtualCards] = useState<VirtualCard[]>([
+    {
+      id: '1',
+      lastFourDigits: '4567',
+      expiryDate: '12/26',
+      status: 'Active',
+      balance: 25000,
+      cardType: 'Shopping Card',
+      gradientColors: ['#06402B', '#A8E4A0'],
+    },
+    {
+      id: '2',
+      lastFourDigits: '8901',
+      expiryDate: '08/25',
+      status: 'Frozen',
+      balance: 15000,
+      cardType: 'Travel Card',
+      gradientColors: ['#000d10', '#06402B'],
+    },
+    {
+      id: '3',
+      lastFourDigits: '2345',
+      expiryDate: '03/24',
+      status: 'Expired',
+      balance: 0,
+      cardType: 'Subscription Card',
+      gradientColors: ['#A3AABE', '#FFF0F5'],
+    },
+  ]);
+
+  const totalBalance = virtualCards.reduce((sum, card) => sum + card.balance, 0);
+
+  const getStatusColor = (status: VirtualCard['status']) => {
+    switch (status) {
+      case 'Active':
+        return '#A8E4A0';
+      case 'Frozen':
+        return '#EA3B52';
+      case 'Expired':
+        return '#A3AABE';
+      default:
+        return '#A3AABE';
+    }
+  };
+
+  const renderCard = ({ item }: { item: VirtualCard }) => (
+    <TouchableOpacity
+      style={styles.cardContainer}
+      onPress={() => navigation.navigate('VirtualCardDetailScreen', { cardId: item.id })}
+      activeOpacity={0.8}
+    >
+      <View style={[styles.virtualCard, { backgroundColor: item.gradientColors[0] }]}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardType}>{item.cardType}</Text>
+          <View style={[styles.statusChip, { backgroundColor: getStatusColor(item.status) }]}>
+            <Text style={styles.statusText}>{item.status}</Text>
+          </View>
+        </View>
+        
+        <View style={styles.cardContent}>
+          <Text style={styles.cardNumber}>•••• •••• •••• {item.lastFourDigits}</Text>
+          <View style={styles.cardDetails}>
+            <View>
+              <Text style={styles.cardLabel}>EXPIRES</Text>
+              <Text style={styles.cardValue}>{item.expiryDate}</Text>
+            </View>
+            <View>
+              <Text style={styles.cardLabel}>BALANCE</Text>
+              <Text style={styles.cardValue}>₦{item.balance.toLocaleString()}</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.placeholder} />
+        
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Virtual Cards</Text>
+        </View>
+        
+        <View style={styles.placeholder} />
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Balance Summary Card */}
+        <View style={styles.balanceSummaryCard}>
+          <View style={styles.balanceContent}>
+            <Text style={styles.balanceLabel}>Total Balance</Text>
+            <Text style={styles.balanceAmount}>₦{totalBalance.toLocaleString()}</Text>
+            <Text style={styles.balanceSubtext}>Across {virtualCards.length} virtual cards</Text>
+          </View>
+        </View>
+
+        {/* Active Cards Section */}
+        <View style={styles.cardsSection}>
+          <Text style={styles.sectionTitle}>Your Virtual Cards</Text>
+          
+          {virtualCards.length > 0 ? (
+            <FlatList
+              data={virtualCards}
+              renderItem={renderCard}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={cardWidth + spacing.md}
+              decelerationRate="fast"
+              contentContainerStyle={styles.cardsList}
+            />
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No virtual cards yet</Text>
+              <Text style={styles.emptyStateSubtext}>Create your first virtual card to get started</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+
+      {/* FAB */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate('CreateVirtualCardScreen')}
+        activeOpacity={0.8}
+      >
+        <PlusCircle size={24} color={colors.white} />
+      </TouchableOpacity>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFF0F5',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFF0F5',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000d10',
+  },
+  placeholder: {
+    width: 40,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+  },
+  balanceSummaryCard: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.xl,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.large,
+    padding: spacing.xl,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    borderStyle: 'solid',
+    // Sea-green gradient border effect using shadow
+    ...shadows.large,
+    shadowColor: '#06402B',
+    elevation: 8,
+  },
+  balanceContent: {
+    alignItems: 'center',
+  },
+  balanceLabel: {
+    fontSize: 14,
+    color: colors.secondaryText,
+    marginBottom: spacing.xs,
+  },
+  balanceAmount: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#06402B',
+    marginBottom: spacing.xs,
+  },
+  balanceSubtext: {
+    fontSize: 12,
+    color: colors.secondaryText,
+  },
+  cardsSection: {
+    marginBottom: spacing.xl,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.lg,
+  },
+  cardsList: {
+    paddingLeft: spacing.md,
+  },
+  cardContainer: {
+    width: cardWidth,
+    marginRight: spacing.md,
+  },
+  virtualCard: {
+    height: 200,
+    borderRadius: borderRadius.large,
+    padding: spacing.lg,
+    justifyContent: 'space-between',
+    ...shadows.medium,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  cardType: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.white,
+    opacity: 0.9,
+  },
+  statusChip: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.small,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.white,
+  },
+  cardContent: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  cardNumber: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.white,
+    marginBottom: spacing.lg,
+    letterSpacing: 2,
+  },
+  cardDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  cardLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: colors.white,
+    opacity: 0.7,
+    marginBottom: 4,
+  },
+  cardValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.white,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl * 2,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: colors.secondaryText,
+    textAlign: 'center',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: spacing.xl,
+    right: spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#06402B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.large,
+    elevation: 8,
+  },
+});
+
+export default VirtualCardHubScreen;

@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build Development",
+			"type": "shell",
+			"command": "npx expo export --dev",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$expo"
+			],
+			"group": "build"
+		}
+	]
+}
