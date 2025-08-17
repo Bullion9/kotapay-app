@@ -18,13 +18,12 @@ import {
   CreditCard,
   Landmark,
   Store,
-  Eye,
-  EyeOff,
   CheckCircle,
   ChevronDown,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../types';
-import { colors, spacing, shadows, borderRadius, iconSizes } from '../theme';
+import { colors, spacing, shadows, borderRadius, iconSizes, globalStyles } from '../theme';
+import { EyeIcon } from '../components/icons';
 import PinEntryModal from '../components/PinEntryModal';
 import { notificationService } from '../services/notifications';
 
@@ -63,6 +62,7 @@ const TopUpScreen: React.FC = () => {
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [successAnimation] = useState(new Animated.Value(0));
   const [slideAnimation] = useState(new Animated.Value(0));
+  const [isAmountFocused, setIsAmountFocused] = useState(false);
   
   // Mock user balance
   const userBalance = 450000;
@@ -271,27 +271,33 @@ const TopUpScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <ChevronLeft size={24} color="#000d10" />
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={globalStyles.backButton}>
+            <ChevronLeft size={24} color={colors.primary} />
           </TouchableOpacity>
-          <View style={styles.headerPlaceholder} />
-          <Text style={styles.headerTitle}>Add Money</Text>
-          <View style={styles.headerPlaceholder} />
         </View>
+        
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Add Money</Text>
+        </View>
+        
+        <View style={styles.headerRight} />
+      </View>
+
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
 
         {/* Balance Card */}
         <View style={styles.balanceCard}>
           <View style={styles.balanceHeader}>
             <Text style={styles.balanceLabel}>Current Wallet Balance</Text>
             <TouchableOpacity onPress={() => setShowBalance(!showBalance)}>
-              {showBalance ? (
-                <EyeOff size={iconSizes.sm} color={colors.white} />
-              ) : (
-                <Eye size={iconSizes.sm} color={colors.white} />
-              )}
+              <EyeIcon 
+                size={iconSizes.sm} 
+                color={colors.white} 
+                filled={!showBalance}
+              />
             </TouchableOpacity>
           </View>
           <Text style={styles.balanceAmount}>
@@ -317,13 +323,16 @@ const TopUpScreen: React.FC = () => {
             <TextInput
               style={[
                 styles.amountInput,
-                amount && { borderColor: colors.seaGreen }
+                amount && { borderColor: colors.seaGreen },
+                isAmountFocused && styles.amountInputFocused
               ]}
               value={amount}
               onChangeText={setAmount}
               placeholder="0"
               keyboardType="numeric"
               placeholderTextColor={colors.placeholder}
+              onFocus={() => setIsAmountFocused(true)}
+              onBlur={() => setIsAmountFocused(false)}
             />
           </View>
         </View>
@@ -444,12 +453,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF0F5',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.lg,
     paddingTop: spacing.xl,
   },
-  backButton: {
-    padding: 8,
+  headerLeft: {
+    width: 56, // Slightly larger to accommodate back button + padding
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerRight: {
+    width: 56, // Same width as left side for perfect centering
   },
   headerPlaceholder: {
     flex: 1,
@@ -462,10 +481,10 @@ const styles = StyleSheet.create({
   },
   balanceCard: {
     marginHorizontal: spacing.lg,
-    marginVertical: spacing.lg,
+    marginBottom: spacing.xl,
     padding: spacing.xl,
-    borderRadius: borderRadius.large,
-    backgroundColor: '#06402B',
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.primary,
     ...shadows.medium,
   },
   balanceHeader: {
@@ -480,8 +499,8 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   balanceAmount: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 36,
+    fontWeight: 'normal',
     color: colors.white,
     marginBottom: spacing.xs,
   },
@@ -535,6 +554,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
     ...shadows.small,
+  },
+  amountInputFocused: {
+    borderColor: '#06402B',
+    ...shadows.medium,
   },
   methodCard: {
     flexDirection: 'row',

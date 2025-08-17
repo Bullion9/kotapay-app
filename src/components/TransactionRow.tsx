@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { ArrowUp, ArrowDown, CreditCard, FileText } from 'lucide-react-native';
+import React, { useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { ArrowUp, ArrowDown, CreditCard, FileText, Receipt } from 'lucide-react-native';
 
 interface Transaction {
   id: string;
@@ -14,76 +14,87 @@ interface Transaction {
 
 interface TransactionRowProps {
   transaction: Transaction;
+  onReceiptPress?: (transaction: Transaction) => void;
 }
 
-const TransactionRow: React.FC<TransactionRowProps> = ({ transaction }) => {
-  const getTypeConfig = (type: string) => {
-    switch (type) {
-      case 'sent':
-        return { bg: '#EA3B52', icon: ArrowUp, label: 'Sent' };
-      case 'received':
-        return { bg: '#A8E4A0', icon: ArrowDown, label: 'Received' };
-      case 'topup':
-        return { bg: '#06402B', icon: CreditCard, label: 'Top-up' };
-      case 'bill':
-        return { bg: '#3E3D29', icon: FileText, label: 'Bill Payment' };
-      default:
-        return { bg: '#A3AABE', icon: FileText, label: 'Transaction' };
-    }
-  };
+// Memoize type configurations to avoid recreating objects
+const TYPE_CONFIGS = {
+  sent: { bg: '#EA3B52', icon: ArrowUp, label: 'Sent' },
+  received: { bg: '#A8E4A0', icon: ArrowDown, label: 'Received' },
+  topup: { bg: '#06402B', icon: CreditCard, label: 'Top-up' },
+  bill: { bg: '#3E3D29', icon: FileText, label: 'Bill Payment' },
+  default: { bg: '#A3AABE', icon: FileText, label: 'Transaction' }
+} as const;
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'success':
-        return '#A8E4A0';
-      case 'pending':
-        return '#b9f1ff';
-      case 'failed':
-        return '#EA3B52';
-      default:
-        return '#A3AABE';
-    }
-  };
+const STATUS_COLORS = {
+  success: '#A8E4A0',
+  pending: '#FFB84D',
+  failed: '#EA3B52',
+  default: '#A3AABE'
+} as const;
 
-  const getAmountColor = (type: string) => {
-    switch (type) {
-      case 'sent':
-      case 'bill':
-        return '#EA3B52';
-      case 'received':
-      case 'topup':
-        return '#A8E4A0';
-      default:
-        return '#000d10';
-    }
-  };
+const AMOUNT_COLORS = {
+  sent: '#EA3B52',
+  bill: '#EA3B52',
+  received: '#A8E4A0',
+  topup: '#A8E4A0',
+  default: '#000000'
+} as const;
 
-  const formatAmount = (amount: number, currency: string, type: string) => {
-    const prefix = type === 'sent' || type === 'bill' ? '−' : '+';
-    return `${prefix}${currency}${amount.toLocaleString()}`;
-  };
+const TransactionRow: React.FC<TransactionRowProps> = React.memo(({ transaction, onReceiptPress }) => {
+  // Memoize expensive calculations
+  const typeConfig = useMemo(() => 
+    TYPE_CONFIGS[transaction.type as keyof typeof TYPE_CONFIGS] || TYPE_CONFIGS.default, 
+    [transaction.type]
+  );
 
-  const formatTimeAgo = (date: Date) => {
+  const statusColor = useMemo(() => 
+    STATUS_COLORS[transaction.status as keyof typeof STATUS_COLORS] || STATUS_COLORS.default,
+    [transaction.status]
+  );
+
+  const amountColor = useMemo(() => 
+    AMOUNT_COLORS[transaction.type as keyof typeof AMOUNT_COLORS] || AMOUNT_COLORS.default,
+    [transaction.type]
+  );
+
+  const formattedAmount = useMemo(() => {
+    const sign = transaction.type === 'sent' || transaction.type === 'bill' ? '-' : '+';
+    return `${sign}${transaction.currency}${transaction.amount.toLocaleString()}`;
+  }, [transaction.amount, transaction.currency, transaction.type]);
+
+  const timeAgo = useMemo(() => {
     const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffInMinutes = Math.floor((now.getTime() - transaction.timestamp.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays}d ago`;
+    
+    return transaction.timestamp.toLocaleDateString();
+  }, [transaction.timestamp]);
 
-    if (diffMins < 60) {
-      return `${diffMins} min ago`;
-    } else if (diffHours < 24) {
-      return `${diffHours} h ago`;
-    } else {
-      return `${diffDays} d ago`;
-    }
-  };
+  const handleReceiptPress = useCallback(() => {
+    onReceiptPress?.(transaction);
+  }, [onReceiptPress, transaction]);
 
-  const typeConfig = getTypeConfig(transaction.type);
+  const handleRowPress = useCallback(() => {
+    onReceiptPress?.(transaction);
+  }, [onReceiptPress, transaction]);
+
   const IconComponent = typeConfig.icon;
 
   return (
-    <View style={styles.container}>
+    <TouchableOpacity 
+      style={styles.container}
+      onPress={handleRowPress}
+      activeOpacity={0.7}
+    >
       {/* Left - Icon Circle */}
       <View style={[styles.iconCircle, { backgroundColor: typeConfig.bg }]}>
         <IconComponent size={20} color="white" />
@@ -93,20 +104,34 @@ const TransactionRow: React.FC<TransactionRowProps> = ({ transaction }) => {
       <View style={styles.middle}>
         <Text style={styles.counterparty}>{transaction.counterparty}</Text>
         <Text style={styles.subtitle}>
-          {typeConfig.label} • {formatTimeAgo(transaction.timestamp)}
+          {typeConfig.label} • {timeAgo}
         </Text>
       </View>
 
-      {/* Right - Amount and Status */}
+      {/* Right - Amount, Status, and Receipt Icon */}
       <View style={styles.right}>
-        <Text style={[styles.amount, { color: getAmountColor(transaction.type) }]}>
-          {formatAmount(transaction.amount, transaction.currency, transaction.type)}
-        </Text>
-        <View style={[styles.statusDot, { backgroundColor: getStatusColor(transaction.status) }]} />
+        <View style={styles.amountContainer}>
+          <Text style={[styles.amount, { color: amountColor }]}>
+            {formattedAmount}
+          </Text>
+          <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+        </View>
+        {onReceiptPress && (
+          <TouchableOpacity 
+            style={styles.receiptButton}
+            onPress={handleReceiptPress}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Receipt size={16} color="#06402B" />
+          </TouchableOpacity>
+        )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
-};
+});
+
+// Add display name for debugging
+TransactionRow.displayName = 'TransactionRow';
 
 const styles = StyleSheet.create({
   container: {
@@ -130,22 +155,33 @@ const styles = StyleSheet.create({
   },
   counterparty: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000d10',
+    fontWeight: '600',
+    color: '#000000',
     marginBottom: 2,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#A3AABE',
   },
   right: {
     alignItems: 'flex-end',
     justifyContent: 'center',
+    minWidth: 80,
+  },
+  amountContainer: {
+    alignItems: 'flex-end',
+    marginBottom: 4,
   },
   amount: {
     fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  receiptButton: {
+    padding: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(6, 64, 43, 0.1)',
+    marginTop: 4,
   },
   statusDot: {
     width: 8,

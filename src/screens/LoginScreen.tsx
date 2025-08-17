@@ -13,10 +13,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ArrowLeft, Eye, EyeOff, Mail, Lock } from 'lucide-react-native';
+import { ChevronLeft, Mail, Lock } from 'lucide-react-native';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { globalStyles, colors, spacing, iconSizes, shadows, borderRadius } from '../theme';
+import { colors, spacing, borderRadius, shadows, iconSizes, globalStyles } from '../theme';
+import { EyeIcon } from '../components/icons';
+import ForgotPasswordModal from '../components/ForgotPasswordModal';
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -26,6 +28,9 @@ const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('demo@kotapay.com');
   const [password, setPassword] = useState('password');
   const [showPassword, setShowPassword] = useState(false);
+  const [isEmailFocused, setIsEmailFocused] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -54,10 +59,10 @@ const LoginScreen: React.FC = () => {
           {/* Header with Back Button */}
           <View style={styles.header}>
             <TouchableOpacity 
-              style={styles.backButton}
+              style={globalStyles.backButton}
               onPress={() => navigation.goBack()}
             >
-              <ArrowLeft size={iconSizes.md} color={colors.text} />
+              <ChevronLeft size={iconSizes.md} color={colors.text} />
             </TouchableOpacity>
             <View style={styles.headerContent}>
               <View style={styles.logoContainer}>
@@ -73,7 +78,7 @@ const LoginScreen: React.FC = () => {
             {/* Email Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Email Address</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, isEmailFocused && styles.inputWrapperFocused]}>
                 <Mail size={iconSizes.sm} color={colors.secondaryText} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
@@ -84,6 +89,8 @@ const LoginScreen: React.FC = () => {
                   autoCapitalize="none"
                   autoCorrect={false}
                   placeholderTextColor={colors.secondaryText}
+                  onFocus={() => setIsEmailFocused(true)}
+                  onBlur={() => setIsEmailFocused(false)}
                 />
               </View>
             </View>
@@ -91,7 +98,7 @@ const LoginScreen: React.FC = () => {
             {/* Password Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Password</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, isPasswordFocused && styles.inputWrapperFocused]}>
                 <Lock size={iconSizes.sm} color={colors.secondaryText} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
@@ -101,22 +108,27 @@ const LoginScreen: React.FC = () => {
                   secureTextEntry={!showPassword}
                   autoCorrect={false}
                   placeholderTextColor={colors.secondaryText}
+                  onFocus={() => setIsPasswordFocused(true)}
+                  onBlur={() => setIsPasswordFocused(false)}
                 />
                 <TouchableOpacity 
                   onPress={() => setShowPassword(!showPassword)}
                   style={styles.eyeButton}
                 >
-                  {showPassword ? (
-                    <EyeOff size={iconSizes.sm} color={colors.secondaryText} />
-                  ) : (
-                    <Eye size={iconSizes.sm} color={colors.secondaryText} />
-                  )}
+                  <EyeIcon 
+                    size={iconSizes.sm} 
+                    color={colors.secondaryText} 
+                    filled={!showPassword}
+                  />
                 </TouchableOpacity>
               </View>
             </View>
 
             {/* Forgot Password */}
-            <TouchableOpacity style={styles.forgotPassword}>
+            <TouchableOpacity 
+              style={styles.forgotPassword}
+              onPress={() => setShowForgotPasswordModal(true)}
+            >
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
 
@@ -146,6 +158,21 @@ const LoginScreen: React.FC = () => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal
+        visible={showForgotPasswordModal}
+        onClose={() => setShowForgotPasswordModal(false)}
+        onSuccess={() => {
+          // Handle successful password reset
+          Alert.alert(
+            'Password Reset Successful',
+            'You have been automatically signed in with your new password.',
+            [{ text: 'OK' }]
+          );
+          navigation.navigate('MainTabs');
+        }}
+      />
     </SafeAreaView>
   );
 };
@@ -166,16 +193,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.lg,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xl,
-    ...shadows.small,
   },
   headerContent: {
     alignItems: 'center',
@@ -226,10 +243,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.white,
     borderRadius: borderRadius.large,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
     ...shadows.small,
+  },
+  inputWrapperFocused: {
+    borderColor: '#06402B',
+    ...shadows.medium,
   },
   inputIcon: {
     marginRight: spacing.sm,

@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import {
   CreditCard,
@@ -15,11 +16,18 @@ import {
   Settings,
   Lock,
   MoreHorizontal,
+  ChevronLeft,
 } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius, shadows, iconSizes } from '../theme';
+import { colors, spacing, typography, borderRadius, shadows, iconSizes, globalStyles } from '../theme';
+import { useNavigation } from '@react-navigation/native';
+import PinEntryModal from '../components/PinEntryModal';
 
 const CardScreen: React.FC = () => {
+  const navigation = useNavigation();
   const [showCardNumber, setShowCardNumber] = React.useState(false);
+  const [showBalance, setShowBalance] = React.useState(false);
+  const [showPinModal, setShowPinModal] = React.useState(false);
+  const [pinModalAction, setPinModalAction] = React.useState<'viewCard' | 'freezeCard' | 'addCard' | 'settings' | null>(null);
 
   const cards = [
     {
@@ -28,7 +36,7 @@ const CardScreen: React.FC = () => {
       last4: '4532',
       balance: 1234.56,
       isActive: true,
-      color: colors.primary,
+      color: '#06402B',
     },
     {
       id: '2',
@@ -36,11 +44,63 @@ const CardScreen: React.FC = () => {
       last4: '8901',
       balance: 567.89,
       isActive: false,
-      color: colors.accent,
+      color: '#000d10',
     },
   ];
 
-  const toggleCardNumber = () => setShowCardNumber(!showCardNumber);
+  // Calculate total balance across all cards
+  const totalBalance = cards.reduce((sum, card) => sum + card.balance, 0);
+
+  const handlePinVerified = (pin: string) => {
+    setShowPinModal(false);
+    
+    switch (pinModalAction) {
+      case 'viewCard':
+        setShowCardNumber(!showCardNumber);
+        break;
+      case 'freezeCard':
+        handleFreezeCard();
+        break;
+      case 'addCard':
+        handleAddCard();
+        break;
+      case 'settings':
+        handleCardSettings();
+        break;
+    }
+    setPinModalAction(null);
+  };
+
+  const requirePinForAction = (action: 'viewCard' | 'freezeCard' | 'addCard' | 'settings') => {
+    setPinModalAction(action);
+    setShowPinModal(true);
+  };
+
+  const toggleCardNumber = () => requirePinForAction('viewCard');
+
+  const handleFreezeCard = () => {
+    Alert.alert(
+      'Freeze Card',
+      'Are you sure you want to freeze this card? You can unfreeze it later.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Freeze', style: 'destructive', onPress: () => {
+          // Implement freeze card logic
+          Alert.alert('Success', 'Card has been frozen successfully');
+        }},
+      ]
+    );
+  };
+
+  const handleAddCard = () => {
+    Alert.alert('Add Card', 'Navigate to add new card screen');
+    // Navigate to add card screen
+  };
+
+  const handleCardSettings = () => {
+    Alert.alert('Card Settings', 'Navigate to card settings screen');
+    // Navigate to card settings screen
+  };
 
   const renderCard = (card: typeof cards[0]) => (
     <View key={card.id} style={[styles.card, { backgroundColor: card.color }]}>
@@ -93,28 +153,57 @@ const CardScreen: React.FC = () => {
     {
       title: 'Add Card',
       icon: Plus,
-      color: colors.success,
-      onPress: () => {/* Add Card functionality */},
+      color: '#06402B',
+      onPress: () => requirePinForAction('addCard'),
     },
     {
       title: 'Freeze Card',
       icon: Lock,
-      color: colors.warning,
-      onPress: () => {/* Freeze Card functionality */},
+      color: colors.error,
+      onPress: () => requirePinForAction('freezeCard'),
     },
     {
       title: 'Card Settings',
       icon: Settings,
-      color: colors.primary,
-      onPress: () => {/* Card Settings functionality */},
+      color: '#000d10',
+      onPress: () => requirePinForAction('settings'),
     },
   ];
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={globalStyles.backButton} onPress={() => navigation.goBack()}>
+          <ChevronLeft size={24} color={colors.primary} />
+        </TouchableOpacity>
+        <View style={styles.headerPlaceholder} />
+        <Text style={styles.headerTitle}>My Cards</Text>
+        <View style={styles.headerPlaceholder} />
+      </View>
+
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>My Cards</Text>
+        {/* Balance Card */}
+        <View style={styles.balanceCard}>
+          <View style={styles.balanceHeader}>
+            <Text style={styles.balanceLabel}>Total Card Balance</Text>
+            <TouchableOpacity onPress={() => setShowBalance(!showBalance)}>
+              {showBalance ? (
+                <EyeOff size={iconSizes.sm} color={colors.white} />
+              ) : (
+                <Eye size={iconSizes.sm} color={colors.white} />
+              )}
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.balanceAmount}>
+            {showBalance ? `₦${totalBalance.toFixed(2)}` : '••••••'}
+          </Text>
+          <Text style={styles.balanceSubtext}>
+            Across {cards.length} cards
+          </Text>
+        </View>
+
+        <View style={styles.content}>
           <Text style={styles.subtitle}>Manage your payment cards</Text>
         </View>
 
@@ -154,6 +243,25 @@ const CardScreen: React.FC = () => {
           </View>
         </View>
       </ScrollView>
+
+      {/* PIN Entry Modal */}
+      <PinEntryModal
+        visible={showPinModal}
+        onClose={() => {
+          setShowPinModal(false);
+          setPinModalAction(null);
+        }}
+        onPinEntered={handlePinVerified}
+        title="Verify PIN"
+        subtitle={
+          pinModalAction === 'viewCard' ? 'Enter PIN to view card details' :
+          pinModalAction === 'freezeCard' ? 'Enter PIN to freeze card' :
+          pinModalAction === 'addCard' ? 'Enter PIN to add new card' :
+          pinModalAction === 'settings' ? 'Enter PIN to access card settings' :
+          'Enter your PIN to continue'
+        }
+        allowBiometric={true}
+      />
     </SafeAreaView>
   );
 };
@@ -164,17 +272,62 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    padding: spacing.xl,
-    paddingBottom: spacing.lg,
+    backgroundColor: '#FFF0F5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    paddingTop: spacing.xl,
   },
-  title: {
-    ...typography.h2,
-    color: colors.text,
+  headerPlaceholder: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000d10',
+    textAlign: 'center',
+  },
+  // Balance Card Styles
+  balanceCard: {
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.xl,
+    padding: spacing.xl,
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.primary,
+    ...shadows.medium,
+  },
+  balanceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  balanceLabel: {
+    fontSize: 14,
+    color: colors.white,
+    opacity: 0.8,
+  },
+  balanceAmount: {
+    fontSize: 36,
+    fontWeight: 'normal',
+    color: colors.white,
     marginBottom: spacing.xs,
+  },
+  balanceSubtext: {
+    fontSize: 12,
+    color: colors.white,
+    opacity: 0.7,
+  },
+  content: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
   },
   subtitle: {
     ...typography.caption,
     color: colors.secondaryText,
+    textAlign: 'center',
   },
   cardsContainer: {
     paddingHorizontal: spacing.xl,
@@ -262,11 +415,13 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: colors.white,
     borderRadius: borderRadius.medium,
     padding: spacing.lg,
     alignItems: 'center',
     ...shadows.small,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   actionIcon: {
     width: 48,

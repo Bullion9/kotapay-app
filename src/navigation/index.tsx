@@ -3,16 +3,15 @@ import { NavigationContainer, NavigationContainerRef } from '@react-navigation/n
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { 
-  Home, 
   CreditCard, 
   Users, 
-  Clock, 
-  User
+  Clock
 } from 'lucide-react-native';
 
 import { RootStackParamList, TabParamList } from '../types';
 import { colors } from '../theme';
 import { deepLinkService } from '../services/deepLinking';
+import { HomeIcon, ProfileIcon } from '../components/icons';
 
 // Screen imports
 import {
@@ -21,6 +20,7 @@ import {
   LoginScreen,
   RegisterScreen,
   PinSetupScreen,
+  CreateAccountPinScreen,
   HomeScreen,
   SendMoneyScreen,
   VirtualCardHubScreen,
@@ -42,6 +42,8 @@ import {
   TopUpScreen,
   BettingScreen,
   AirtimeTopUpScreen,
+  PayWithLinkScreen,
+  ReceiptScreen,
 } from '../screens';
 
 import NotificationScreen from '../screens/NotificationScreen';
@@ -86,29 +88,20 @@ function TabNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
-          let IconComponent;
-
           switch (route.name) {
             case 'Home':
-              IconComponent = Home;
-              break;
+              return <HomeIcon size={size} color={color} focused={focused} />;
             case 'Card':
-              IconComponent = CreditCard;
-              break;
+              return <CreditCard size={size} color={color} />;
             case 'Contacts':
-              IconComponent = Users;
-              break;
+              return <Users size={size} color={color} />;
             case 'History':
-              IconComponent = Clock;
-              break;
+              return <Clock size={size} color={color} />;
             case 'Profile':
-              IconComponent = User;
-              break;
+              return <ProfileIcon size={size} color={color} focused={focused} />;
             default:
-              IconComponent = Home;
+              return <HomeIcon size={size} color={color} focused={focused} />;
           }
-
-          return <IconComponent size={size} color={color} />;
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.secondaryText,
@@ -209,6 +202,11 @@ export default function AppNavigator() {
           options={{ headerShown: false }}
         />
         <Stack.Screen 
+          name="CreateAccountPin" 
+          component={CreateAccountPinScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
           name="MainTabs" 
           component={TabNavigator}
           options={{ headerShown: false }}
@@ -257,6 +255,13 @@ export default function AppNavigator() {
           }}
         />
         <Stack.Screen 
+          name="Receipt" 
+          component={ReceiptScreen}
+          options={{ 
+            headerShown: false
+          }}
+        />
+        <Stack.Screen 
           name="Contacts" 
           component={ContactsScreen}
           options={{ 
@@ -282,8 +287,7 @@ export default function AppNavigator() {
           name="Transactions" 
           component={TransactionHistoryScreen}
           options={{ 
-            title: 'Transaction History',
-            headerBackTitle: 'Back'
+            headerShown: false
           }}
         />
         <Stack.Screen 
@@ -324,6 +328,13 @@ export default function AppNavigator() {
         <Stack.Screen 
           name="AirtimeTopUp" 
           component={AirtimeTopUpScreen}
+          options={{ 
+            headerShown: false // We handle header in the component
+          }}
+        />
+        <Stack.Screen 
+          name="PayWithLink" 
+          component={PayWithLinkScreen}
           options={{ 
             headerShown: false // We handle header in the component
           }}

@@ -14,13 +14,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera, CameraView, CameraType, FlashMode } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import QRCode from 'react-native-qrcode-svg';
+
 import {
   X,
   Zap,
   ZapOff,
   Download,
   Share2,
-  QrCode,
   Camera as CameraIcon,
   RotateCcw,
   AlertCircle,
@@ -126,11 +126,6 @@ const SimpleQRCodeModal: React.FC<QRCodeScannerModalProps> = ({
 
   const toggleCameraType = () => {
     setCameraType(cameraType === 'back' ? 'front' : 'back');
-  };
-
-  const switchMode = () => {
-    setCurrentMode(currentMode === 'scan' ? 'generate' : 'scan');
-    setScanned(false);
   };
 
   const pickImageFromGallery = async () => {
@@ -277,6 +272,9 @@ const SimpleQRCodeModal: React.FC<QRCodeScannerModalProps> = ({
               <View style={[styles.corner, styles.topRight]} />
               <View style={[styles.corner, styles.bottomLeft]} />
               <View style={[styles.corner, styles.bottomRight]} />
+              
+              {/* Scanning line animation placeholder */}
+              <View style={styles.scanningLine} />
             </View>
           </View>
 
@@ -369,61 +367,34 @@ const SimpleQRCodeModal: React.FC<QRCodeScannerModalProps> = ({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} translucent={false} />
       <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
+          <View style={styles.headerBackground} />
+          
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <X size={iconSizes.md} color={colors.white} />
+            <View style={styles.closeButtonInner}>
+              <X size={18} color={colors.primary} strokeWidth={3} />
+            </View>
           </TouchableOpacity>
           
-          <Text style={styles.headerTitle}>
-            {currentMode === 'scan' ? 'Scan QR Code' : 'My QR Code'}
-          </Text>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>
+              {currentMode === 'scan' ? 'Scan QR Code' : 'My QR Code'}
+            </Text>
+            <View style={styles.titleUnderline} />
+            <Text style={styles.headerSubtitle}>
+              {currentMode === 'scan' ? 'Point camera at any QR code' : 'Share your payment code'}
+            </Text>
+          </View>
           
-          <TouchableOpacity style={styles.modeButton} onPress={switchMode}>
-            <QrCode size={iconSizes.md} color={colors.white} />
-          </TouchableOpacity>
+          <View style={styles.headerSpacer} />
         </View>
 
         {/* Content */}
         <View style={styles.content}>
           {currentMode === 'scan' ? renderScannerView() : renderGeneratorView()}
-        </View>
-
-        {/* Mode Toggle */}
-        <View style={styles.modeToggle}>
-          <TouchableOpacity
-            style={[
-              styles.modeToggleButton,
-              currentMode === 'scan' && styles.modeToggleButtonActive,
-            ]}
-            onPress={() => setCurrentMode('scan')}
-          >
-            <CameraIcon size={iconSizes.sm} color={currentMode === 'scan' ? colors.white : colors.text} />
-            <Text style={[
-              styles.modeToggleText,
-              currentMode === 'scan' && styles.modeToggleTextActive,
-            ]}>
-              Scan
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.modeToggleButton,
-              currentMode === 'generate' && styles.modeToggleButtonActive,
-            ]}
-            onPress={() => setCurrentMode('generate')}
-          >
-            <QrCode size={iconSizes.sm} color={currentMode === 'generate' ? colors.white : colors.text} />
-            <Text style={[
-              styles.modeToggleText,
-              currentMode === 'generate' && styles.modeToggleTextActive,
-            ]}>
-              Generate
-            </Text>
-          </TouchableOpacity>
         </View>
       </SafeAreaView>
     </Modal>
@@ -440,33 +411,71 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.lg,
     paddingTop: spacing.xl,
-    backgroundColor: colors.primary,
-    borderBottomLeftRadius: borderRadius.large,
-    borderBottomRightRadius: borderRadius.large,
-    ...shadows.medium,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    position: 'relative',
+  },
+  headerBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.background,
+    opacity: 0.98,
   },
   closeButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  closeButtonInner: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.small,
+  },
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    zIndex: 1,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.white,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    textAlign: 'center',
+    marginBottom: 4,
+    letterSpacing: 0.3,
   },
-  modeButton: {
+  titleUnderline: {
+    width: 60,
+    height: 3,
+    backgroundColor: '#06402B',
+    borderRadius: 2,
+    marginBottom: 6,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  headerSpacer: {
     width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   content: {
     flex: 1,
@@ -491,16 +500,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scannerFrame: {
-    width: 250,
-    height: 250,
+    width: 280,
+    height: 280,
     position: 'relative',
   },
   corner: {
     position: 'absolute',
-    width: 30,
-    height: 30,
-    borderColor: colors.white,
-    borderWidth: 3,
+    width: 40,
+    height: 40,
+    borderColor: '#06402B',
+    borderWidth: 4,
   },
   topLeft: {
     top: 0,
@@ -526,9 +535,22 @@ const styles = StyleSheet.create({
     borderLeftWidth: 0,
     borderTopWidth: 0,
   },
+  scanningLine: {
+    position: 'absolute',
+    top: '50%',
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: '#06402B',
+    opacity: 0.8,
+    shadowColor: '#06402B',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+  },
   instructionsContainer: {
     position: 'absolute',
-    bottom: 120,
+    bottom: 140,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -539,17 +561,24 @@ const styles = StyleSheet.create({
     color: colors.white,
     textAlign: 'center',
     marginBottom: spacing.sm,
+    fontWeight: '500',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   rescanButton: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.medium,
+    paddingVertical: spacing.md,
+    backgroundColor: '#06402B',
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    ...shadows.medium,
   },
   rescanButtonText: {
     fontSize: 14,
     color: colors.white,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   cameraControls: {
     position: 'absolute',
@@ -561,12 +590,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   controlButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    ...shadows.medium,
   },
   simulateText: {
     fontSize: 12,
@@ -678,36 +710,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.white,
     fontWeight: '500',
-  },
-
-  // Mode Toggle Styles
-  modeToggle: {
-    flexDirection: 'row',
-    margin: spacing.lg,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.large,
-    padding: 4,
-    ...shadows.small,
-  },
-  modeToggleButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.medium,
-    gap: spacing.xs,
-  },
-  modeToggleButtonActive: {
-    backgroundColor: colors.primary,
-  },
-  modeToggleText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-  },
-  modeToggleTextActive: {
-    color: colors.white,
   },
 });
 

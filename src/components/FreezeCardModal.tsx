@@ -8,13 +8,11 @@ import {
   Animated,
   PanResponder,
   Switch,
-  ActivityIndicator,
 } from 'react-native';
 import {
   Snowflake,
   Shield,
   AlertTriangle,
-  CheckCircle,
   X,
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius } from '../theme';
@@ -25,14 +23,7 @@ interface FreezeCardModalProps {
   cardId: string;
   cardNickname: string;
   isCurrentlyFrozen: boolean;
-  onStatusChanged: (cardId: string, isFrozen: boolean) => void;
-}
-
-interface CardStatusResponse {
-  success: boolean;
-  isFrozen: boolean;
-  message?: string;
-  error?: string;
+  onPinRequired: (cardId: string, shouldFreeze: boolean) => void;
 }
 
 const FreezeCardModal: React.FC<FreezeCardModalProps> = ({
@@ -41,18 +32,15 @@ const FreezeCardModal: React.FC<FreezeCardModalProps> = ({
   cardId,
   cardNickname,
   isCurrentlyFrozen,
-  onStatusChanged,
+  onPinRequired,
 }) => {
   // States
   const [isFrozen, setIsFrozen] = useState(isCurrentlyFrozen);
-  const [loading, setLoading] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   // Animations
   const slideAnim = useRef(new Animated.Value(0)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
-  const successScale = useRef(new Animated.Value(0)).current;
   
   // Animate modal in
   const animateIn = useCallback(() => {
@@ -92,7 +80,6 @@ const FreezeCardModal: React.FC<FreezeCardModalProps> = ({
     if (visible) {
       setIsFrozen(isCurrentlyFrozen);
       setError(null);
-      setShowSuccess(false);
       animateIn();
     } else {
       animateOut();
@@ -122,40 +109,6 @@ const FreezeCardModal: React.FC<FreezeCardModalProps> = ({
     })
   ).current;
   
-  // Mock Appwrite function to update card status
-  const updateCardStatus = async (freeze: boolean): Promise<CardStatusResponse> => {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    try {
-      // Mock API call to Appwrite function
-      // In real implementation, this would call your Appwrite function
-      // Never expose PAN/CVV in logs - only use tokenized cardId
-      console.log(`Card status update request for tokenized card: ${cardId.slice(0, 8)}...`);
-      
-      // Simulate occasional failures for demo
-      if (Math.random() < 0.1) {
-        throw new Error('Network error occurred');
-      }
-      
-      // Mock successful response
-      return {
-        success: true,
-        isFrozen: freeze,
-        message: freeze 
-          ? 'Card has been frozen successfully. No new charges will be allowed.'
-          : 'Card has been unfrozen successfully. Normal transactions can resume.',
-      };
-    } catch (error) {
-      console.error('Card status update failed:', error);
-      return {
-        success: false,
-        isFrozen: !freeze, // Revert to previous state
-        error: 'Failed to update card status. Please try again.',
-      };
-    }
-  };
-  
   // Handle freeze toggle
   const handleToggleFreeze = (value: boolean) => {
     setIsFrozen(value);
@@ -169,48 +122,8 @@ const FreezeCardModal: React.FC<FreezeCardModalProps> = ({
       return;
     }
     
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await updateCardStatus(isFrozen);
-      
-      if (response.success) {
-        // Show success animation
-        showSuccessAnimation();
-        
-        // Update parent component
-        onStatusChanged(cardId, response.isFrozen);
-        
-        // Auto close after success
-        setTimeout(() => {
-          setShowSuccess(false);
-          onClose();
-        }, 2000);
-      } else {
-        setError(response.error || 'Failed to update card status');
-        setIsFrozen(isCurrentlyFrozen); // Revert toggle
-      }
-    } catch (error) {
-      console.error('Unexpected error:', error);
-      setError('An unexpected error occurred. Please try again.');
-      setIsFrozen(isCurrentlyFrozen); // Revert toggle
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Show success animation
-  const showSuccessAnimation = () => {
-    setShowSuccess(true);
-    successScale.setValue(0);
-    
-    Animated.spring(successScale, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 8,
-    }).start();
+    // Show PIN verification instead of executing immediately
+    onPinRequired(cardId, isFrozen);
   };
   
   // Generate dynamic gradient based on cardId
@@ -334,7 +247,6 @@ const FreezeCardModal: React.FC<FreezeCardModalProps> = ({
                 onValueChange={handleToggleFreeze}
                 trackColor={{ false: colors.border, true: '#06402B' }}
                 thumbColor={isFrozen ? colors.white : colors.white}
-                disabled={loading}
               />
             </View>
           </View>
@@ -365,45 +277,15 @@ const FreezeCardModal: React.FC<FreezeCardModalProps> = ({
             style={[
               styles.confirmButton,
               !hasChanges && styles.confirmButtonDisabled,
-              loading && styles.confirmButtonLoading,
             ]}
             onPress={handleConfirm}
-            disabled={!hasChanges || loading}
+            disabled={!hasChanges}
           >
-            {loading ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <Text style={styles.confirmButtonText}>
-                {hasChanges ? 'Confirm' : 'No Changes'}
-              </Text>
-            )}
+            <Text style={styles.confirmButtonText}>
+              {hasChanges ? 'Confirm' : 'No Changes'}
+            </Text>
           </TouchableOpacity>
         </Animated.View>
-        
-        {/* Success Animation */}
-        {showSuccess && (
-          <View style={styles.successOverlay}>
-            <Animated.View
-              style={[
-                styles.successContainer,
-                {
-                  transform: [{ scale: successScale }],
-                },
-              ]}
-            >
-              <CheckCircle size={60} color="#A8E4A0" />
-              <Text style={styles.successText}>
-                Card {isFrozen ? 'Frozen' : 'Unfrozen'}!
-              </Text>
-              <Text style={styles.successSubtext}>
-                {isFrozen
-                  ? 'No new charges will be allowed'
-                  : 'Normal transactions can resume'
-                }
-              </Text>
-            </Animated.View>
-          </View>
-        )}
       </View>
     </Modal>
   );

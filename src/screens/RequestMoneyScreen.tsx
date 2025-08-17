@@ -23,7 +23,7 @@ import {
   UserPlus,
   ChevronLeft,
 } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius, shadows, iconSizes } from '../theme';
+import { colors, spacing, borderRadius, shadows, typography, iconSizes, globalStyles } from '../theme';
 import { notificationService } from '../services/notifications';
 
 interface Contact {
@@ -53,6 +53,12 @@ const RequestMoneyScreen: React.FC<RequestMoneyScreenProps> = ({ navigation, rou
   const [manualName, setManualName] = useState('');
   const [manualPhone, setManualPhone] = useState('');
   const [manualEmail, setManualEmail] = useState('');
+  const [isAmountFocused, setIsAmountFocused] = useState(false);
+  const [isDescriptionFocused, setIsDescriptionFocused] = useState(false);
+  const [isNoteFocused, setIsNoteFocused] = useState(false);
+  const [isManualNameFocused, setIsManualNameFocused] = useState(false);
+  const [isManualPhoneFocused, setIsManualPhoneFocused] = useState(false);
+  const [isManualEmailFocused, setIsManualEmailFocused] = useState(false);
 
   const animationValue = useRef(new Animated.Value(0)).current;
 
@@ -335,7 +341,7 @@ const RequestMoneyScreen: React.FC<RequestMoneyScreenProps> = ({ navigation, rou
   const renderAmountStep = () => (
     <View style={styles.stepContent}>
       <View style={styles.amountContainer}>
-        <View style={styles.currencyContainer}>
+        <View style={[styles.currencyContainer, isAmountFocused && styles.currencyContainerFocused]}>
           <Text style={styles.nairaSign}>₦</Text>
           <TextInput
             style={styles.amountInput}
@@ -345,6 +351,8 @@ const RequestMoneyScreen: React.FC<RequestMoneyScreenProps> = ({ navigation, rou
             placeholderTextColor={colors.placeholder}
             keyboardType="numeric"
             autoFocus
+            onFocus={() => setIsAmountFocused(true)}
+            onBlur={() => setIsAmountFocused(false)}
           />
         </View>
       </View>
@@ -352,12 +360,14 @@ const RequestMoneyScreen: React.FC<RequestMoneyScreenProps> = ({ navigation, rou
       <View style={styles.descriptionContainer}>
         <Text style={styles.inputLabel}>Amount</Text>
         <TextInput
-          style={styles.descriptionInput}
+          style={[styles.descriptionInput, isDescriptionFocused && styles.descriptionInputFocused]}
           value={note}
           onChangeText={setNote}
           placeholder="What's this request for?"
           placeholderTextColor={colors.placeholder}
           multiline
+          onFocus={() => setIsDescriptionFocused(true)}
+          onBlur={() => setIsDescriptionFocused(false)}
         />
       </View>
 
@@ -448,36 +458,42 @@ const RequestMoneyScreen: React.FC<RequestMoneyScreenProps> = ({ navigation, rou
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Full Name *</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, isManualNameFocused && styles.inputFocused]}
               value={manualName}
               onChangeText={setManualName}
               placeholder="Enter full name"
               placeholderTextColor={colors.placeholder}
+              onFocus={() => setIsManualNameFocused(true)}
+              onBlur={() => setIsManualNameFocused(false)}
             />
           </View>
           
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Phone Number *</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, isManualPhoneFocused && styles.inputFocused]}
               value={manualPhone}
               onChangeText={setManualPhone}
               placeholder="+1234567890"
               placeholderTextColor={colors.placeholder}
               keyboardType="phone-pad"
+              onFocus={() => setIsManualPhoneFocused(true)}
+              onBlur={() => setIsManualPhoneFocused(false)}
             />
           </View>
           
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Email (Optional)</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, isManualEmailFocused && styles.inputFocused]}
               value={manualEmail}
               onChangeText={setManualEmail}
               placeholder="email@example.com"
               placeholderTextColor={colors.placeholder}
               keyboardType="email-address"
               autoCapitalize="none"
+              onFocus={() => setIsManualEmailFocused(true)}
+              onBlur={() => setIsManualEmailFocused(false)}
             />
           </View>
           
@@ -512,13 +528,15 @@ const RequestMoneyScreen: React.FC<RequestMoneyScreenProps> = ({ navigation, rou
       </View>
 
       <TextInput
-        style={styles.noteInput}
+        style={[styles.noteInput, isNoteFocused && styles.noteInputFocused]}
         value={note}
         onChangeText={setNote}
         placeholder="e.g., Dinner last night, Movie tickets, etc."
         placeholderTextColor={colors.placeholder}
         multiline
         maxLength={200}
+        onFocus={() => setIsNoteFocused(true)}
+        onBlur={() => setIsNoteFocused(false)}
       />
 
       <Text style={styles.characterCount}>{note.length}/200</Text>
@@ -678,7 +696,7 @@ const RequestMoneyScreen: React.FC<RequestMoneyScreenProps> = ({ navigation, rou
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+        <TouchableOpacity style={globalStyles.backButton} onPress={handleBack}>
           <ChevronLeft size={iconSizes.md} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{stepTitles[currentStep]}</Text>
@@ -805,6 +823,12 @@ const styles = StyleSheet.create({
     ...shadows.small,
     maxWidth: 280,
     alignSelf: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  currencyContainerFocused: {
+    borderColor: '#06402B',
+    ...shadows.medium,
   },
   nairaSign: {
     ...typography.h2,
@@ -830,6 +854,12 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
     ...shadows.small,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  descriptionInputFocused: {
+    borderColor: '#06402B',
+    ...shadows.medium,
   },
   quickAmounts: {
     flexDirection: 'row',
@@ -1018,8 +1048,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     ...typography.body,
     color: colors.text,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
+  },
+  inputFocused: {
+    borderColor: '#06402B',
+    backgroundColor: colors.white,
+    ...shadows.small,
   },
   manualEntryButtons: {
     flexDirection: 'row',
@@ -1079,6 +1114,12 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     ...shadows.small,
     marginBottom: spacing.sm,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  noteInputFocused: {
+    borderColor: '#06402B',
+    ...shadows.medium,
   },
   characterCount: {
     ...typography.caption,

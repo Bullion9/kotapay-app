@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ArrowLeft, Shield, Check } from 'lucide-react-native';
+import { ArrowLeft, Shield, Check, ChevronLeft } from 'lucide-react-native';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { globalStyles, colors, spacing, iconSizes, shadows, borderRadius } from '../theme';
@@ -156,10 +156,10 @@ const PinSetupScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
-          style={styles.backButton}
+          style={globalStyles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <ArrowLeft size={iconSizes.md} color={colors.text} />
+          <ChevronLeft size={24} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -220,15 +220,6 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.small,
   },
   content: {
     flex: 1,

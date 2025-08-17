@@ -20,7 +20,7 @@ import {
   Globe,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../types';
-import { colors, spacing, shadows, borderRadius, iconSizes } from '../theme';
+import { colors, spacing, borderRadius, shadows, iconSizes, globalStyles } from '../theme';
 
 type BillsHubScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -175,10 +175,10 @@ const BillsHubScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={globalStyles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color="#000d10" />
+          <ChevronLeft size={24} color={colors.primary} />
         </TouchableOpacity>
         
         <View style={styles.headerPlaceholder} />
@@ -228,9 +228,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
     paddingTop: spacing.xl,
-  },
-  backButton: {
-    padding: 8,
   },
   headerPlaceholder: {
     flex: 1,

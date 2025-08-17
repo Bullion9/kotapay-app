@@ -15,7 +15,7 @@ import {
   Check,
   Trash2,
 } from 'lucide-react-native';
-import { colors, spacing, borderRadius, iconSizes } from '../theme';
+import { colors, spacing, borderRadius, iconSizes, globalStyles } from '../theme';
 
 interface Notification {
   id: string;
@@ -169,10 +169,10 @@ const NotificationScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={globalStyles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color="#000d10" />
+          <ChevronLeft size={24} color={colors.primary} />
         </TouchableOpacity>
         
         <View style={styles.headerCenter}>
@@ -252,9 +252,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-  },
-  backButton: {
-    padding: 8,
   },
   headerCenter: {
     flex: 1,

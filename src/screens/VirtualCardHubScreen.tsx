@@ -12,7 +12,8 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { PlusCircle } from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows } from '../theme';
+import { colors, spacing, borderRadius, shadows, iconSizes } from '../theme';
+import { EyeIcon } from '../components/icons';
 
 type RootStackParamList = {
   CreateVirtualCardScreen: undefined;
@@ -36,6 +37,8 @@ const cardWidth = screenWidth * 0.85;
 
 const VirtualCardHubScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const [showBalance, setShowBalance] = useState(false);
+  const [showCardBalances, setShowCardBalances] = useState<{[key: string]: boolean}>({});
   
   // Mock data for virtual cards
   const [virtualCards] = useState<VirtualCard[]>([
@@ -55,7 +58,7 @@ const VirtualCardHubScreen: React.FC = () => {
       status: 'Frozen',
       balance: 15000,
       cardType: 'Travel Card',
-      gradientColors: ['#000d10', '#06402B'],
+      gradientColors: ['#8B0000', '#DC143C'],
     },
     {
       id: '3',
@@ -64,11 +67,18 @@ const VirtualCardHubScreen: React.FC = () => {
       status: 'Expired',
       balance: 0,
       cardType: 'Subscription Card',
-      gradientColors: ['#A3AABE', '#FFF0F5'],
+      gradientColors: ['#4B0082', '#663399'],
     },
   ]);
 
   const totalBalance = virtualCards.reduce((sum, card) => sum + card.balance, 0);
+
+  const toggleCardBalance = (cardId: string) => {
+    setShowCardBalances(prev => ({
+      ...prev,
+      [cardId]: !prev[cardId]
+    }));
+  };
 
   const getStatusColor = (status: VirtualCard['status']) => {
     switch (status) {
@@ -104,9 +114,25 @@ const VirtualCardHubScreen: React.FC = () => {
               <Text style={styles.cardLabel}>EXPIRES</Text>
               <Text style={styles.cardValue}>{item.expiryDate}</Text>
             </View>
-            <View>
-              <Text style={styles.cardLabel}>BALANCE</Text>
-              <Text style={styles.cardValue}>₦{item.balance.toLocaleString()}</Text>
+            <View style={styles.balanceSection}>
+              <View style={styles.balanceRow}>
+                <View>
+                  <Text style={styles.cardLabel}>BALANCE</Text>
+                  <Text style={styles.cardValue}>
+                    {showCardBalances[item.id] ? `₦${item.balance.toLocaleString()}` : '••••••'}
+                  </Text>
+                </View>
+                <TouchableOpacity 
+                  onPress={() => toggleCardBalance(item.id)}
+                  style={styles.eyeButton}
+                >
+                  <EyeIcon 
+                    size={16} 
+                    color={colors.white} 
+                    filled={!showCardBalances[item.id]}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
@@ -131,8 +157,19 @@ const VirtualCardHubScreen: React.FC = () => {
         {/* Balance Summary Card */}
         <View style={styles.balanceSummaryCard}>
           <View style={styles.balanceContent}>
-            <Text style={styles.balanceLabel}>Total Balance</Text>
-            <Text style={styles.balanceAmount}>₦{totalBalance.toLocaleString()}</Text>
+            <View style={styles.balanceHeader}>
+              <Text style={styles.balanceLabel}>Total Balance</Text>
+              <TouchableOpacity onPress={() => setShowBalance(!showBalance)}>
+                <EyeIcon 
+                  size={iconSizes.sm} 
+                  color={colors.white} 
+                  filled={!showBalance}
+                />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.balanceAmount}>
+              {showBalance ? `₦${totalBalance.toLocaleString()}` : '••••••'}
+            </Text>
             <Text style={styles.balanceSubtext}>Across {virtualCards.length} virtual cards</Text>
           </View>
         </View>
@@ -200,41 +237,46 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: spacing.lg,
   },
   balanceSummaryCard: {
-    marginTop: spacing.lg,
+    marginHorizontal: spacing.xl,
     marginBottom: spacing.xl,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.large,
     padding: spacing.xl,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    borderStyle: 'solid',
-    // Sea-green gradient border effect using shadow
-    ...shadows.large,
-    shadowColor: '#06402B',
-    elevation: 8,
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.primary,
+    ...shadows.medium,
   },
   balanceContent: {
+    alignItems: 'flex-start',
+  },
+  balanceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    width: '100%',
+    marginBottom: spacing.sm,
   },
   balanceLabel: {
     fontSize: 14,
-    color: colors.secondaryText,
+    color: colors.white,
+    opacity: 0.8,
     marginBottom: spacing.xs,
   },
   balanceAmount: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#06402B',
+    fontSize: 36,
+    fontWeight: 'normal',
+    color: colors.white,
     marginBottom: spacing.xs,
+    textAlign: 'left',
   },
   balanceSubtext: {
     fontSize: 12,
-    color: colors.secondaryText,
+    color: colors.white,
+    opacity: 0.7,
+    textAlign: 'left',
   },
   cardsSection: {
+    paddingHorizontal: spacing.lg,
     marginBottom: spacing.xl,
   },
   sectionTitle: {
@@ -304,6 +346,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.white,
+  },
+  balanceSection: {
+    flex: 1,
+  },
+  balanceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
+  eyeButton: {
+    padding: 4,
+    marginLeft: 8,
   },
   emptyState: {
     alignItems: 'center',

@@ -17,13 +17,12 @@ import {
   Landmark,
   Phone,
   MapPin,
-  Eye,
-  EyeOff,
   Download,
   CheckCircle,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../types';
-import { colors, spacing, shadows, borderRadius, iconSizes } from '../theme';
+import { colors, spacing, shadows, borderRadius, iconSizes, globalStyles } from '../theme';
+import { EyeIcon } from '../components/icons';
 import { 
   cashOutService, 
   CashOutMethod as PayoutMethod, 
@@ -49,6 +48,7 @@ const CashOutScreen: React.FC = () => {
   const [showPinModal, setShowPinModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [transaction, setTransaction] = useState<CashOutTransaction | null>(null);
+  const [isAmountFocused, setIsAmountFocused] = useState(false);
   
   // Mock user balance and tier limit
   const userBalance = 15000;
@@ -253,27 +253,33 @@ const CashOutScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <ChevronLeft size={24} color="#000d10" />
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={globalStyles.backButton}>
+            <ChevronLeft size={24} color={colors.primary} />
           </TouchableOpacity>
-          <View style={styles.headerPlaceholder} />
-          <Text style={styles.headerTitle}>Cash-Out</Text>
-          <View style={styles.headerPlaceholder} />
         </View>
+        
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Cash-Out</Text>
+        </View>
+        
+        <View style={styles.headerRight} />
+      </View>
+
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
 
         {/* Balance Card */}
         <View style={styles.balanceCard}>
           <View style={styles.balanceHeader}>
             <Text style={styles.balanceLabel}>Available Balance</Text>
             <TouchableOpacity onPress={() => setShowBalance(!showBalance)}>
-              {showBalance ? (
-                <EyeOff size={iconSizes.sm} color={colors.secondaryText} />
-              ) : (
-                <Eye size={iconSizes.sm} color={colors.secondaryText} />
-              )}
+              <EyeIcon 
+                size={iconSizes.sm} 
+                color={colors.white} 
+                filled={!showBalance}
+              />
             </TouchableOpacity>
           </View>
           <Text style={styles.balanceAmount}>
@@ -287,7 +293,7 @@ const CashOutScreen: React.FC = () => {
         {/* Amount Input */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Enter Amount</Text>
-          <View style={styles.amountInputContainer}>
+          <View style={[styles.amountInputContainer, isAmountFocused && styles.amountInputContainerFocused]}>
             <Text style={styles.currencySymbol}>₦</Text>
             <TextInput
               style={styles.amountInput}
@@ -296,6 +302,8 @@ const CashOutScreen: React.FC = () => {
               placeholder="0.00"
               keyboardType="numeric"
               placeholderTextColor={colors.secondaryText}
+              onFocus={() => setIsAmountFocused(true)}
+              onBlur={() => setIsAmountFocused(false)}
             />
           </View>
           {amount && parseFloat(amount) > tierLimit && (
@@ -388,18 +396,27 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    paddingHorizontal: spacing.md,
   },
   header: {
     backgroundColor: '#FFF0F5',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.lg,
     paddingTop: spacing.xl,
   },
-  backButton: {
-    padding: 8,
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerLeft: {
+    width: 56, // Slightly larger to accommodate back button + padding
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  headerRight: {
+    width: 56, // Same width as left side for perfect centering
   },
   headerPlaceholder: {
     flex: 1,
@@ -411,10 +428,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   balanceCard: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.large,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.xl,
+    padding: spacing.xl,
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.primary,
     ...shadows.medium,
   },
   balanceHeader: {
@@ -425,19 +443,22 @@ const styles = StyleSheet.create({
   },
   balanceLabel: {
     fontSize: 14,
-    color: colors.secondaryText,
+    color: colors.white,
+    opacity: 0.8,
   },
   balanceAmount: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: colors.text,
+    fontSize: 36,
+    fontWeight: 'normal',
+    color: colors.white,
     marginBottom: spacing.xs,
   },
   balanceSubtext: {
     fontSize: 12,
-    color: colors.secondaryText,
+    color: colors.white,
+    opacity: 0.7,
   },
   section: {
+    paddingHorizontal: spacing.lg,
     marginBottom: spacing.lg,
   },
   sectionTitle: {
@@ -454,6 +475,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     ...shadows.small,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  amountInputContainerFocused: {
+    borderColor: '#06402B',
+    ...shadows.medium,
   },
   currencySymbol: {
     fontSize: 24,

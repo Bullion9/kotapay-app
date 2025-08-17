@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { ChevronLeft, Inbox, ChevronDown, Check, Filter } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { colors, globalStyles } from '../theme';
 import TransactionRow from '../components/TransactionRow';
 
 interface Transaction {
@@ -86,48 +87,91 @@ const TransactionHistoryScreen: React.FC = () => {
     }, 1000);
   }, []);
 
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     // Load next 50 transactions
     console.log('Loading more transactions...');
-  };
+  }, []);
 
-  const handleFilterPress = () => {
+  const handleFilterPress = useCallback(() => {
     setShowFilterModal(true);
-  };
+  }, []);
 
-  const handleAllPress = () => {
+  const handleAllPress = useCallback(() => {
     setShowSortModal(true);
-  };
+  }, []);
 
   const handleSortSelect = (sort: string) => {
     setSelectedSort(sort);
     setShowSortModal(false);
   };
 
-  const renderTransaction = ({ item }: { item: Transaction }) => (
-    <TransactionRow transaction={item} />
-  );
+  const getItemLayout = useCallback((data: any, index: number) => ({
+    length: 72, // Approximate height of each transaction row
+    offset: 72 * index,
+    index,
+  }), []);
 
-  const renderSeparator = () => (
+  const keyExtractor = useCallback((item: Transaction) => item.id, []);
+
+  const handleReceiptPress = useCallback((transaction: Transaction) => {
+    // Convert Transaction to TransactionData format for ReceiptGenerator
+    const mappedTransaction = {
+      id: transaction.id,
+      type: transaction.type === 'sent' ? 'SENT' as const :
+            transaction.type === 'received' ? 'RECEIVED' as const :
+            transaction.type === 'topup' ? 'CARD_TOP_UP' as const :
+            transaction.type === 'bill' ? 'BILL_PAYMENT' as const :
+            'SENT' as const,
+      amount: transaction.amount,
+      currency: transaction.currency,
+      status: transaction.status === 'success' ? 'SUCCESS' as const :
+              transaction.status === 'pending' ? 'PENDING' as const :
+              transaction.status === 'failed' ? 'FAILED' as const :
+              'SUCCESS' as const,
+      date: transaction.timestamp.toLocaleDateString(),
+      time: transaction.timestamp.toLocaleTimeString(),
+      from: transaction.type === 'sent' || transaction.type === 'bill' ? 'You' : transaction.counterparty,
+      to: transaction.type === 'sent' || transaction.type === 'bill' ? transaction.counterparty : 'You',
+      note: `${transaction.type === 'sent' ? 'Payment to' : 
+               transaction.type === 'received' ? 'Payment from' :
+               transaction.type === 'topup' ? 'Account top-up via' :
+               'Bill payment to'} ${transaction.counterparty}`,
+      fee: 0, // Default fee, could be calculated based on transaction type
+      total: transaction.amount,
+      biometricAuth: true // Default to true for security
+    };
+    
+    // Navigate to receipt screen with mapped transaction data
+    navigation.navigate('Receipt', { transaction: mappedTransaction });
+  }, [navigation]);
+
+  const renderTransaction = useCallback(({ item }: { item: Transaction }) => (
+    <TransactionRow 
+      transaction={item} 
+      onReceiptPress={handleReceiptPress}
+    />
+  ), [handleReceiptPress]);
+
+  const renderSeparator = useCallback(() => (
     <View style={styles.separator} />
-  );
+  ), []);
 
-  const renderEmptyState = () => (
+  const renderEmptyState = useCallback(() => (
     <View style={styles.emptyState}>
       <Inbox size={64} color="#A3AABE" />
       <Text style={styles.emptyText}>No transactions yet</Text>
     </View>
-  );
+  ), []);
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Authentic iOS Mail Header */}
       <View style={styles.header}>
         <TouchableOpacity 
-          style={styles.backButton}
+          style={globalStyles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color="#000d10" />
+          <ChevronLeft size={24} color={colors.primary} />
         </TouchableOpacity>
         
         <View style={styles.headerCenter}>
@@ -154,8 +198,9 @@ const TransactionHistoryScreen: React.FC = () => {
       <View style={styles.content}>
         <FlatList
           data={transactions}
-          keyExtractor={(item) => item.id}
+          keyExtractor={keyExtractor}
           renderItem={renderTransaction}
+          getItemLayout={getItemLayout}
           ItemSeparatorComponent={renderSeparator}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -170,6 +215,13 @@ const TransactionHistoryScreen: React.FC = () => {
           onEndReachedThreshold={0.3}
           ListEmptyComponent={renderEmptyState}
           style={styles.list}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={15}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={15}
+          windowSize={10}
+          legacyImplementation={false}
+          disableVirtualization={false}
         />
       </View>
 
@@ -257,9 +309,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
     backgroundColor: '#FFF0F5',
-  },
-  backButton: {
-    padding: 8,
   },
   headerCenter: {
     flex: 1,

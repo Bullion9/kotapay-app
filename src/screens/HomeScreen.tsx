@@ -11,40 +11,26 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  CheckCircle,
-  Clock,
   Coins,
   Copy,
-  Eye,
-  EyeOff,
   Feather,
   FileText,
   HandCoins,
   Mail,
-  Plus,
   QrCode,
   Rocket,
   Scroll,
-  XCircle,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, shadows, borderRadius, iconSizes } from '../theme';
 import { notificationService } from '../services/notifications';
+import { EyeIcon } from '../components/icons';
 import NotificationMailIcon from '../components/NotificationMailIcon';
+import CarouselAds from '../components/CarouselAds';
+import ActivityCard from '../components/ActivityCard';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList>;
-
-interface Transaction {
-  id: string;
-  type: 'send' | 'receive' | 'topup' | 'bill';
-  amount: number;
-  recipient: string;
-  date: string;
-  status: 'completed' | 'pending' | 'failed';
-}
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
@@ -56,34 +42,6 @@ const HomeScreen: React.FC = () => {
   const copyAccountNumber = () => {
     Clipboard.setString(accountNumber);
   };
-
-  // Mock recent transactions
-  const recentTransactions: Transaction[] = [
-    {
-      id: '1',
-      type: 'receive',
-      amount: 250.00,
-      recipient: 'John Doe',
-      date: '2 hours ago',
-      status: 'completed'
-    },
-    {
-      id: '2',
-      type: 'send',
-      amount: -75.50,
-      recipient: 'Coffee Shop',
-      date: 'Yesterday',
-      status: 'completed'
-    },
-    {
-      id: '3',
-      type: 'bill',
-      amount: -120.00,
-      recipient: 'Electric Bill',
-      date: '2 days ago',
-      status: 'pending'
-    }
-  ];
 
   const quickActions = [
     {
@@ -117,10 +75,28 @@ const HomeScreen: React.FC = () => {
       onPress: () => navigation.navigate('CashOut'),
     },
     {
+      title: 'Test PIN',
+      icon: Feather,
+      color: colors.accent,
+      onPress: () => navigation.navigate('CreateAccountPin'),
+    },
+    {
+      title: 'Receipt',
+      icon: FileText,
+      color: colors.seaGreen,
+      onPress: () => navigation.navigate('Receipt'),
+    },
+    {
       title: 'Bills',
       icon: Scroll,
       color: colors.warning,
       onPress: () => navigation.navigate('BillsHub'),
+    },
+    {
+      title: 'Pay Link',
+      icon: Mail,
+      color: '#10B981',
+      onPress: () => navigation.navigate('PayWithLink', { linkId: 'demo-link-123' }),
     },
     {
       title: 'Test Notify',
@@ -150,66 +126,6 @@ const HomeScreen: React.FC = () => {
       },
     },
   ];
-
-  const getTransactionIcon = (type: Transaction['type']) => {
-    switch (type) {
-      case 'send': return ArrowUpRight;
-      case 'receive': return ArrowDownLeft;
-      case 'topup': return Plus;
-      case 'bill': return FileText;
-      default: return ArrowUpRight;
-    }
-  };
-
-  const getStatusIcon = (status: Transaction['status']) => {
-    switch (status) {
-      case 'completed': return CheckCircle;
-      case 'pending': return Clock;
-      case 'failed': return XCircle;
-      default: return Clock;
-    }
-  };
-
-  const getStatusColor = (status: Transaction['status']) => {
-    switch (status) {
-      case 'completed': return colors.success;
-      case 'pending': return colors.warning;
-      case 'failed': return colors.error;
-      default: return colors.secondaryText;
-    }
-  };
-
-  const renderTransactionItem = ({ item }: { item: Transaction }) => {
-    const TransactionIcon = getTransactionIcon(item.type);
-    const StatusIcon = getStatusIcon(item.status);
-    const statusColor = getStatusColor(item.status);
-    const isNegative = item.amount < 0;
-
-    return (
-      <TouchableOpacity style={styles.transactionItem}>
-        <View style={[styles.transactionIconContainer, { backgroundColor: colors.background }]}>
-          <TransactionIcon size={iconSizes.sm} color={colors.primary} />
-        </View>
-        
-        <View style={styles.transactionDetails}>
-          <Text style={styles.transactionRecipient}>{item.recipient}</Text>
-          <View style={styles.transactionMeta}>
-            <StatusIcon size={12} color={statusColor} />
-            <Text style={[styles.transactionDate, { color: statusColor }]}>
-              {item.status} • {item.date}
-            </Text>
-          </View>
-        </View>
-        
-        <Text style={[
-          styles.transactionAmount,
-          { color: isNegative ? colors.error : colors.success }
-        ]}>
-          {isNegative ? '-' : '+'}${Math.abs(item.amount).toFixed(2)}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -252,11 +168,11 @@ const HomeScreen: React.FC = () => {
               style={styles.eyeButtonCentered}
               onPress={() => setBalanceVisible(!balanceVisible)}
             >
-              {balanceVisible ? (
-                <Eye size={iconSizes.md} color={colors.white} />
-              ) : (
-                <EyeOff size={iconSizes.md} color={colors.white} />
-              )}
+              <EyeIcon 
+                size={iconSizes.md} 
+                color={colors.white} 
+                filled={!balanceVisible}
+              />
             </TouchableOpacity>
           </View>
           
@@ -288,31 +204,14 @@ const HomeScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Recent Transactions */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Transactions</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Transactions')}>
-              <Text style={styles.viewAllText}>View All</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.transactionsList}>
-            {recentTransactions.slice(0, 3).map((transaction) => (
-              <View key={transaction.id}>
-                {renderTransactionItem({ item: transaction })}
-              </View>
-            ))}
-          </View>
-          
-          {recentTransactions.length === 0 && (
-            <View style={styles.emptyTransactions}>
-              <Text style={styles.emptyText}>No recent transactions</Text>
-              <Text style={styles.emptySubtext}>
-                Start by sending money or making a payment
-              </Text>
-            </View>
-          )}
+        {/* Running Activity Card */}
+        <View style={styles.activityContainer}>
+          <ActivityCard />
+        </View>
+
+        {/* Carousel Ads */}
+        <View style={styles.carouselContainer}>
+          <CarouselAds />
         </View>
 
         {/* Bottom spacing for FAB */}
@@ -408,6 +307,15 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     backgroundColor: colors.primary,
     ...shadows.medium,
+  },
+  carouselContainer: {
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.xl,
+    height: 200, // Increased from 180px
+  },
+  activityContainer: {
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.xl,
   },
   balanceHeader: {
     flexDirection: 'row',

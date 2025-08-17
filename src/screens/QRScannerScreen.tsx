@@ -15,7 +15,7 @@ import {
   Camera,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../types';
-import { colors, spacing, shadows, borderRadius, iconSizes } from '../theme';
+import { colors, spacing, shadows, borderRadius, iconSizes, globalStyles } from '../theme';
 import SimpleQRCodeModal from '../components/SimpleQRCodeModal';
 
 type QRScannerScreenNavigationProp = StackNavigationProp<RootStackParamList>;
@@ -87,10 +87,10 @@ const QRScannerScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
-          style={styles.backButton} 
+          style={globalStyles.backButton} 
           onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color="#000d10" />
+          <ChevronLeft size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>QR Code Scanner</Text>
         <View style={styles.headerSpacer} />
@@ -183,9 +183,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5EA',
     backgroundColor: '#FFF0F5',
-  },
-  backButton: {
-    padding: 8,
   },
   headerTitle: {
     fontSize: 18,

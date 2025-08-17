@@ -21,7 +21,8 @@ import {
   UserPlus,
   ChevronLeft,
 } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius, shadows, iconSizes } from '../theme';
+import { colors, spacing, borderRadius, shadows, typography, iconSizes, globalStyles } from '../theme';
+import { EyeIcon } from '../components/icons';
 import PinEntryModal from '../components/PinEntryModal';
 import { notificationService } from '../services/notifications';
 
@@ -56,6 +57,12 @@ const SendMoneyScreen: React.FC<SendMoneyScreenProps> = ({ navigation, route }) 
   const [manualName, setManualName] = useState('');
   const [manualPhone, setManualPhone] = useState('');
   const [manualEmail, setManualEmail] = useState('');
+  const [showBalance, setShowBalance] = useState(false);
+  const [isAmountFocused, setIsAmountFocused] = useState(false);
+  const [isDescriptionFocused, setIsDescriptionFocused] = useState(false);
+
+  // Mock user balance (same as TopUpScreen)
+  const userBalance = 450000;
 
   const animationValue = useRef(new Animated.Value(0)).current;
 
@@ -187,6 +194,10 @@ const SendMoneyScreen: React.FC<SendMoneyScreenProps> = ({ navigation, route }) 
           Alert.alert('Error', 'Please enter a valid amount');
           return;
         }
+        if (parseFloat(amount) > userBalance) {
+          Alert.alert('Insufficient Balance', `You can only send up to ₦${userBalance.toLocaleString()} from your current balance.`);
+          return;
+        }
         setCurrentStep('contact');
         break;
       case 'contact':
@@ -306,8 +317,38 @@ const SendMoneyScreen: React.FC<SendMoneyScreenProps> = ({ navigation, route }) 
 
   const renderAmountStep = () => (
     <View style={styles.stepContent}>
+      {/* Balance Card */}
+      <View style={styles.balanceCard}>
+        <View style={styles.balanceHeader}>
+          <Text style={styles.balanceLabel}>Current Wallet Balance</Text>
+          <TouchableOpacity onPress={() => setShowBalance(!showBalance)}>
+            <EyeIcon 
+              size={iconSizes.sm} 
+              color={colors.white} 
+              filled={!showBalance}
+            />
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity 
+          onPress={() => {
+            if (showBalance && userBalance > 0) {
+              setAmount(userBalance.toString());
+            }
+          }}
+          disabled={!showBalance}
+        >
+          <Text style={styles.balanceAmount}>
+            {showBalance ? `₦${userBalance.toLocaleString()}` : '••••••'}
+          </Text>
+        </TouchableOpacity>
+        <Text style={styles.balanceSubtext}>
+          Available for spending{showBalance ? ' • Tap amount to use full balance' : ''}
+        </Text>
+      </View>
+
       <View style={styles.amountContainer}>
-        <View style={styles.currencyContainer}>
+        <Text style={styles.inputLabel}>Amount</Text>
+        <View style={[styles.currencyContainer, isAmountFocused && styles.currencyContainerFocused]}>
           <Text style={styles.nairaSign}>₦</Text>
           <TextInput
             style={styles.amountInput}
@@ -317,24 +358,28 @@ const SendMoneyScreen: React.FC<SendMoneyScreenProps> = ({ navigation, route }) 
             placeholderTextColor={colors.placeholder}
             keyboardType="numeric"
             autoFocus
+            onFocus={() => setIsAmountFocused(true)}
+            onBlur={() => setIsAmountFocused(false)}
           />
         </View>
       </View>
       
       <View style={styles.descriptionContainer}>
-        <Text style={styles.inputLabel}>Description (Optional)</Text>
+        <Text style={styles.inputLabel}>For</Text>
         <TextInput
-          style={styles.descriptionInput}
+          style={[styles.descriptionInput, isDescriptionFocused && styles.descriptionInputFocused]}
           value={description}
           onChangeText={setDescription}
           placeholder="What's this for?"
           placeholderTextColor={colors.placeholder}
           multiline
+          onFocus={() => setIsDescriptionFocused(true)}
+          onBlur={() => setIsDescriptionFocused(false)}
         />
       </View>
 
       <View style={styles.quickAmountsContainer}>
-        <Text style={styles.quickAmountsLabel}>Quick Amounts</Text>
+        <Text style={styles.quickAmountsLabel}>Top Up</Text>
         <View style={styles.quickAmounts}>
           {[100, 500, 1000, 5000].map((quickAmount) => (
             <TouchableOpacity
@@ -636,7 +681,7 @@ const SendMoneyScreen: React.FC<SendMoneyScreenProps> = ({ navigation, route }) 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+        <TouchableOpacity style={globalStyles.backButton} onPress={handleBack}>
           <ChevronLeft size={iconSizes.md} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{stepTitles[currentStep]}</Text>
@@ -655,18 +700,22 @@ const SendMoneyScreen: React.FC<SendMoneyScreenProps> = ({ navigation, route }) 
             style={[
               styles.nextButton,
               (!amount && currentStep === 'amount') ||
-              (!selectedContact && currentStep === 'contact')
+              (!selectedContact && currentStep === 'contact') ||
+              (currentStep === 'amount' && amount && parseFloat(amount) > userBalance)
                 ? styles.nextButtonDisabled
                 : {},
             ]}
             onPress={handleNext}
             disabled={
               (!amount && currentStep === 'amount') ||
-              (!selectedContact && currentStep === 'contact')
+              (!selectedContact && currentStep === 'contact') ||
+              (currentStep === 'amount' && amount && parseFloat(amount) > userBalance)
             }
           >
             <Text style={styles.nextButtonText}>
-              Continue
+              {currentStep === 'amount' && amount && parseFloat(amount) > userBalance
+                ? 'Insufficient Balance'
+                : 'Continue'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -695,19 +744,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    paddingTop: spacing.xl,
+    paddingVertical: spacing.md,
+    paddingTop: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     backgroundColor: '#FFF0F5',
   },
-  backButton: {
-    padding: spacing.xs,
-  },
   headerTitle: {
     ...typography.h3,
     color: colors.text,
-    fontWeight: '600',
   },
   headerSpacer: {
     width: 40,
@@ -716,7 +761,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.xl,
+    paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,
   },
   stepContainer: {
@@ -737,7 +782,6 @@ const styles = StyleSheet.create({
   stepNumber: {
     ...typography.caption,
     color: colors.secondaryText,
-    fontWeight: '600',
   },
   stepNumberActive: {
     color: colors.white,
@@ -755,42 +799,81 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   stepContent: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+  },
+  // Balance Card Styles
+  balanceCard: {
+    marginHorizontal: 0,
+    marginBottom: spacing.xl,
     padding: spacing.xl,
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.primary,
+    ...shadows.medium,
+  },
+  balanceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  balanceLabel: {
+    fontSize: 14,
+    color: colors.white,
+    opacity: 0.8,
+  },
+  balanceAmount: {
+    fontSize: 36,
+    fontWeight: 'normal',
+    color: colors.white,
+    marginBottom: spacing.xs,
+  },
+  balanceSubtext: {
+    fontSize: 12,
+    color: colors.white,
+    opacity: 0.7,
   },
   // Amount Step Styles
   amountContainer: {
-    alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.sm,
   },
   currencyContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     backgroundColor: colors.white,
     borderRadius: borderRadius.medium,
-    padding: spacing.lg,
+    padding: spacing.md,
     ...shadows.small,
-    maxWidth: 280,
-    alignSelf: 'center',
+    minHeight: 60,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  currencyContainerFocused: {
+    borderColor: '#06402B',
+    ...shadows.medium,
   },
   nairaSign: {
     ...typography.h2,
-    color: colors.primary,
-    fontWeight: 'bold',
+    color: '#06402B',
+    includeFontPadding: false,
+    marginTop: 4,
   },
   amountInput: {
     ...typography.h2,
     color: colors.text,
     marginLeft: spacing.sm,
-    minWidth: 150,
-    textAlign: 'center',
+    flex: 1,
+    textAlign: 'left',
+    includeFontPadding: false,
+    paddingVertical: 0,
+    textAlignVertical: 'center',
   },
   descriptionContainer: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.sm,
   },
   inputLabel: {
     ...typography.body,
     color: colors.text,
-    fontWeight: '600',
     marginBottom: spacing.sm,
   },
   descriptionInput: {
@@ -802,6 +885,12 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
     ...shadows.small,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  descriptionInputFocused: {
+    borderColor: '#06402B',
+    ...shadows.medium,
   },
   quickAmounts: {
     flexDirection: 'row',
@@ -810,18 +899,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   quickAmountsContainer: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.sm,
   },
   quickAmountsLabel: {
     ...typography.body,
     color: colors.text,
-    fontWeight: '600',
     marginBottom: spacing.sm,
   },
   quickAmountButton: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.medium,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
     ...shadows.small,
     flex: 1,
@@ -832,16 +920,14 @@ const styles = StyleSheet.create({
   quickAmountText: {
     ...typography.body,
     color: colors.primary,
-    fontWeight: '600',
   },
   // Suggestions Styles
   suggestionsContainer: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.sm,
   },
   suggestionsLabel: {
     ...typography.body,
     color: colors.text,
-    fontWeight: '600',
     marginBottom: spacing.sm,
   },
   suggestions: {
@@ -864,7 +950,6 @@ const styles = StyleSheet.create({
   suggestionText: {
     ...typography.caption,
     color: colors.text,
-    fontWeight: '600',
     textAlign: 'center',
   },
   // Grid suggestions styles
@@ -876,31 +961,29 @@ const styles = StyleSheet.create({
   suggestionCard: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.medium,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
     ...shadows.small,
     alignItems: 'center',
     justifyContent: 'center',
     width: '48%',
-    minHeight: 60,
+    minHeight: 50,
   },
   suggestionCardText: {
     ...typography.body,
     color: colors.text,
-    fontWeight: '600',
     textAlign: 'center',
   },
   // Info Card Styles
   infoCard: {
     backgroundColor: colors.accent,
     borderRadius: borderRadius.medium,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
   },
   infoTitle: {
     ...typography.body,
     color: colors.primary,
-    fontWeight: '600',
     marginBottom: spacing.sm,
   },
   infoText: {
@@ -910,7 +993,7 @@ const styles = StyleSheet.create({
   },
   // Contact Step Styles
   contactOptions: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
   },
   optionButton: {
     flexDirection: 'row',
@@ -923,14 +1006,12 @@ const styles = StyleSheet.create({
   optionText: {
     ...typography.body,
     color: colors.text,
-    fontWeight: '600',
     flex: 1,
     marginLeft: spacing.lg,
   },
   sectionTitle: {
     ...typography.h3,
     color: colors.text,
-    fontWeight: '600',
     marginBottom: spacing.lg,
   },
   contactsList: {
@@ -964,7 +1045,6 @@ const styles = StyleSheet.create({
   contactName: {
     ...typography.body,
     color: colors.text,
-    fontWeight: '600',
     marginBottom: 2,
   },
   contactPhone: {
@@ -992,7 +1072,6 @@ const styles = StyleSheet.create({
   manualEntryTitle: {
     ...typography.h3,
     color: colors.text,
-    fontWeight: '600',
     marginBottom: spacing.xl,
     textAlign: 'center',
   },
@@ -1026,7 +1105,6 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     ...typography.body,
     color: colors.secondaryText,
-    fontWeight: '600',
   },
   addButton: {
     flex: 1,
@@ -1038,7 +1116,6 @@ const styles = StyleSheet.create({
   addButtonText: {
     ...typography.body,
     color: colors.white,
-    fontWeight: '600',
   },
   // Confirm Step Styles
   confirmCard: {
@@ -1050,7 +1127,6 @@ const styles = StyleSheet.create({
   confirmTitle: {
     ...typography.h3,
     color: colors.text,
-    fontWeight: '600',
     marginBottom: spacing.xl,
     textAlign: 'center',
   },
@@ -1069,7 +1145,6 @@ const styles = StyleSheet.create({
   confirmValue: {
     ...typography.body,
     color: colors.text,
-    fontWeight: '600',
   },
   confirmTotal: {
     borderBottomWidth: 0,
@@ -1080,12 +1155,10 @@ const styles = StyleSheet.create({
   confirmTotalLabel: {
     ...typography.h3,
     color: colors.text,
-    fontWeight: 'bold',
   },
   confirmTotalValue: {
     ...typography.h3,
     color: colors.primary,
-    fontWeight: 'bold',
   },
   // Result Step Styles
   processingContainer: {
@@ -1113,7 +1186,6 @@ const styles = StyleSheet.create({
   resultTitle: {
     ...typography.h2,
     color: colors.text,
-    fontWeight: 'bold',
     marginBottom: spacing.sm,
     textAlign: 'center',
   },
@@ -1133,7 +1205,6 @@ const styles = StyleSheet.create({
   doneButtonText: {
     ...typography.body,
     color: colors.white,
-    fontWeight: '600',
   },
   retryButton: {
     backgroundColor: colors.error,
@@ -1145,7 +1216,6 @@ const styles = StyleSheet.create({
   retryButtonText: {
     ...typography.body,
     color: colors.white,
-    fontWeight: '600',
   },
   // Footer Styles
   footer: {
@@ -1164,7 +1234,6 @@ const styles = StyleSheet.create({
   nextButtonText: {
     ...typography.body,
     color: colors.white,
-    fontWeight: '600',
   },
 });
 

@@ -13,10 +13,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ArrowLeft, Eye, EyeOff, User, Mail, Phone, Lock } from 'lucide-react-native';
+import { ChevronLeft, Mail, Lock, User, Phone } from 'lucide-react-native';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { globalStyles, colors, spacing, iconSizes, shadows, borderRadius } from '../theme';
+import { colors, spacing, borderRadius, shadows, iconSizes, globalStyles } from '../theme';
+import { EyeIcon } from '../components/icons';
 
 type RegisterScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Register'>;
 
@@ -30,6 +31,11 @@ const RegisterScreen: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isNameFocused, setIsNameFocused] = useState(false);
+  const [isEmailFocused, setIsEmailFocused] = useState(false);
+  const [isPhoneFocused, setIsPhoneFocused] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [isConfirmPasswordFocused, setIsConfirmPasswordFocused] = useState(false);
 
   const handleRegister = async () => {
     if (!name || !email || !password || !confirmPassword) {
@@ -49,7 +55,8 @@ const RegisterScreen: React.FC = () => {
 
     try {
       await register(name, email, password, phone);
-      navigation.replace('PinSetup');
+      // Navigate to dedicated PIN creation screen
+      navigation.replace('CreateAccountPin');
     } catch {
       Alert.alert('Registration Failed', 'Please try again');
     }
@@ -68,10 +75,10 @@ const RegisterScreen: React.FC = () => {
           {/* Header with Back Button */}
           <View style={styles.header}>
             <TouchableOpacity 
-              style={styles.backButton}
+              style={globalStyles.backButton}
               onPress={() => navigation.goBack()}
             >
-              <ArrowLeft size={iconSizes.md} color={colors.text} />
+              <ChevronLeft size={iconSizes.md} color={colors.text} />
             </TouchableOpacity>
             <View style={styles.headerContent}>
               <View style={styles.logoContainer}>
@@ -87,7 +94,7 @@ const RegisterScreen: React.FC = () => {
             {/* Full Name Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Full Name</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, isNameFocused && styles.inputWrapperFocused]}>
                 <User size={iconSizes.sm} color={colors.secondaryText} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
@@ -97,6 +104,8 @@ const RegisterScreen: React.FC = () => {
                   autoCapitalize="words"
                   autoCorrect={false}
                   placeholderTextColor={colors.secondaryText}
+                  onFocus={() => setIsNameFocused(true)}
+                  onBlur={() => setIsNameFocused(false)}
                 />
               </View>
             </View>
@@ -104,7 +113,7 @@ const RegisterScreen: React.FC = () => {
             {/* Email Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Email Address</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, isEmailFocused && styles.inputWrapperFocused]}>
                 <Mail size={iconSizes.sm} color={colors.secondaryText} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
@@ -115,6 +124,8 @@ const RegisterScreen: React.FC = () => {
                   autoCapitalize="none"
                   autoCorrect={false}
                   placeholderTextColor={colors.secondaryText}
+                  onFocus={() => setIsEmailFocused(true)}
+                  onBlur={() => setIsEmailFocused(false)}
                 />
               </View>
             </View>
@@ -122,7 +133,7 @@ const RegisterScreen: React.FC = () => {
             {/* Phone Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Phone Number</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, isPhoneFocused && styles.inputWrapperFocused]}>
                 <Phone size={iconSizes.sm} color={colors.secondaryText} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
@@ -132,6 +143,8 @@ const RegisterScreen: React.FC = () => {
                   keyboardType="phone-pad"
                   autoCorrect={false}
                   placeholderTextColor={colors.secondaryText}
+                  onFocus={() => setIsPhoneFocused(true)}
+                  onBlur={() => setIsPhoneFocused(false)}
                 />
               </View>
             </View>
@@ -139,7 +152,7 @@ const RegisterScreen: React.FC = () => {
             {/* Password Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Password</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, isPasswordFocused && styles.inputWrapperFocused]}>
                 <Lock size={iconSizes.sm} color={colors.secondaryText} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
@@ -149,16 +162,18 @@ const RegisterScreen: React.FC = () => {
                   secureTextEntry={!showPassword}
                   autoCorrect={false}
                   placeholderTextColor={colors.secondaryText}
+                  onFocus={() => setIsPasswordFocused(true)}
+                  onBlur={() => setIsPasswordFocused(false)}
                 />
                 <TouchableOpacity 
                   onPress={() => setShowPassword(!showPassword)}
                   style={styles.eyeButton}
                 >
-                  {showPassword ? (
-                    <EyeOff size={iconSizes.sm} color={colors.secondaryText} />
-                  ) : (
-                    <Eye size={iconSizes.sm} color={colors.secondaryText} />
-                  )}
+                  <EyeIcon 
+                    size={iconSizes.sm} 
+                    color={colors.secondaryText} 
+                    filled={!showPassword}
+                  />
                 </TouchableOpacity>
               </View>
             </View>
@@ -166,7 +181,7 @@ const RegisterScreen: React.FC = () => {
             {/* Confirm Password Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Confirm Password</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, isConfirmPasswordFocused && styles.inputWrapperFocused]}>
                 <Lock size={iconSizes.sm} color={colors.secondaryText} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
@@ -176,16 +191,18 @@ const RegisterScreen: React.FC = () => {
                   secureTextEntry={!showConfirmPassword}
                   autoCorrect={false}
                   placeholderTextColor={colors.secondaryText}
+                  onFocus={() => setIsConfirmPasswordFocused(true)}
+                  onBlur={() => setIsConfirmPasswordFocused(false)}
                 />
                 <TouchableOpacity 
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                   style={styles.eyeButton}
                 >
-                  {showConfirmPassword ? (
-                    <EyeOff size={iconSizes.sm} color={colors.secondaryText} />
-                  ) : (
-                    <Eye size={iconSizes.sm} color={colors.secondaryText} />
-                  )}
+                  <EyeIcon 
+                    size={iconSizes.sm} 
+                    color={colors.secondaryText} 
+                    filled={!showConfirmPassword}
+                  />
                 </TouchableOpacity>
               </View>
             </View>
@@ -239,16 +256,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.lg,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xl,
-    ...shadows.small,
-  },
   headerContent: {
     alignItems: 'center',
   },
@@ -298,10 +305,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.white,
     borderRadius: borderRadius.large,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
     ...shadows.small,
+  },
+  inputWrapperFocused: {
+    borderColor: '#06402B',
+    ...shadows.medium,
   },
   inputIcon: {
     marginRight: spacing.sm,

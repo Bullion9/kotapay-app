@@ -21,7 +21,8 @@ import {
   Search,
   CheckCircle,
 } from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows } from '../theme';
+import { colors, spacing, borderRadius, shadows, globalStyles } from '../theme';
+import PinEntryModal from '../components/PinEntryModal';
 
 type RootStackParamList = {
   VirtualCardDetailScreen: { cardId: string };
@@ -57,9 +58,14 @@ const CreateVirtualCardScreen: React.FC = () => {
   const [merchantSearch, setMerchantSearch] = useState('');
   const [showMerchantDropdown, setShowMerchantDropdown] = useState(false);
   
+  // Focus states
+  const [isAmountFocused, setIsAmountFocused] = useState(false);
+  const [isMerchantFocused, setIsMerchantFocused] = useState(false);
+  
   // States
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
   
   // Animation
   const successScale = useRef(new Animated.Value(0)).current;
@@ -140,6 +146,12 @@ const CreateVirtualCardScreen: React.FC = () => {
   const handleCreateCard = async () => {
     if (!selectedCardType) return;
     
+    // Show PIN modal for verification
+    setShowPinModal(true);
+  };
+
+  const handlePinVerified = async () => {
+    setShowPinModal(false);
     setLoading(true);
     
     try {
@@ -257,7 +269,10 @@ const CreateVirtualCardScreen: React.FC = () => {
         </View>
         
         <TextInput
-          style={styles.customAmountInput}
+          style={[
+            styles.customAmountInput,
+            isAmountFocused && styles.customAmountInputFocused
+          ]}
           placeholder="Enter custom amount"
           value={spendLimit.toString()}
           onChangeText={(text) => {
@@ -266,6 +281,8 @@ const CreateVirtualCardScreen: React.FC = () => {
               setSpendLimit(amount);
             }
           }}
+          onFocus={() => setIsAmountFocused(true)}
+          onBlur={() => setIsAmountFocused(false)}
           keyboardType="numeric"
         />
         
@@ -303,7 +320,10 @@ const CreateVirtualCardScreen: React.FC = () => {
       <View style={styles.controlSection}>
         <Text style={styles.controlLabel}>Merchant Lock (Optional)</Text>
         <TouchableOpacity
-          style={styles.merchantSelector}
+          style={[
+            styles.merchantSelector,
+            isMerchantFocused && styles.merchantSelectorFocused
+          ]}
           onPress={() => setShowMerchantDropdown(!showMerchantDropdown)}
         >
           <Search size={20} color={colors.secondaryText} />
@@ -312,7 +332,11 @@ const CreateVirtualCardScreen: React.FC = () => {
             placeholder="Search merchant to lock card"
             value={selectedMerchant ? selectedMerchant.name : merchantSearch}
             onChangeText={setMerchantSearch}
-            onFocus={() => setShowMerchantDropdown(true)}
+            onFocus={() => {
+              setIsMerchantFocused(true);
+              setShowMerchantDropdown(true);
+            }}
+            onBlur={() => setIsMerchantFocused(false)}
           />
         </TouchableOpacity>
         
@@ -423,8 +447,8 @@ const CreateVirtualCardScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <ChevronLeft size={24} color="#000d10" />
+        <TouchableOpacity style={globalStyles.backButton} onPress={handleBack}>
+          <ChevronLeft size={24} color={colors.primary} />
         </TouchableOpacity>
         <View style={styles.headerPlaceholder} />
         <Text style={styles.headerTitle}>Create Virtual Card</Text>
@@ -457,6 +481,16 @@ const CreateVirtualCardScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
       </View>
+      
+      {/* PIN Entry Modal */}
+      <PinEntryModal
+        visible={showPinModal}
+        onClose={() => setShowPinModal(false)}
+        onPinEntered={handlePinVerified}
+        title="Verify PIN"
+        subtitle="Enter your PIN to create virtual card"
+        allowBiometric={true}
+      />
       
       {/* Success Animation */}
       {showSuccess && (
@@ -651,6 +685,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.sm,
   },
+  customAmountInputFocused: {
+    borderColor: '#06402B',
+    ...shadows.medium,
+  },
   limitNote: {
     fontSize: 12,
     color: colors.secondaryText,
@@ -727,6 +765,10 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.medium,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  merchantSelectorFocused: {
+    borderColor: '#06402B',
+    ...shadows.medium,
   },
   merchantInput: {
     flex: 1,

@@ -12,7 +12,10 @@ import {
   StatusBar,
   Animated,
   Platform,
+  Share,
+  Clipboard,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   User,
   ShieldCheck,
@@ -34,18 +37,26 @@ import {
   Calendar,
   DollarSign,
   Languages,
-  Settings,
   UserCheck,
-  PiggyBank,
+  Copy,
+  Share2,
+  FileText,
+  Building2,
+  Gift,
+  MessageCircle,
+  Lock,
+  Eye,
+  Smartphone,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 // @ts-ignore
 import * as Haptics from 'expo-haptics';
 
-interface StatItem {
+interface StatChip {
   icon: React.ReactNode;
   label: string;
   value: string;
+  color: string;
 }
 
 interface EditableRow {
@@ -56,20 +67,39 @@ interface EditableRow {
   verified?: boolean;
 }
 
+interface BankAccount {
+  id: string;
+  bankName: string;
+  maskedNumber: string;
+  logo: string;
+}
+
 const ProfileScreen: React.FC = () => {
   // Animation values
   const [fadeAnim] = useState(new Animated.Value(0));
-  const [slideAnim] = useState(new Animated.Value(50));
+  const [cardAnimations] = useState([
+    new Animated.Value(50),
+    new Animated.Value(50),
+    new Animated.Value(50),
+    new Animated.Value(50),
+    new Animated.Value(50),
+    new Animated.Value(50),
+    new Animated.Value(50),
+    new Animated.Value(50),
+    new Animated.Value(50),
+  ]);
   
   // User data state
   const [userData, setUserData] = useState({
     displayName: 'Sarah Johnson',
     username: '@sarah_j',
+    userId: 'KP-789456123',
     phone: '+234 801 234 5678',
     email: 'sarah@example.com',
     dateOfBirth: '1995-06-15',
     avatar: null as string | null,
     isVerified: true,
+    kycTier: 2,
   });
 
   // Settings state
@@ -86,22 +116,31 @@ const ProfileScreen: React.FC = () => {
     },
   });
 
-  // Stats data
-  const stats: StatItem[] = [
+  // Stats data - comprehensive quick stats
+  const stats: StatChip[] = [
     {
-      icon: <ArrowUpCircle size={20} color="#06402B" />,
-      label: 'Sent',
+      icon: <ArrowUpCircle size={16} color="#06402B" />,
+      label: 'Total Sent',
       value: '₦2.4M',
+      color: '#A8E4A0',
     },
     {
-      icon: <ArrowDownCircle size={20} color="#06402B" />,
+      icon: <ArrowDownCircle size={16} color="#06402B" />,
       label: 'Received',
       value: '₦1.8M',
+      color: '#A8E4A0',
     },
     {
-      icon: <CreditCard size={20} color="#06402B" />,
-      label: 'Cards',
+      icon: <CreditCard size={16} color="#06402B" />,
+      label: 'Virtual Cards',
       value: '3',
+      color: '#A8E4A0',
+    },
+    {
+      icon: <Gift size={16} color="#06402B" />,
+      label: 'Referral Earnings',
+      value: '₦45K',
+      color: '#A8E4A0',
     },
   ];
 
@@ -135,23 +174,45 @@ const ProfileScreen: React.FC = () => {
     },
   ];
 
-  // Animation on mount
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [fadeAnim, slideAnim]);
+  // Bank accounts data
+  const [bankAccounts] = useState<BankAccount[]>([
+    {
+      id: '1',
+      bankName: 'GTBank',
+      maskedNumber: '**** **** **** 1234',
+      logo: '🏦',
+    },
+    {
+      id: '2',
+      bankName: 'Access Bank',
+      maskedNumber: '**** **** **** 5678',
+      logo: '🏦',
+    },
+  ]);
 
-  // Handle avatar change
+  // Animation on mount with staggered effect
+  useEffect(() => {
+    // Hero banner fade-in
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+
+    // Staggered card animations
+    const animations = cardAnimations.map((anim, index) =>
+      Animated.timing(anim, {
+        toValue: 0,
+        duration: 300,
+        delay: index * 40,
+        useNativeDriver: true,
+      })
+    );
+
+    Animated.parallel(animations).start();
+  }, [fadeAnim, cardAnimations]);
+
+  // Handle avatar change with cross-fade animation
   const handleAvatarPress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
@@ -193,10 +254,19 @@ const ProfileScreen: React.FC = () => {
     if (!result.canceled && result.assets[0]) {
       setUserData(prev => ({ ...prev, avatar: result.assets[0].uri }));
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Show success toast
+      Alert.alert('Success', 'Profile picture updated!');
     }
   };
 
-  // Handle toggle changes
+  // Handle copy user ID
+  const handleCopyUserId = async () => {
+    await Clipboard.setStringAsync(userData.userId);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert('Copied', 'User ID copied to clipboard');
+  };
+
+  // Handle toggle changes with haptic feedback
   const handleToggleChange = async (key: string, value: boolean) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
@@ -209,19 +279,40 @@ const ProfileScreen: React.FC = () => {
         notifications: { ...prev.notifications, [notificationKey]: value }
       }));
     }
+    
+    // Show success feedback
+    setTimeout(() => {
+      Alert.alert('Updated', 'Settings saved successfully');
+    }, 150);
   };
 
-  // Handle logout
+  // Handle referral sharing
+  const handleReferralShare = async () => {
+    const referralCode = 'SARAH789';
+    const shareMessage = `Join KotaPay using my referral code: ${referralCode} and get ₦500 bonus! Download: https://kotapay.app`;
+    
+    try {
+      await Share.share({
+        message: shareMessage,
+        title: 'Join KotaPay',
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
+  // Handle logout with confirmation
   const handleLogout = () => {
     Alert.alert(
       'Sign Out',
-      'Are you sure you want to sign out?',
+      'Are you sure you want to sign out? This will clear all local data.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Sign Out',
           style: 'destructive',
           onPress: () => {
+            // Clear tokens & biometric keys
             console.log('Logging out...');
           },
         },
@@ -229,26 +320,26 @@ const ProfileScreen: React.FC = () => {
     );
   };
 
-  // Handle delete account
+  // Handle delete account with double-confirmation + OTP
   const handleDeleteAccount = () => {
     Alert.alert(
       'Delete Account',
-      'This action cannot be undone. All your data will be permanently deleted.',
+      'This action will permanently delete your account after 30 days. You can restore it during this period.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Continue',
           style: 'destructive',
           onPress: () => {
             Alert.alert(
               'Final Confirmation',
-              'Type "DELETE" to confirm account deletion',
+              'Type "DELETE" to confirm account deletion. An OTP will be sent to verify.',
               [
                 { text: 'Cancel', style: 'cancel' },
                 {
-                  text: 'Confirm Delete',
+                  text: 'Send OTP',
                   style: 'destructive',
-                  onPress: () => console.log('Account deleted'),
+                  onPress: () => console.log('Send OTP for account deletion'),
                 },
               ]
             );
@@ -259,10 +350,20 @@ const ProfileScreen: React.FC = () => {
   };
 
   // Render methods
-  const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      {/* Cover gradient background */}
-      <View style={styles.coverGradient} />
+  const renderHeroBanner = () => (
+    <Animated.View 
+      style={[
+        styles.headerContainer,
+        { opacity: fadeAnim }
+      ]}
+    >
+      {/* Cover gradient background with 30% opacity */}
+      <LinearGradient
+        colors={['rgba(6, 64, 43, 0.3)', 'rgba(168, 228, 160, 0.3)']}
+        style={styles.coverGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
       
       {/* Avatar and user info */}
       <View style={styles.userInfoContainer}>
@@ -282,42 +383,58 @@ const ProfileScreen: React.FC = () => {
         <View style={styles.userTextContainer}>
           <View style={styles.nameContainer}>
             <Text style={styles.displayName}>{userData.displayName}</Text>
-            {userData.isVerified && (
+            {userData.isVerified && userData.kycTier >= 2 && (
               <ShieldCheck size={20} color="#06402B" style={styles.verifiedBadge} />
             )}
           </View>
           <Text style={styles.username}>{userData.username}</Text>
-          <Text style={styles.phone}>{userData.phone}</Text>
+          <TouchableOpacity style={styles.copyIdChip} onPress={handleCopyUserId}>
+            <Copy size={12} color="#06402B" />
+            <Text style={styles.copyIdText}>Copy ID</Text>
+          </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 
   const renderQuickStats = () => (
-    <View style={styles.statsContainer}>
-      {stats.map((stat, index) => (
-        <View key={index} style={styles.statItem}>
-          {stat.icon}
-          <Text style={styles.statValue}>{stat.value}</Text>
-          <Text style={styles.statLabel}>{stat.label}</Text>
-        </View>
-      ))}
-    </View>
+    <Animated.View 
+      style={[
+        styles.statsContainer,
+        { transform: [{ translateY: cardAnimations[0] }] }
+      ]}
+    >
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsScrollContent}>
+        {stats.map((stat, index) => (
+          <View key={index} style={[styles.statChip, { backgroundColor: stat.color }]}>
+            {stat.icon}
+            <Text style={styles.statValue}>{stat.value}</Text>
+            <Text style={styles.statLabel}>{stat.label}</Text>
+          </View>
+        ))}
+      </ScrollView>
+    </Animated.View>
   );
 
-  const renderCard = (title: string, children: React.ReactNode) => (
-    <View 
+  const renderCard = (title: string, children: React.ReactNode, animationIndex: number) => (
+    <Animated.View 
       style={[
         styles.card,
+        { transform: [{ translateY: cardAnimations[animationIndex] }] }
       ]}
     >
       <Text style={styles.cardTitle}>{title}</Text>
       {children}
-    </View>
+    </Animated.View>
   );
 
   const renderEditableRow = (item: EditableRow, onPress: () => void) => (
-    <TouchableOpacity key={item.label} style={styles.editableRow} onPress={onPress}>
+    <TouchableOpacity 
+      key={item.label} 
+      style={styles.editableRow} 
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
       <View style={styles.rowLeft}>
         {item.icon}
         <View style={styles.rowText}>
@@ -353,6 +470,7 @@ const ProfileScreen: React.FC = () => {
         trackColor={{ false: '#E5E5E5', true: '#A8E4A0' }}
         thumbColor={value ? '#06402B' : '#FFFFFF'}
         ios_backgroundColor="#E5E5E5"
+        style={styles.switch}
       />
     </View>
   );
@@ -382,38 +500,39 @@ const ProfileScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#06402B" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Header Banner */}
-        {renderHeader()}
+        {/* A. Hero Banner */}
+        {renderHeroBanner()}
 
-        {/* Quick Stats */}
+        {/* B. Quick Stats Chips */}
         {renderQuickStats()}
 
-        {/* Personal Information Card */}
+        {/* C. Personal Details Card */}
         {renderCard(
-          'Personal Information',
+          'Personal Details',
           <View>
             {personalInfo.map((item) =>
               renderEditableRow(item, () => console.log(`Edit ${item.label}`))
             )}
-          </View>
+          </View>,
+          1
         )}
 
-        {/* Security Card */}
+        {/* D. Security Card */}
         {renderCard(
           'Security',
           <View>
             {renderActionRow(
-              <Shield size={20} color="#06402B" />,
-              'Change PIN',
+              <Lock size={20} color="#06402B" />,
+              'Change 6-digit PIN',
               () => console.log('Change PIN'),
-              '4-digit security code'
+              'Update your security PIN'
             )}
             {renderToggleRow(
               <Fingerprint size={20} color="#06402B" />,
@@ -426,19 +545,21 @@ const ProfileScreen: React.FC = () => {
               <Shield size={20} color="#06402B" />,
               'Two-Factor Authentication',
               settings.twoFactor,
-              (value) => handleToggleChange('twoFactor', value)
+              (value) => handleToggleChange('twoFactor', value),
+              'SMS / Authenticator'
             )}
             {renderActionRow(
               <LogOut size={20} color="#EA3B52" />,
-              'Sign Out Everywhere',
+              'Sign out everywhere',
               () => console.log('Sign out everywhere'),
               'End all active sessions',
               true
             )}
-          </View>
+          </View>,
+          2
         )}
 
-        {/* Preferences Card */}
+        {/* E. Preferences Card */}
         {renderCard(
           'Preferences',
           <View>
@@ -446,7 +567,7 @@ const ProfileScreen: React.FC = () => {
               <DollarSign size={20} color="#06402B" />,
               'Currency',
               () => console.log('Change currency'),
-              settings.currency
+              `${settings.currency} - Nigerian Naira`
             )}
             {renderActionRow(
               <Languages size={20} color="#06402B" />,
@@ -477,56 +598,105 @@ const ProfileScreen: React.FC = () => {
               (value) => handleToggleChange('notifications.email', value)
             )}
             {renderToggleRow(
-              <Phone size={20} color="#06402B" />,
+              <Smartphone size={20} color="#06402B" />,
               'SMS Notifications',
               settings.notifications.sms,
               (value) => handleToggleChange('notifications.sms', value)
             )}
-          </View>
+          </View>,
+          3
         )}
 
-        {/* Banking & Cards Card */}
+        {/* F. Banking & Cards Card */}
         {renderCard(
           'Banking & Cards',
           <View>
-            {renderActionRow(
-              <PiggyBank size={20} color="#06402B" />,
-              'Linked Bank Accounts',
-              () => console.log('Manage bank accounts'),
-              '**** **** **** 1234'
-            )}
+            {bankAccounts.map((account, index) => (
+              <TouchableOpacity key={account.id} style={styles.bankAccountRow}>
+                <View style={styles.rowLeft}>
+                  <Text style={styles.bankLogo}>{account.logo}</Text>
+                  <View style={styles.rowText}>
+                    <Text style={styles.rowLabel}>{account.bankName}</Text>
+                    <Text style={styles.rowValue}>{account.maskedNumber}</Text>
+                  </View>
+                </View>
+                <ChevronRight size={20} color="#A3AABE" />
+              </TouchableOpacity>
+            ))}
             {renderActionRow(
               <CreditCard size={20} color="#06402B" />,
               'Virtual Cards',
-              () => console.log('Open VirtualCardHub'),
+              () => console.log('Manage virtual cards'),
               '3 active cards'
             )}
             {renderActionRow(
-              <Settings size={20} color="#06402B" />,
-              'Account Settings',
-              () => console.log('Account settings'),
-              'KYC & Limits'
+              <Building2 size={20} color="#06402B" />,
+              'Add new bank account',
+              () => console.log('Add bank account')
             )}
-          </View>
+          </View>,
+          4
         )}
 
-        {/* Support & Legal Card */}
+        {/* G. Refer & Earn Card */}
+        {renderCard(
+          'Refer & Earn',
+          <View>
+            <View style={styles.referralContainer}>
+              <Text style={styles.referralCodeLabel}>Your referral code</Text>
+              <TouchableOpacity style={styles.referralCodeChip}>
+                <Text style={styles.referralCode}>SARAH789</Text>
+                <Copy size={16} color="#06402B" />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.shareButton} onPress={handleReferralShare}>
+              <Share2 size={20} color="#FFFFFF" />
+              <Text style={styles.shareButtonText}>Share referral link</Text>
+            </TouchableOpacity>
+            <View style={styles.progressContainer}>
+              <Text style={styles.progressLabel}>Earned bonuses: ₦45,000</Text>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: '75%' }]} />
+              </View>
+              <Text style={styles.progressSubtext}>3 of 5 referrals for next bonus</Text>
+            </View>
+          </View>,
+          5
+        )}
+
+        {/* H. Support & Legal Card */}
         {renderCard(
           'Support & Legal',
           <View>
             {renderActionRow(
-              <HelpCircle size={20} color="#06402B" />,
+              <MessageCircle size={20} color="#06402B" />,
               'Contact Support',
               () => console.log('Contact support'),
-              'Chat or email us'
+              'In-app chat or email'
+            )}
+            {renderActionRow(
+              <HelpCircle size={20} color="#06402B" />,
+              'FAQ',
+              () => console.log('Open FAQ')
+            )}
+            {renderActionRow(
+              <FileText size={20} color="#06402B" />,
+              'Terms of Service',
+              () => console.log('Open terms')
+            )}
+            {renderActionRow(
+              <Eye size={20} color="#06402B" />,
+              'Privacy Policy',
+              () => console.log('Open privacy')
             )}
             <View style={styles.versionContainer}>
               <Text style={styles.versionText}>KotaPay v1.2.3 (Build 456)</Text>
             </View>
-          </View>
+          </View>,
+          6
         )}
 
-        {/* Danger Zone Card */}
+        {/* I. Danger Zone Card */}
         {renderCard(
           'Danger Zone',
           <View>
@@ -539,7 +709,8 @@ const ProfileScreen: React.FC = () => {
               <Trash2 size={20} color="#EA3B52" />
               <Text style={styles.dangerButtonOutlineText}>Delete Account</Text>
             </TouchableOpacity>
-          </View>
+          </View>,
+          7
         )}
 
         {/* Bottom spacing */}
@@ -552,7 +723,7 @@ const ProfileScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF0F5',
+    backgroundColor: '#FFFFFF',
   },
   scrollView: {
     flex: 1,
@@ -561,10 +732,10 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   
-  // Header styles
+  // A. Hero Banner styles
   headerContainer: {
     position: 'relative',
-    height: 200,
+    height: 240,
     marginBottom: 20,
   },
   coverGradient: {
@@ -572,35 +743,32 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 140,
-    backgroundColor: '#06402B',
-    shadowColor: '#A8E4A0',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
+    height: 160,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   userInfoContainer: {
     position: 'absolute',
-    top: 80,
+    top: 100,
     left: 0,
     right: 0,
     alignItems: 'center',
   },
   avatarContainer: {
     position: 'relative',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     borderWidth: 4,
     borderColor: '#FFFFFF',
   },
   avatarPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -610,19 +778,19 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
   },
   cameraOverlay: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    bottom: 2,
+    right: 2,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#06402B',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: '#FFFFFF',
   },
   userTextContainer: {
@@ -644,30 +812,44 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 14,
     color: '#A3AABE',
-    marginBottom: 2,
+    marginBottom: 8,
   },
-  phone: {
-    fontSize: 14,
-    color: '#A3AABE',
+  copyIdChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#A8E4A0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  copyIdText: {
+    fontSize: 12,
+    color: '#06402B',
+    marginLeft: 4,
+    fontWeight: '500',
   },
   
-  // Stats styles
+  // B. Quick Stats styles
   statsContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
     marginBottom: 20,
+  },
+  statsScrollContent: {
+    paddingHorizontal: 4,
+  },
+  statChip: {
+    alignItems: 'center',
+    backgroundColor: '#A8E4A0',
     borderRadius: 12,
-    paddingVertical: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginHorizontal: 4,
+    minWidth: 100,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
   },
   statValue: {
     fontSize: 16,
@@ -677,8 +859,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 12,
-    color: '#A3AABE',
+    fontSize: 11,
+    color: '#06402B',
+    textAlign: 'center',
+    opacity: 0.8,
   },
   
   // Card styles
@@ -696,17 +880,17 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#06402B',
     marginBottom: 16,
   },
   
-  // Row styles
+  // Row styles (≥ 48px hit targets)
   editableRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#F5F5F5',
     minHeight: 48,
@@ -715,7 +899,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#F5F5F5',
     minHeight: 48,
@@ -724,7 +908,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+    minHeight: 48,
+  },
+  bankAccountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#F5F5F5',
     minHeight: 48,
@@ -760,25 +953,101 @@ const styles = StyleSheet.create({
   dangerText: {
     color: '#EA3B52',
   },
+  bankLogo: {
+    fontSize: 20,
+    width: 20,
+  },
+  switch: {
+    transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }],
+  },
+  
+  // G. Refer & Earn styles
+  referralContainer: {
+    marginBottom: 16,
+  },
+  referralCodeLabel: {
+    fontSize: 14,
+    color: '#A3AABE',
+    marginBottom: 8,
+  },
+  referralCodeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    justifyContent: 'space-between',
+  },
+  referralCode: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#06402B',
+    letterSpacing: 1,
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#06402B',
+    borderRadius: 8,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  shareButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  progressContainer: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 12,
+  },
+  progressLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#06402B',
+    marginBottom: 8,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: '#E5E5E5',
+    borderRadius: 3,
+    marginBottom: 6,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#A8E4A0',
+    borderRadius: 3,
+  },
+  progressSubtext: {
+    fontSize: 12,
+    color: '#A3AABE',
+  },
   
   // Version styles
   versionContainer: {
     paddingVertical: 12,
     alignItems: 'center',
+    borderBottomWidth: 0,
   },
   versionText: {
     fontSize: 12,
     color: '#A3AABE',
   },
   
-  // Danger zone styles
+  // I. Danger zone styles
   dangerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#EA3B52',
     borderRadius: 8,
-    paddingVertical: 12,
+    paddingVertical: 14,
     marginBottom: 12,
     minHeight: 48,
   },
@@ -795,7 +1064,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#EA3B52',
     borderRadius: 8,
-    paddingVertical: 12,
+    paddingVertical: 14,
     minHeight: 48,
   },
   dangerButtonOutlineText: {
@@ -806,7 +1075,7 @@ const styles = StyleSheet.create({
   },
   
   bottomSpacing: {
-    height: 20,
+    height: 40,
   },
 });
 

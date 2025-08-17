@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, User, Phone, Check, ChevronDown } from 'lucide-react-native';
+import { colors, globalStyles } from '../theme';
 
 const COUNTRY_CODES = [
   { code: '+1', country: 'US', flag: '🇺🇸' },
@@ -88,10 +89,10 @@ const AddContactScreen: React.FC = () => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
-            style={styles.backButton}
+            style={globalStyles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <ChevronLeft size={24} color="#000d10" />
+            <ChevronLeft size={24} color={colors.primary} />
           </TouchableOpacity>
           
           <View style={styles.headerCenter}>

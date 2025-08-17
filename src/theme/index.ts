@@ -384,6 +384,8 @@ export const globalStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.small,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
 });
 

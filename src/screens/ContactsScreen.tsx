@@ -14,6 +14,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { ChevronLeft, Search, Users, PlusCircle } from 'lucide-react-native';
+import { colors, globalStyles } from '../theme';
 import SwipeableContactRow from '../components/SwipeableContactRow';
 
 interface Contact {
@@ -316,10 +317,10 @@ const ContactsScreen: React.FC<ContactsScreenProps> = ({ navigation, route }) =>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={globalStyles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color="#000d10" />
+          <ChevronLeft size={24} color={colors.primary} />
         </TouchableOpacity>
         
         <View style={styles.headerCenter}>
@@ -391,9 +392,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#FFF0F5',
-  },
-  backButton: {
-    padding: 8,
   },
   headerCenter: {
     flex: 1,

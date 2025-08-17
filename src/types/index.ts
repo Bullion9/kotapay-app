@@ -99,10 +99,12 @@ export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   PinSetup: undefined;
+  CreateAccountPin: undefined;
   MainTabs: undefined;
   SendMoney: { scannedData?: string };
   RequestMoney: { requesterId?: string; scannedData?: string };
   TransactionDetail: { transactionId: string };
+  Receipt: { transaction?: any };
   QRScanner: undefined;
   QRCode: undefined;
   Settings: undefined;
@@ -122,6 +124,7 @@ export type RootStackParamList = {
   CreateVirtualCardScreen: undefined;
   VirtualCardDetailScreen: { cardId: string };
   TopUpVirtualCardScreen: { cardId: string };
+  PayWithLink: { linkId: string };
 };
 
 export type TabParamList = {

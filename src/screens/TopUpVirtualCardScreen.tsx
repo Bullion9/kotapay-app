@@ -20,7 +20,8 @@ import {
   CheckCircle,
   Info,
 } from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows } from '../theme';
+import { colors, spacing, borderRadius, shadows, globalStyles } from '../theme';
+import PinEntryModal from '../components/PinEntryModal';
 
 type RootStackParamList = {
   VirtualCardDetailScreen: { cardId: string };
@@ -64,6 +65,12 @@ const TopUpVirtualCardScreen: React.FC = () => {
   const [loadingFees, setLoadingFees] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  
+  // Focus states
+  const [isAmountFocused, setIsAmountFocused] = useState(false);
+  
+  // Refs
+  const amountInputRef = useRef<TextInput>(null);
   
   // Animation
   const successScale = useRef(new Animated.Value(0)).current;
@@ -247,7 +254,7 @@ const TopUpVirtualCardScreen: React.FC = () => {
       setLoading(false);
     }
   };
-  
+
   // Success animation
   const showSuccessAnimation = () => {
     setShowSuccess(true);
@@ -274,49 +281,23 @@ const TopUpVirtualCardScreen: React.FC = () => {
     console.log(`Virtual card topped up with ₦${amount.toLocaleString()}`);
   };
   
-  // Simple PIN modal component
-  const PinModal = () => (
-    showPinModal && (
-      <View style={styles.modalOverlay}>
-        <View style={styles.pinModal}>
-          <Text style={styles.pinModalTitle}>Enter PIN</Text>
-          <Text style={styles.pinModalSubtitle}>
-            Confirm top-up of ₦{parseInt(amount).toLocaleString()}
-          </Text>
-          
-          <View style={styles.pinModalButtons}>
-            <TouchableOpacity
-              style={[styles.pinModalButton, styles.pinModalCancelButton]}
-              onPress={() => setShowPinModal(false)}
-            >
-              <Text style={styles.pinModalCancelText}>Cancel</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.pinModalButton, styles.pinModalConfirmButton]}
-              onPress={handlePinVerified}
-            >
-              <Text style={styles.pinModalConfirmText}>Confirm</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    )
-  );
-  
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={24} color="#000d10" />
+        <TouchableOpacity style={globalStyles.backButton} onPress={() => navigation.goBack()}>
+          <ChevronLeft size={24} color={colors.primary} />
         </TouchableOpacity>
         <View style={styles.headerPlaceholder} />
         <Text style={styles.headerTitle}>Top-Up Virtual Card</Text>
         <View style={styles.headerPlaceholder} />
       </View>
       
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Card Info */}
         <View style={styles.cardInfo}>
           <Text style={styles.cardNickname}>{cardData.nickname}</Text>
@@ -332,17 +313,37 @@ const TopUpVirtualCardScreen: React.FC = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Enter Amount</Text>
           
-          <View style={styles.amountInputContainer}>
+          <TouchableOpacity
+            style={[
+              styles.amountInputContainer,
+              isAmountFocused && styles.amountInputContainerFocused
+            ]}
+            activeOpacity={1}
+            onPress={() => {
+              // Focus the TextInput when container is pressed
+              amountInputRef.current?.focus();
+            }}
+          >
             <Text style={styles.currencySymbol}>₦</Text>
             <TextInput
+              ref={amountInputRef}
               style={styles.amountInput}
               placeholder="0"
+              placeholderTextColor={colors.placeholder}
               value={amount}
               onChangeText={handleAmountChange}
+              onFocus={() => setIsAmountFocused(true)}
+              onBlur={() => setIsAmountFocused(false)}
               keyboardType="numeric"
+              returnKeyType="done"
               maxLength={10}
+              autoCapitalize="none"
+              autoCorrect={false}
+              selectTextOnFocus={true}
+              editable={true}
+              blurOnSubmit={true}
             />
-          </View>
+          </TouchableOpacity>
           
           {/* Quick Amounts */}
           <View style={styles.quickAmounts}>
@@ -477,8 +478,15 @@ const TopUpVirtualCardScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
       
-      {/* PIN Modal */}
-      <PinModal />
+      {/* PIN Entry Modal */}
+      <PinEntryModal
+        visible={showPinModal}
+        onClose={() => setShowPinModal(false)}
+        onPinEntered={handlePinVerified}
+        title="Verify PIN"
+        subtitle={`Confirm top-up of ₦${parseInt(amount || '0').toLocaleString()}`}
+        allowBiometric={true}
+      />
       
       {/* Success Animation */}
       {showSuccess && (
@@ -516,9 +524,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
     paddingTop: spacing.xl,
-  },
-  backButton: {
-    padding: 8,
   },
   headerPlaceholder: {
     flex: 1,
@@ -568,20 +573,23 @@ const styles = StyleSheet.create({
   },
   amountInputContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     backgroundColor: colors.white,
     borderRadius: borderRadius.medium,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 2,
+    borderColor: 'transparent',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     marginBottom: spacing.md,
   },
+  amountInputContainerFocused: {
+    borderColor: '#06402B',
+    ...shadows.medium,
+  },
   currencySymbol: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
-    marginLeft: spacing.sm,
+    color: '#06402B',
     marginRight: spacing.xs,
   },
   amountInput: {
@@ -589,6 +597,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
+    paddingVertical: 2,
   },
   quickAmounts: {
     flexDirection: 'row',

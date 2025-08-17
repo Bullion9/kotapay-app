@@ -27,12 +27,12 @@ import {
   Copy,
   Shield,
   Clock,
-  Eye,
-  EyeOff,
 } from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows } from '../theme';
-import FreezeCardModal from '../components/FreezeCardModal';
+import { colors, spacing, borderRadius, shadows, globalStyles } from '../theme';
+import { EyeIcon } from '../components/icons';
 import PinEntryModal from '../components/PinEntryModal';
+import FreezeCardModal from '../components/FreezeCardModal';
+import DeleteCardModal from '../components/DeleteCardModal';
 
 type RootStackParamList = {
   TopUpVirtualCardScreen: { cardId: string };
@@ -72,12 +72,21 @@ const VirtualCardDetailScreen: React.FC = () => {
   
   // Animation for card flip
   const flipAnimation = useRef(new Animated.Value(0)).current;
+  const confirmationScale = useRef(new Animated.Value(0)).current;
+  const confirmationOpacity = useRef(new Animated.Value(0)).current;
   const [isCardFlipped, setIsCardFlipped] = useState(false);
   const [isEditingNickname, setIsEditingNickname] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [showFreezeModal, setShowFreezeModal] = useState(false);
   const [showCardDetails, setShowCardDetails] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
+  const [pinModalAction, setPinModalAction] = useState<'viewCard' | 'freeze' | 'delete' | null>(null);
+  const [showFreezeModal, setShowFreezeModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showConfirmationAnimation, setShowConfirmationAnimation] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState('');
+  
+  // Focus states
+  const [isNicknameFocused, setIsNicknameFocused] = useState(false);
   
   // Mock card data (would come from API/context)
   const [cardData, setCardData] = useState<VirtualCardDetail>({
@@ -174,30 +183,9 @@ const VirtualCardDetailScreen: React.FC = () => {
     setShowFreezeModal(true);
   };
   
-  // Handle card status change from modal
-  const handleCardStatusChanged = (cardId: string, isFrozen: boolean) => {
-    setCardData(prev => ({
-      ...prev,
-      status: isFrozen ? 'Frozen' : 'Active'
-    }));
-  };
-  
   const handleDelete = () => {
     setShowMoreMenu(false);
-    Alert.alert(
-      'Delete Card',
-      'Are you sure you want to delete this virtual card? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            navigation.goBack();
-          },
-        },
-      ]
-    );
+    setShowDeleteModal(true);
   };
   
   const handleShare = () => {
@@ -217,14 +205,92 @@ const VirtualCardDetailScreen: React.FC = () => {
       setShowCardDetails(false);
     } else {
       // If details are hidden, show PIN modal to verify before showing
-      setShowPinModal(true);
+      requirePinForAction('viewCard');
     }
   };
 
   // Handle PIN verification for showing card details
   const handlePinVerified = () => {
     setShowPinModal(false);
-    setShowCardDetails(true);
+    
+    switch (pinModalAction) {
+      case 'viewCard':
+        setShowCardDetails(true);
+        break;
+      case 'freeze':
+        executeFreeze();
+        break;
+      case 'delete':
+        executeDelete();
+        break;
+    }
+    setPinModalAction(null);
+  };
+
+  // Handle freeze PIN requirement from FreezeCardModal
+  const handleFreezePinRequired = (cardId: string, shouldFreeze: boolean) => {
+    setShowFreezeModal(false);
+    setPinModalAction('freeze');
+    setShowPinModal(true);
+    // Store the freeze intention temporarily
+    setCardData(prev => ({ ...prev, _pendingFreeze: shouldFreeze }));
+  };
+
+  // Handle delete PIN requirement from DeleteCardModal  
+  const handleDeletePinRequired = (cardId: string) => {
+    setShowDeleteModal(false);
+    setPinModalAction('delete');
+    setShowPinModal(true);
+  };
+
+  const requirePinForAction = (action: 'viewCard' | 'freeze' | 'delete') => {
+    setPinModalAction(action);
+    setShowPinModal(true);
+  };
+
+  const showConfirmationWithAnimation = (message: string) => {
+    setConfirmationMessage(message);
+    setShowConfirmationAnimation(true);
+    confirmationScale.setValue(0);
+    confirmationOpacity.setValue(0);
+    
+    Animated.spring(confirmationScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 100,
+      friction: 8,
+    }).start();
+    
+    Animated.timing(confirmationOpacity, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+
+    // Auto hide after 2 seconds
+    setTimeout(() => {
+      setShowConfirmationAnimation(false);
+    }, 2000);
+  };
+
+  const executeFreeze = () => {
+    const shouldFreeze = (cardData as any)._pendingFreeze;
+    const newStatus = shouldFreeze ? 'Frozen' : 'Active';
+    setCardData(prev => ({
+      ...prev,
+      status: newStatus,
+      _pendingFreeze: undefined
+    }));
+    
+    const message = newStatus === 'Frozen' ? 'Card Frozen Successfully!' : 'Card Unfrozen Successfully!';
+    showConfirmationWithAnimation(message);
+  };
+
+  const executeDelete = () => {
+    showConfirmationWithAnimation('Card Deleted Successfully!');
+    setTimeout(() => {
+      navigation.goBack();
+    }, 2000);
   };
   
   const getStatusColor = () => {
@@ -322,17 +388,22 @@ const VirtualCardDetailScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={24} color="#000d10" />
+        <TouchableOpacity style={globalStyles.backButton} onPress={() => navigation.goBack()}>
+          <ChevronLeft size={24} color={colors.primary} />
         </TouchableOpacity>
         
         <View style={styles.headerTitle}>
           {isEditingNickname ? (
             <View style={styles.editNicknameContainer}>
               <TextInput
-                style={styles.nicknameInput}
+                style={[
+                  styles.nicknameInput,
+                  isNicknameFocused && styles.nicknameInputFocused
+                ]}
                 value={tempNickname}
                 onChangeText={setTempNickname}
+                onFocus={() => setIsNicknameFocused(true)}
+                onBlur={() => setIsNicknameFocused(false)}
                 autoFocus
                 selectTextOnFocus
               />
@@ -356,7 +427,10 @@ const VirtualCardDetailScreen: React.FC = () => {
           onPress={() => setShowMoreMenu(!showMoreMenu)}
         >
           {showMoreMenu ? (
-            <X size={24} color="#000d10" />
+            <View style={styles.closeButtonContainer}>
+              <X size={16} color="#EA3B52" />
+              <Text style={styles.closeButtonText}>Close</Text>
+            </View>
           ) : (
             <MoreHorizontal size={24} color="#000d10" />
           )}
@@ -420,17 +494,17 @@ const VirtualCardDetailScreen: React.FC = () => {
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.actionButton} onPress={handleToggleCardDetails}>
-            {showCardDetails ? (
-              <EyeOff size={24} color="#06402B" />
-            ) : (
-              <Eye size={24} color="#06402B" />
-            )}
+            <EyeIcon 
+              size={24} 
+              color="#06402B" 
+              filled={showCardDetails}
+            />
             <Text style={styles.actionButtonText}>
               {showCardDetails ? 'Hide Card' : 'View Card'}
             </Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.actionButton} onPress={handleFreeze}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => setShowFreezeModal(true)}>
             {cardData.status === 'Frozen' ? (
               <Unlock size={24} color="#06402B" />
             ) : (
@@ -517,6 +591,24 @@ const VirtualCardDetailScreen: React.FC = () => {
         </View>
       </ScrollView>
       
+      {/* PIN Entry Modal for Actions */}
+      <PinEntryModal
+        visible={showPinModal}
+        onClose={() => {
+          setShowPinModal(false);
+          setPinModalAction(null);
+        }}
+        onPinEntered={handlePinVerified}
+        title="Verify PIN"
+        subtitle={
+          pinModalAction === 'viewCard' ? 'Enter PIN to view card details' :
+          pinModalAction === 'freeze' ? 'Enter PIN to freeze/unfreeze card' :
+          pinModalAction === 'delete' ? 'Enter PIN to delete card' :
+          'Enter your PIN to continue'
+        }
+        allowBiometric={true}
+      />
+
       {/* Freeze Card Modal */}
       <FreezeCardModal
         visible={showFreezeModal}
@@ -524,18 +616,34 @@ const VirtualCardDetailScreen: React.FC = () => {
         cardId={cardData.id}
         cardNickname={cardData.nickname}
         isCurrentlyFrozen={cardData.status === 'Frozen'}
-        onStatusChanged={handleCardStatusChanged}
+        onPinRequired={handleFreezePinRequired}
       />
-      
-      {/* PIN Entry Modal for Card Details */}
-      <PinEntryModal
-        visible={showPinModal}
-        onClose={() => setShowPinModal(false)}
-        onPinEntered={handlePinVerified}
-        title="Enter PIN"
-        subtitle="Enter your PIN to view card details"
-        allowBiometric={true}
+
+      {/* Delete Card Modal */}
+      <DeleteCardModal
+        visible={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        cardId={cardData.id}
+        cardNickname={cardData.nickname}
+        onPinRequired={handleDeletePinRequired}
       />
+
+      {/* Confirmation Animation */}
+      {showConfirmationAnimation && (
+        <View style={styles.confirmationOverlay}>
+          <Animated.View
+            style={[
+              styles.confirmationContainer,
+              {
+                opacity: confirmationOpacity,
+                transform: [{ scale: confirmationScale }],
+              },
+            ]}
+          >
+            <Text style={styles.confirmationText}>{confirmationMessage}</Text>
+          </Animated.View>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -575,6 +683,9 @@ const styles = StyleSheet.create({
     minWidth: 120,
     textAlign: 'center',
   },
+  nicknameInputFocused: {
+    borderColor: '#06402B',
+  },
   nicknameContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -595,6 +706,23 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     zIndex: 1001,
     position: 'relative',
+  },
+  closeButtonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.medium,
+    gap: 4,
+    ...shadows.small,
+    borderWidth: 1,
+    borderColor: '#EA3B52',
+  },
+  closeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#EA3B52',
   },
   menuBackdrop: {
     position: 'absolute',
@@ -879,6 +1007,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#06402B',
+  },
+  confirmationOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmationContainer: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.large,
+    padding: spacing.xl,
+    alignItems: 'center',
+    marginHorizontal: spacing.xl,
+    ...shadows.large,
+  },
+  confirmationText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#06402B',
+    textAlign: 'center',
   },
 });
 

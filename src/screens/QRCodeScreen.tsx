@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft } from 'lucide-react-native';
-import { colors, spacing } from '../theme';
+import { colors, spacing, globalStyles } from '../theme';
 
 const QRCodeScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -13,10 +13,10 @@ const QRCodeScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
-          style={styles.backButton} 
+          style={globalStyles.backButton} 
           onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color="#000d10" />
+          <ChevronLeft size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My QR Code</Text>
         <View style={styles.headerSpacer} />
@@ -46,9 +46,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5EA',
     backgroundColor: '#FFF0F5',
-  },
-  backButton: {
-    padding: 8,
   },
   headerTitle: {
     fontSize: 18,

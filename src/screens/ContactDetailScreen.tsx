@@ -10,7 +10,8 @@ import {
   Image,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ChevronLeft, Phone, Mail, Send, QrCode, Trash2 } from 'lucide-react-native';
+import { ChevronLeft, Phone, Mail, Send, QrCode, Trash2, HandCoins } from 'lucide-react-native';
+import { colors, globalStyles } from '../theme';
 
 interface Contact {
   id: string;
@@ -124,10 +125,10 @@ const ContactDetailScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={globalStyles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color="#000d10" />
+          <ChevronLeft size={24} color={colors.primary} />
         </TouchableOpacity>
         
         <View style={styles.headerCenter}>
@@ -178,7 +179,7 @@ const ContactDetailScreen: React.FC = () => {
 
         <TouchableOpacity style={styles.actionButton} onPress={handleRequestMoney}>
           <View style={styles.actionIcon}>
-            <Send size={24} color="#06402B" />
+            <HandCoins size={24} color="#06402B" />
           </View>
           <Text style={styles.actionText}>Request Money</Text>
         </TouchableOpacity>
@@ -236,9 +237,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#FFF0F5',
-  },
-  backButton: {
-    padding: 8,
   },
   deleteButton: {
     padding: 8,

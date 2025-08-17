@@ -105,9 +105,12 @@ class AuthService {
   }
 
   async updatePin(currentPin: string, newPin: string): Promise<void> {
-    const isCurrentPinValid = await this.verifyPin(currentPin);
-    if (!isCurrentPinValid) {
-      throw new Error('Current PIN is incorrect');
+    // If currentPin is empty, this is a new PIN setup (no validation needed)
+    if (currentPin !== '') {
+      const isCurrentPinValid = await this.verifyPin(currentPin);
+      if (!isCurrentPinValid) {
+        throw new Error('Current PIN is incorrect');
+      }
     }
 
     if (newPin.length !== 4 || !/^\d+$/.test(newPin)) {
