@@ -48,3 +48,12 @@ yarn-error.*
 
 app-example
 .env
+
+# Prevent problematic image formats that cause Metro bundler issues
+# JPG files in source directories can cause bundling errors
+assets/images/*.JPG
+assets/images/*.jpg
+src/**/*.JPG
+src/**/*.jpg
+betting*/**/*.JPG
+betting*/**/*.jpg
