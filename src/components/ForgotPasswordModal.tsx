@@ -18,6 +18,8 @@ import {
   Check,
 } from 'lucide-react-native';
 import { EyeIcon } from './icons';
+import LoadingOverlay from './LoadingOverlay';
+import { useLoading } from '../hooks/useLoading';
 
 interface ForgotPasswordModalProps {
   visible: boolean;
@@ -38,11 +40,13 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resendTimer, setResendTimer] = useState(0);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // Enhanced loading states
+  const { isLoading, setConfirming, setError: setLoadingError, stopLoading } = useLoading();
   
   // Refs for animations and inputs
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -140,12 +144,12 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
       setConfirmPassword('');
       setError(null);
       setResendTimer(0);
-      setIsLoading(false);
+      stopLoading(); // Reset loading state
       animateIn();
     } else {
       animateOut();
     }
-  }, [visible, animateIn, animateOut]);
+  }, [visible, animateIn, animateOut, stopLoading]);
   
   // Resend timer countdown
   useEffect(() => {
@@ -189,19 +193,22 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
       return;
     }
     
-    setIsLoading(true);
+    setConfirming();
     setError(null);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Simulate API call with loading phases
+      await new Promise<void>(resolve => setTimeout(resolve, 1500));
+      stopLoading();
       setCurrentStep('otp');
       setResendTimer(60);
     } catch {
-      setError('Failed to send code. Please try again.');
-      shakeInput();
-    } finally {
-      setIsLoading(false);
+      setLoadingError('Failed to send code. Please try again.');
+      setTimeout(() => {
+        stopLoading();
+        setError('Failed to send code. Please try again.');
+        shakeInput();
+      }, 500);
     }
   };
   
@@ -231,18 +238,21 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
       return;
     }
     
-    setIsLoading(true);
+    setConfirming();
     setError(null);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Simulate API call with loading phases
+      await new Promise<void>(resolve => setTimeout(resolve, 1200));
+      stopLoading();
       setCurrentStep('password');
     } catch {
-      setError('Invalid code. Please try again.');
-      shakeInput();
-    } finally {
-      setIsLoading(false);
+      setLoadingError('Invalid code. Please try again.');
+      setTimeout(() => {
+        stopLoading();
+        setError('Invalid code. Please try again.');
+        shakeInput();
+      }, 500);
     }
   };
   
@@ -254,12 +264,13 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
       return;
     }
     
-    setIsLoading(true);
+    setConfirming();
     setError(null);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Simulate API call with loading phases
+      await new Promise<void>(resolve => setTimeout(resolve, 1800));
+      stopLoading();
       setCurrentStep('success');
       
       // Success animation
@@ -277,10 +288,12 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
         onClose();
       }, 2000);
     } catch {
-      setError('Failed to reset password. Please try again.');
-      shakeInput();
-    } finally {
-      setIsLoading(false);
+      setLoadingError('Failed to reset password. Please try again.');
+      setTimeout(() => {
+        stopLoading();
+        setError('Failed to reset password. Please try again.');
+        shakeInput();
+      }, 500);
     }
   };
   
@@ -288,16 +301,19 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
   const handleResendCode = async () => {
     if (resendTimer > 0) return;
     
-    setIsLoading(true);
+    setConfirming();
     try {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise<void>(resolve => setTimeout(resolve, 1000));
+      stopLoading();
       setResendTimer(60);
       setError(null);
     } catch {
-      setError('Failed to resend code');
-    } finally {
-      setIsLoading(false);
+      setLoadingError('Failed to resend code');
+      setTimeout(() => {
+        stopLoading();
+        setError('Failed to resend code');
+      }, 500);
     }
   };
   
@@ -628,6 +644,17 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
           </ScrollView>
         </Animated.View>
       </KeyboardAvoidingView>
+      
+      {/* Loading Overlay */}
+      <LoadingOverlay 
+        isVisible={isLoading}
+        title={currentStep === 'identifier' ? 'Sending Code...' : 
+               currentStep === 'otp' ? 'Verifying Code...' : 
+               'Resetting Password...'}
+        subtitle={currentStep === 'identifier' ? 'Please wait while we send the verification code' :
+                  currentStep === 'otp' ? 'Please wait while we verify your code' :
+                  'Please wait while we reset your password'}
+      />
     </Modal>
   );
 };

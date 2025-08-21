@@ -1,10 +1,13 @@
 import React, { useEffect } from 'react';
-// @ts-ignore
-import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from './src/contexts/AuthContext';
+import { SettingsProvider } from './src/contexts/SettingsContext';
+import { ThemeProvider } from './src/contexts/ThemeContext';
+import { PreferencesProvider } from './src/contexts/PreferencesContext';
+import { ProfileImageProvider } from './src/contexts/ProfileImageContext';
 import AppNavigator from './src/navigation';
 import { notificationService } from './src/services/notifications';
 import { ToastProvider } from './src/components/ToastProvider';
+import { StatusBarManager } from './src/components/StatusBarManager';
 
 export default function App() {
   useEffect(() => {
@@ -22,11 +25,19 @@ export default function App() {
   }, []);
 
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <AppNavigator />
-        <StatusBar style="auto" />
-      </ToastProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <PreferencesProvider>
+        <AuthProvider>
+          <SettingsProvider>
+            <ProfileImageProvider>
+              <ToastProvider>
+                <AppNavigator />
+                <StatusBarManager />
+              </ToastProvider>
+            </ProfileImageProvider>
+          </SettingsProvider>
+        </AuthProvider>
+      </PreferencesProvider>
+    </ThemeProvider>
   );
 }

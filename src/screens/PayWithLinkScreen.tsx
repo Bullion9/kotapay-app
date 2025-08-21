@@ -29,11 +29,19 @@ import {
   PiggyBank,
   Check,
   Clock,
+  CreditCard,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { colors, spacing, shadows, globalStyles } from '../theme';
+import { useSettings } from '../contexts/SettingsContext';
+import { colors, spacing, shadows, borderRadius, globalStyles } from '../theme';
 import PinEntryModal from '../components/PinEntryModal';
+import LoadingOverlay from '../components/LoadingOverlay';
+import LoadingSpinner from '../components/LoadingSpinner';
+import PageLoadingOverlay from '../components/PageLoadingOverlay';
+import { useLoading } from '../hooks/useLoading';
+import { usePageLoading } from '../hooks/usePageLoading';
+import PaymentMethodService, { PaymentMethod } from '../services/PaymentMethodService';
 
 type PayWithLinkScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -50,7 +58,7 @@ interface PaymentLink {
   maxTip: number;
 }
 
-interface PaymentMethod {
+interface PaymentOption {
   id: string;
   name: string;
   icon: React.ComponentType<any>;
@@ -65,33 +73,24 @@ const PayWithLinkScreen: React.FC = () => {
   const navigation = useNavigation<PayWithLinkScreenNavigationProp>();
   const route = useRoute();
   const { user } = useAuth();
+  const { formatCurrency } = useSettings();
   
   // Extract linkId from route params
   const linkId = (route.params as any)?.linkId || 'demo-link-123';
   
   // State management
   const [paymentLink, setPaymentLink] = useState<PaymentLink | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [tipAmount, setTipAmount] = useState(0);
   const [payerName, setPayerName] = useState(user?.name || '');
   const [payerEmail, setPayerEmail] = useState(user?.email || '');
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [linkStatus, setLinkStatus] = useState<'active' | 'expired' | 'paid'>('active');
   const [showPinModal, setShowPinModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState<'success' | 'failed' | 'pending'>('pending');
-
-  const animationValue = useRef(new Animated.Value(0)).current;
-
-  // Reset animation state
-  const resetAnimationState = () => {
-    setShowSuccess(false);
-    animationValue.setValue(0);
-  };
-
-  // Payment methods
-  const paymentMethods: PaymentMethod[] = [
+  const [tipAmountLoading, setTipAmountLoading] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [paymentOptions] = useState<PaymentOption[]>([
     {
       id: 'card',
       name: 'Card',
@@ -113,14 +112,50 @@ const PayWithLinkScreen: React.FC = () => {
       description: 'KotaPay balance',
       requiresAuth: true,
     },
-  ];
+  ]);
+
+  // Page loading state management
+  const { isPageLoading } = usePageLoading({ duration: 1000 });
+
+  // Payment loading state management
+  const {
+    isLoading: isPaymentProcessing,
+    loadingState,
+    loadingMessage,
+    startLoading,
+    setProcessing,
+    setConfirming,
+    stopLoading,
+  } = useLoading();
+
+  const animationValue = useRef(new Animated.Value(0)).current;
+
+  // Reset animation state
+  const resetAnimationState = () => {
+    setShowSuccess(false);
+    animationValue.setValue(0);
+  };
+
+  // Load payment methods from service
+  useEffect(() => {
+    const loadPaymentMethods = async () => {
+      try {
+        const methods = await PaymentMethodService.getPaymentMethods();
+        setPaymentMethods(methods);
+      } catch (error) {
+        console.error('Error loading payment methods:', error);
+      }
+    };
+
+    loadPaymentMethods();
+  }, []);
 
   // Load payment link data
   useEffect(() => {
     const loadPaymentLink = async () => {
       try {
         // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise<void>(resolve => setTimeout(resolve, 1000));
         
         // Mock payment link data
         const mockLink: PaymentLink = {
@@ -150,8 +185,6 @@ const PayWithLinkScreen: React.FC = () => {
       } catch {
         Alert.alert('Error', 'Failed to load payment link');
         navigation.goBack();
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -187,19 +220,34 @@ const PayWithLinkScreen: React.FC = () => {
     // PIN verified successfully, proceed with payment
     setShowPinModal(false);
     
-    // Process the payment
-    setIsProcessing(true);
-    setTransactionStatus('pending');
-    
     try {
+      // Manual loading control
+      startLoading('Initializing payment...');
+      
+      // Processing phase
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      setProcessing('Processing payment link...');
+      
+      // Confirming phase
+      await new Promise<void>(resolve => setTimeout(resolve, 800));
+      setConfirming('Confirming transaction...');
+      
+      // Execute operation
+      await new Promise<void>(resolve => setTimeout(resolve, 1000));
+      
+      // Process the payment
+      setTransactionStatus('pending');
+      
       // Simulate payment processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise<void>(resolve => setTimeout(resolve, 2000));
       
       // Payment successful
       setTransactionStatus('success');
-      setIsProcessing(false);
-      
-      // Start success animation
+
+      // Stop loading before success animation
+      stopLoading();
+
+      // After loading is complete, start success animation
       setShowSuccess(true);
       animationValue.setValue(0);
       Animated.spring(animationValue, {
@@ -208,34 +256,48 @@ const PayWithLinkScreen: React.FC = () => {
         tension: 100,
         friction: 8,
       }).start();
-      
-    } catch {
+    } catch (error) {
+      console.error('Payment failed:', error);
       setTransactionStatus('failed');
-      setIsProcessing(false);
+      stopLoading();
     }
   };
 
   const renderPinModal = () => {
-    const selectedPaymentMethod = paymentMethods.find(method => method.id === selectedMethod);
-    const methodName = selectedPaymentMethod?.name || 'Payment Method';
+    const selectedPaymentMethod = paymentMethods.find(method => method.id === selectedMethod) || 
+                                 paymentOptions.find(option => option.id === selectedMethod);
+    const methodName = selectedPaymentMethod?.nickname || selectedPaymentMethod?.name || 'Payment Method';
     
     return (
       <PinEntryModal
         visible={showPinModal}
-        onClose={() => !isProcessing && setShowPinModal(false)}
+        onClose={() => !isPaymentProcessing && setShowPinModal(false)}
         onPinEntered={handlePinVerified}
-        title={isProcessing ? "Processing Payment..." : "Enter PIN to Pay"}
-        subtitle={isProcessing 
+        title={isPaymentProcessing ? "Processing Payment..." : "Enter PIN to Pay"}
+        subtitle={isPaymentProcessing 
           ? "Please wait while we process your payment..."
-          : `Pay ${paymentLink?.currency}${getTotalAmount().toLocaleString()} to ${paymentLink?.recipientName} via ${methodName}`
+          : `Pay ${formatCurrency(getTotalAmount(), paymentLink?.currency)} to ${paymentLink?.recipientName} via ${methodName}`
         }
-        allowBiometric={!isProcessing}
+        allowBiometric={!isPaymentProcessing}
       />
     );
   };
 
   const getTotalAmount = () => {
     return (paymentLink?.amount || 0) + tipAmount;
+  };
+
+  // Handle tip amount selection with silent loading animation
+  const handleTipAmountPress = async (tip: number) => {
+    setTipAmountLoading(true);
+    
+    // Simulate processing time for tip selection
+    await new Promise<void>(resolve => setTimeout(resolve, 300));
+    
+    // Set the tip amount after loading
+    setTipAmount(tip);
+    
+    setTipAmountLoading(false);
   };
 
   const renderStatusBanner = () => {
@@ -284,7 +346,7 @@ const PayWithLinkScreen: React.FC = () => {
     <View style={styles.amountPanel}>
       <Text style={styles.amountLabel}>Amount</Text>
       <Text style={styles.amountValue}>
-        {paymentLink?.currency}{paymentLink?.amount?.toLocaleString()}
+        {formatCurrency(paymentLink?.amount || 0, paymentLink?.currency)}
       </Text>
       
       {paymentLink?.note && (
@@ -302,13 +364,14 @@ const PayWithLinkScreen: React.FC = () => {
                   styles.tipOption,
                   tipAmount === tip && styles.tipOptionSelected,
                 ]}
-                onPress={() => setTipAmount(tip)}
+                onPress={() => handleTipAmountPress(tip)}
+                disabled={tipAmountLoading}
               >
                 <Text style={[
                   styles.tipOptionText,
                   tipAmount === tip && styles.tipOptionTextSelected,
                 ]}>
-                  {tip === 0 ? 'No tip' : `₦${tip}`}
+                  {tip === 0 ? 'No tip' : formatCurrency(tip)}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -316,7 +379,7 @@ const PayWithLinkScreen: React.FC = () => {
           
           {tipAmount > 0 && (
             <Text style={styles.totalAmount}>
-              Total: {paymentLink?.currency}{getTotalAmount().toLocaleString()}
+              Total: {formatCurrency(getTotalAmount(), paymentLink?.currency)}
             </Text>
           )}
         </View>
@@ -361,44 +424,90 @@ const PayWithLinkScreen: React.FC = () => {
         Select a payment method. You&apos;ll enter your PIN to confirm the payment.
       </Text>
       
-      <View style={styles.methodGrid}>
-        {paymentMethods.map((method) => {
-          const IconComponent = method.icon;
-          const isSelected = selectedMethod === method.id;
-          const isDisabled = method.requiresAuth && !user;
-          
-          return (
-            <TouchableOpacity
-              key={method.id}
-              style={[
-                styles.methodOptionCompact,
-                isSelected && styles.methodOptionSelected,
-                isDisabled && styles.methodOptionDisabled,
-              ]}
-              onPress={() => !isDisabled && handleMethodSelection(method.id)}
-              disabled={isDisabled}
-            >
-              <IconComponent 
-                size={24} 
-                color={isSelected ? '#FFFFFF' : isDisabled ? '#9CA3AF' : '#06402B'} 
-              />
-              <Text style={[
-                styles.methodNameCompact,
-                isSelected && styles.methodNameSelected,
-                isDisabled && styles.methodNameDisabled,
-              ]}>
-                {method.name}
-              </Text>
-              <Text style={[
-                styles.methodDescriptionCompact,
-                isSelected && styles.methodDescriptionSelected,
-                isDisabled && styles.methodDescriptionDisabled,
-              ]}>
-                {method.description}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+      {/* Saved Payment Methods */}
+      {paymentMethods.length > 0 && (
+        <View style={styles.savedMethodsSection}>
+          <Text style={styles.sectionTitle}>Saved Payment Methods</Text>
+          <View style={styles.methodGrid}>
+            {paymentMethods.map((method) => {
+              const isSelected = selectedMethod === method.id;
+              
+              return (
+                <TouchableOpacity
+                  key={method.id}
+                  style={[
+                    styles.methodOptionCompact,
+                    isSelected && styles.methodOptionSelected,
+                  ]}
+                  onPress={() => handleMethodSelection(method.id)}
+                >
+                  <CreditCard 
+                    size={24} 
+                    color={isSelected ? '#FFFFFF' : '#06402B'} 
+                  />
+                  <Text style={[
+                    styles.methodNameCompact,
+                    isSelected && styles.methodNameSelected,
+                  ]}>
+                    {method.nickname}
+                  </Text>
+                  <Text style={[
+                    styles.methodDescriptionCompact,
+                    isSelected && styles.methodDescriptionSelected,
+                  ]}>
+                    {PaymentMethodService.formatDisplayText(method)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      )}
+      
+      {/* Payment Options */}
+      <View style={styles.paymentOptionsSection}>
+        <Text style={styles.sectionTitle}>
+          {paymentMethods.length > 0 ? 'Other Payment Options' : 'Payment Options'}
+        </Text>
+        <View style={styles.methodGrid}>
+          {paymentOptions.map((option) => {
+            const IconComponent = option.icon;
+            const isSelected = selectedMethod === option.id;
+            const isDisabled = option.requiresAuth && !user;
+            
+            return (
+              <TouchableOpacity
+                key={option.id}
+                style={[
+                  styles.methodOptionCompact,
+                  isSelected && styles.methodOptionSelected,
+                  isDisabled && styles.methodOptionDisabled,
+                ]}
+                onPress={() => !isDisabled && handleMethodSelection(option.id)}
+                disabled={isDisabled}
+              >
+                <IconComponent 
+                  size={24} 
+                  color={isSelected ? '#FFFFFF' : isDisabled ? '#9CA3AF' : '#06402B'} 
+                />
+                <Text style={[
+                  styles.methodNameCompact,
+                  isSelected && styles.methodNameSelected,
+                  isDisabled && styles.methodNameDisabled,
+                ]}>
+                  {option.name}
+                </Text>
+                <Text style={[
+                  styles.methodDescriptionCompact,
+                  isSelected && styles.methodDescriptionSelected,
+                  isDisabled && styles.methodDescriptionDisabled,
+                ]}>
+                  {option.description}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
     </View>
   );
@@ -440,14 +549,14 @@ const PayWithLinkScreen: React.FC = () => {
   );
 
   const renderResultOverlay = () => {
-    if (!showSuccess && !isProcessing) return null;
+    if (!showSuccess) return null;
 
     const statusConfig = {
       success: {
         icon: Check,
         color: '#10B981',
         title: 'Payment Successful!',
-        subtitle: `₦${getTotalAmount().toLocaleString()} paid to ${paymentLink?.recipientName}`,
+        subtitle: `${formatCurrency(getTotalAmount(), paymentLink?.currency)} paid to ${paymentLink?.recipientName}`,
       },
       failed: {
         icon: X,
@@ -469,38 +578,20 @@ const PayWithLinkScreen: React.FC = () => {
     return (
       <View style={styles.resultOverlay}>
         <View style={styles.resultContainer}>
-          {isProcessing ? (
-            <View style={styles.processingContainer}>
-              <View style={styles.processingSpinner}>
-                <Text style={styles.processingDots}>●●●</Text>
-              </View>
-              <Text style={styles.processingText}>Processing payment...</Text>
+          <View
+            style={[
+              styles.resultContent,
+              showSuccess && transactionStatus === 'success' && {
+                opacity: 1,
+                transform: [{ scale: 1 }],
+              },
+            ]}
+          >
+            <View style={[styles.resultIcon, { backgroundColor: config.color }]}>
+              <IconComponent size={48} color="#FFFFFF" />
             </View>
-          ) : (
-            <Animated.View
-              style={[
-                styles.resultContent,
-                showSuccess && transactionStatus === 'success' && {
-                  opacity: animationValue.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.7, 1],
-                  }),
-                  transform: [
-                    {
-                      scale: animationValue.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.9, 1],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              <View style={[styles.resultIcon, { backgroundColor: config.color }]}>
-                <IconComponent size={48} color="#FFFFFF" />
-              </View>
-              <Text style={styles.resultTitle}>{config.title}</Text>
-              <Text style={styles.resultSubtitle}>{config.subtitle}</Text>
+            <Text style={styles.resultTitle}>{config.title}</Text>
+            <Text style={styles.resultSubtitle}>{config.subtitle}</Text>
               
               {transactionStatus === 'success' && (
                 <View style={styles.resultButtons}>
@@ -536,22 +627,11 @@ const PayWithLinkScreen: React.FC = () => {
                   <Text style={styles.retryButtonText}>Try Again</Text>
                 </TouchableOpacity>
               )}
-            </Animated.View>
-          )}
+            </View>
         </View>
       </View>
     );
   };
-
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading payment link...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -583,6 +663,25 @@ const PayWithLinkScreen: React.FC = () => {
       
       {renderPinModal()}
       {renderResultOverlay()}
+      
+      {/* Loading Overlay */}
+      <LoadingOverlay
+        visible={isPaymentProcessing}
+        type={loadingState}
+        message={loadingMessage}
+      />
+
+      {/* Simple Tip Amount Loading */}
+      {tipAmountLoading && (
+        <View style={styles.tipAmountLoadingOverlay}>
+          <View style={styles.tipAmountLoadingContainer}>
+            <LoadingSpinner size={40} color={colors.primary} />
+          </View>
+        </View>
+      )}
+
+      {/* Page Loading Overlay */}
+      <PageLoadingOverlay visible={isPageLoading} />
     </SafeAreaView>
   );
 };
@@ -793,6 +892,18 @@ const styles = StyleSheet.create({
     width: '100%',
     ...shadows.medium,
   },
+  savedMethodsSection: {
+    marginBottom: spacing.lg,
+  },
+  paymentOptionsSection: {
+    // No additional styling needed
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: spacing.md,
+  },
   methodOptionCompact: {
     width: '30%', // Three per row for better spacing
     alignItems: 'center',
@@ -893,23 +1004,6 @@ const styles = StyleSheet.create({
     width: '90%',
     alignItems: 'center',
   },
-  processingContainer: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
-  },
-  processingSpinner: {
-    marginBottom: spacing.lg,
-  },
-  processingDots: {
-    fontSize: 24,
-    color: '#06402B',
-    letterSpacing: 4,
-  },
-  processingText: {
-    fontSize: 16,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
   resultContent: {
     alignItems: 'center',
     width: '100%',
@@ -973,6 +1067,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  tipAmountLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  tipAmountLoadingContainer: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.large,
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.medium,
   },
 });
 

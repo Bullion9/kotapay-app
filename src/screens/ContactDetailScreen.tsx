@@ -150,7 +150,6 @@ const ContactDetailScreen: React.FC = () => {
             <Image 
               source={{ uri: contact.profileImage }}
               style={styles.profileImage}
-              defaultSource={require('../../assets/images/partial-react-logo.png')} // Fallback image
             />
           ) : (
             <Text style={styles.initials}>{initials}</Text>

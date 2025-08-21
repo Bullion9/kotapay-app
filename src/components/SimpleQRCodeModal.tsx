@@ -140,7 +140,7 @@ const SimpleQRCodeModal: React.FC<QRCodeScannerModalProps> = ({
 
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images',
         allowsEditing: false,
         quality: 1,
       });

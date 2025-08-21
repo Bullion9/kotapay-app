@@ -6,16 +6,18 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  Alert,
   StatusBar,
+  KeyboardAvoidingView,
+  Platform,
+  TextInput,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import {
-  ArrowLeft,
+  ChevronLeft,
   User,
   Mail,
   Phone,
   Calendar,
-  ChevronRight,
   UserCheck,
   Edit3,
 } from 'lucide-react-native';
@@ -28,15 +30,23 @@ interface EditableRow {
   value: string;
   type: 'text' | 'email' | 'phone' | 'date';
   verified?: boolean;
+  key: string;
 }
 
 const PersonalInformationScreen: React.FC = () => {
-  const [userData] = useState({
+  console.log('🚀 PersonalInformationScreen mounted with inline editing');
+  
+  const navigation = useNavigation();
+  
+  const [userData, setUserData] = useState({
     displayName: 'Sarah Johnson',
     phone: '+234 801 234 5678',
     email: 'sarah@example.com',
     dateOfBirth: '1995-06-15',
   });
+
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [tempValues, setTempValues] = useState<{ [key: string]: string }>({});
 
   const personalInfo: EditableRow[] = [
     {
@@ -44,6 +54,7 @@ const PersonalInformationScreen: React.FC = () => {
       label: 'Full Name',
       value: userData.displayName,
       type: 'text',
+      key: 'displayName',
     },
     {
       icon: <Mail size={20} color="#06402B" />,
@@ -51,6 +62,7 @@ const PersonalInformationScreen: React.FC = () => {
       value: userData.email,
       type: 'email',
       verified: true,
+      key: 'email',
     },
     {
       icon: <Phone size={20} color="#06402B" />,
@@ -58,53 +70,119 @@ const PersonalInformationScreen: React.FC = () => {
       value: userData.phone,
       type: 'phone',
       verified: true,
+      key: 'phone',
     },
     {
       icon: <Calendar size={20} color="#06402B" />,
       label: 'Date of Birth',
       value: userData.dateOfBirth,
       type: 'date',
+      key: 'dateOfBirth',
     },
   ];
 
   const handleEdit = async (item: EditableRow) => {
+    console.log('🎯 Editing field:', item.key);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert(
-      `Edit ${item.label}`,
-      `Update your ${item.label.toLowerCase()}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Edit', onPress: () => console.log(`Editing ${item.label}`) },
-      ]
-    );
+    setEditingField(item.key);
+    setTempValues({ ...tempValues, [item.key]: item.value });
+  };
+
+  const handleSave = async (key: string) => {
+    console.log('💾 Saving field:', key, 'with value:', tempValues[key]);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const newValue = tempValues[key] || '';
+    setUserData(prev => ({
+      ...prev,
+      [key]: newValue,
+    }));
+    setEditingField(null);
+    setTempValues({});
+  };
+
+  const handleCancel = async () => {
+    console.log('❌ Cancelling edit');
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setEditingField(null);
+    setTempValues({});
+  };
+
+  const getKeyboardType = (type: string) => {
+    switch (type) {
+      case 'email':
+        return 'email-address';
+      case 'phone':
+        return 'phone-pad';
+      default:
+        return 'default';
+    }
   };
 
   const goBack = async () => {
+    console.log('⬅️ Going back to profile');
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Navigation back logic here
-    console.log('Going back to profile');
+    navigation.goBack();
   };
 
-  const renderEditableRow = (item: EditableRow) => (
-    <TouchableOpacity
-      key={item.label}
-      style={styles.editableRow}
-      onPress={() => handleEdit(item)}
-    >
-      <View style={styles.rowLeft}>
-        {item.icon}
-        <View style={styles.rowText}>
-          <Text style={styles.rowLabel}>{item.label}</Text>
-          <Text style={styles.rowValue}>{item.value}</Text>
+  const renderEditableRow = (item: EditableRow) => {
+    const isEditing = editingField === item.key;
+    const currentValue = isEditing ? (tempValues[item.key] || item.value) : item.value;
+
+    return (
+      <View key={item.label} style={styles.editableRow}>
+        <View style={styles.rowLeft}>
+          {item.icon}
+          <View style={styles.rowText}>
+            <Text style={styles.rowLabel}>{item.label}</Text>
+            {isEditing ? (
+              <View style={styles.editingContainer}>
+                <TextInput
+                  style={styles.textInput}
+                  value={currentValue}
+                  onChangeText={(text) => setTempValues({ ...tempValues, [item.key]: text })}
+                  keyboardType={getKeyboardType(item.type)}
+                  autoFocus={true}
+                  placeholder={`Enter ${item.label.toLowerCase()}`}
+                  placeholderTextColor="#999"
+                />
+                <View style={styles.editActions}>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.cancelButton]}
+                    onPress={handleCancel}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.saveButton]}
+                    onPress={() => handleSave(item.key)}
+                  >
+                    <Text style={styles.saveButtonText}>Save</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.rowValue}>{currentValue}</Text>
+            )}
+          </View>
+        </View>
+        <View style={styles.rowRight}>
+          {item.verified && (
+            <View style={styles.verifiedBadge}>
+              <UserCheck size={14} color="#06402B" />
+            </View>
+          )}
+          {!isEditing && (
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => handleEdit(item)}
+            >
+              <Edit3 size={16} color="#06402B" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
-      <View style={styles.rowRight}>
-        {item.verified && <UserCheck size={16} color="#06402B" />}
-        <Edit3 size={16} color="#A3AABE" style={styles.editIcon} />
-        <ChevronRight size={20} color="#A3AABE" />
-      </View>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -113,30 +191,37 @@ const PersonalInformationScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={goBack}>
-          <ArrowLeft size={24} color="#06402B" />
+          <ChevronLeft size={24} color="#06402B" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Personal Information</Text>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.content}>
-          <Text style={styles.description}>
-            Manage your personal information and contact details. Verified information helps secure your account.
-          </Text>
-
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Basic Information</Text>
-            {personalInfo.map((item) => renderEditableRow(item))}
-          </View>
-
-          <View style={styles.verificationNote}>
-            <UserCheck size={16} color="#06402B" />
-            <Text style={styles.verificationText}>
-              Verified information helps protect your account and enables full access to KotaPay features.
+            <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 20}
+        enabled={true}
+      >
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <View style={styles.content}>
+            <Text style={styles.description}>
+              Manage your personal information and contact details. Verified information helps secure your account.
             </Text>
+
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Basic Information</Text>
+              {personalInfo.map((item) => renderEditableRow(item))}
+            </View>
+
+            <View style={styles.verificationNote}>
+              <UserCheck size={16} color="#06402B" />
+              <Text style={styles.verificationText}>
+                Verified information helps protect your account and enables full access to KotaPay features.
+              </Text>
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -161,8 +246,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
     color: '#06402B',
+    fontFamily: 'System',
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
@@ -175,6 +263,7 @@ const styles = StyleSheet.create({
     color: '#A3AABE',
     marginBottom: 24,
     lineHeight: 20,
+    fontFamily: 'System',
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -189,9 +278,9 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 16,
-    fontWeight: '600',
     color: '#06402B',
     marginBottom: 16,
+    fontFamily: 'System',
   },
   editableRow: {
     flexDirection: 'row',
@@ -218,12 +307,63 @@ const styles = StyleSheet.create({
   rowLabel: {
     fontSize: 14,
     color: '#06402B',
-    fontWeight: '500',
+    fontFamily: 'System',
   },
   rowValue: {
     fontSize: 14,
     color: '#A3AABE',
     marginTop: 2,
+    fontFamily: 'System',
+  },
+  editingContainer: {
+    marginTop: 8,
+    width: '100%',
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#06402B',
+    backgroundColor: '#FFFFFF',
+    fontFamily: 'System',
+  },
+  editActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+    gap: 8,
+  },
+  actionButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#F5F5F5',
+  },
+  saveButton: {
+    backgroundColor: '#06402B',
+  },
+  cancelButtonText: {
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'System',
+  },
+  saveButtonText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontFamily: 'System',
+  },
+  editButton: {
+    padding: 4,
+  },
+  verifiedBadge: {
+    marginRight: 8,
   },
   editIcon: {
     marginRight: 8,
@@ -242,6 +382,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     flex: 1,
     lineHeight: 16,
+    fontFamily: 'System',
   },
 });
 

@@ -7,8 +7,8 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   Animated,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -23,6 +23,9 @@ import {
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius, shadows, globalStyles } from '../theme';
 import PinEntryModal from '../components/PinEntryModal';
+import LoadingOverlay from '../components/LoadingOverlay';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { useLoading } from '../hooks/useLoading';
 
 type RootStackParamList = {
   VirtualCardDetailScreen: { cardId: string };
@@ -46,6 +49,30 @@ interface Merchant {
 
 const CreateVirtualCardScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+
+  // Check for existing active cards on mount
+  React.useEffect(() => {
+    const checkExistingCards = async () => {
+      // This would normally be an API call
+      // For now we'll simulate checking local state
+      const hasActiveCard = true; // Replace with actual check
+      
+      if (hasActiveCard) {
+        Alert.alert(
+          'Card Limit Reached',
+          'You can only have one active virtual card at a time. Please deactivate your current card before creating a new one.',
+          [
+            { 
+              text: 'OK', 
+              onPress: () => navigation.goBack() 
+            }
+          ]
+        );
+      }
+    };
+    
+    checkExistingCards();
+  }, [navigation]);
   
   // Step management
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
@@ -61,9 +88,21 @@ const CreateVirtualCardScreen: React.FC = () => {
   // Focus states
   const [isAmountFocused, setIsAmountFocused] = useState(false);
   const [isMerchantFocused, setIsMerchantFocused] = useState(false);
+  const [quickAmountLoading, setQuickAmountLoading] = useState(false);
+  
+  // Loading state management
+  const {
+    isLoading,
+    loadingState,
+    loadingMessage,
+    startLoading,
+    setProcessing,
+    setConfirming,
+    setError,
+    stopLoading,
+  } = useLoading();
   
   // States
-  const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   
@@ -126,24 +165,26 @@ const CreateVirtualCardScreen: React.FC = () => {
   
   const showSuccessAnimation = () => {
     setShowSuccess(true);
-    successScale.setValue(0);
-    successOpacity.setValue(0);
-    
     Animated.spring(successScale, {
       toValue: 1,
       useNativeDriver: true,
       tension: 100,
       friction: 8,
     }).start();
-    
-    Animated.timing(successOpacity, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
   };
-  
-  const handleCreateCard = async () => {
+
+  // Handle quick amount selection with silent loading animation
+  const handleQuickAmountPress = async (amount: number) => {
+    setQuickAmountLoading(true);
+    
+    // Simulate processing time for amount selection
+    await new Promise<void>(resolve => setTimeout(resolve, 400));
+    
+    // Set the spend limit after loading
+    setSpendLimit(amount);
+    
+    setQuickAmountLoading(false);
+  };  const handleCreateCard = async () => {
     if (!selectedCardType) return;
     
     // Show PIN modal for verification
@@ -152,13 +193,29 @@ const CreateVirtualCardScreen: React.FC = () => {
 
   const handlePinVerified = async () => {
     setShowPinModal(false);
-    setLoading(true);
     
     try {
-      // Mock API call to Appwrite function
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Manual loading sequence that ends before confirmation animation
+      startLoading('Creating virtual card...');
       
-      // Show success animation
+      // Processing phase
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      setProcessing('Setting up security...');
+      
+      // Confirming phase  
+      await new Promise<void>(resolve => setTimeout(resolve, 800));
+      setConfirming('Finalizing card...');
+      
+      // Mock API call
+      await new Promise<void>(resolve => setTimeout(resolve, 1000));
+      
+      // Stop loading completely before showing confirmation animation
+      stopLoading();
+      
+      // Small delay to ensure loading overlay disappears
+      await new Promise<void>(resolve => setTimeout(resolve, 200));
+      
+      // Now show separate success animation
       showSuccessAnimation();
       
       // Navigate after animation
@@ -169,9 +226,7 @@ const CreateVirtualCardScreen: React.FC = () => {
       
     } catch (err) {
       console.error('Failed to create card:', err);
-      Alert.alert('Error', 'Failed to create virtual card. Please try again.');
-    } finally {
-      setLoading(false);
+      setError('Failed to create virtual card. Please try again.');
     }
   };
   
@@ -256,7 +311,8 @@ const CreateVirtualCardScreen: React.FC = () => {
                 styles.amountButton,
                 spendLimit === amount && styles.amountButtonSelected
               ]}
-              onPress={() => setSpendLimit(amount)}
+              onPress={() => handleQuickAmountPress(amount)}
+              disabled={quickAmountLoading}
             >
               <Text style={[
                 styles.amountButtonText,
@@ -471,13 +527,13 @@ const CreateVirtualCardScreen: React.FC = () => {
           style={[
             styles.nextButton,
             !canProceed() && styles.nextButtonDisabled,
-            loading && styles.nextButtonDisabled
+            isLoading && styles.nextButtonDisabled
           ]}
           onPress={handleNext}
-          disabled={!canProceed() || loading}
+          disabled={!canProceed() || isLoading}
         >
           <Text style={styles.nextButtonText}>
-            {currentStep === 3 ? (loading ? 'Creating...' : 'Create Card') : 'Next'}
+            {currentStep === 3 ? (isLoading ? 'Creating...' : 'Create Card') : 'Next'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -507,6 +563,22 @@ const CreateVirtualCardScreen: React.FC = () => {
             <CheckCircle size={60} color="#A8E4A0" />
             <Text style={styles.successText}>Card Created Successfully!</Text>
           </Animated.View>
+        </View>
+      )}
+
+      {/* Loading Overlay */}
+      <LoadingOverlay
+        visible={isLoading}
+        type={loadingState}
+        message={loadingMessage}
+      />
+
+      {/* Simple Quick Amount Loading */}
+      {quickAmountLoading && (
+        <View style={styles.quickAmountLoadingOverlay}>
+          <View style={styles.quickAmountLoadingContainer}>
+            <LoadingSpinner size={40} color={colors.primary} />
+          </View>
         </View>
       )}
     </SafeAreaView>
@@ -915,6 +987,25 @@ const styles = StyleSheet.create({
     color: '#06402B',
     textAlign: 'center',
     marginTop: spacing.md,
+  },
+  quickAmountLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  quickAmountLoadingContainer: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.large,
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.medium,
   },
 });
 

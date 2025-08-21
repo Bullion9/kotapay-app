@@ -69,7 +69,6 @@ const ContactRow: React.FC<ContactRowProps> = ({ item }) => {
           <Image 
             source={{ uri: item.profileImage }}
             style={styles.profileImage}
-            defaultSource={require('../../assets/images/partial-react-logo.png')} // Fallback image
           />
         ) : (
           <Text style={styles.initials}>{initials}</Text>

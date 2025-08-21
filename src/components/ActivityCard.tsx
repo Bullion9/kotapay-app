@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useSettings } from '../contexts/SettingsContext';
 import {
   ArrowUpRight,
   ArrowDownLeft,
@@ -143,9 +144,11 @@ const ActivityCard: React.FC = () => {
     }
   };
 
+    const { formatCurrency } = useSettings();
+  
   const formatAmount = (amount: number, type: ActivityItem['type']) => {
     const sign = type === 'transfer_in' || type === 'top_up' ? '+' : '-';
-    return `${sign}₦${amount.toLocaleString()}`;
+    return `${sign}${formatCurrency(amount)}`;
   };
 
   const formatTime = (timestamp: Date) => {

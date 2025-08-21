@@ -6,6 +6,8 @@ import {
   SafeAreaView,
   TouchableOpacity,
   FlatList,
+  RefreshControl,
+  ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -15,6 +17,8 @@ import {
   Check,
   Trash2,
 } from 'lucide-react-native';
+// @ts-ignore
+import * as Haptics from 'expo-haptics';
 import { colors, spacing, borderRadius, iconSizes, globalStyles } from '../theme';
 
 interface Notification {
@@ -29,6 +33,7 @@ interface Notification {
 
 const NotificationScreen: React.FC = () => {
   const navigation = useNavigation<StackNavigationProp<any>>();
+  const [refreshing, setRefreshing] = useState(false);
   
   const [notifications, setNotifications] = useState<Notification[]>([
     {
@@ -79,6 +84,47 @@ const NotificationScreen: React.FC = () => {
   ]);
 
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+
+  // Simulated refresh function to fetch new notifications
+  const onRefresh = async () => {
+    setRefreshing(true);
+    
+    // Haptic feedback when refresh starts
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // Simulate network request delay
+    await new Promise<void>(resolve => setTimeout(resolve, 1500));
+    
+    // Simulate adding new notifications
+    const newNotifications: Notification[] = [
+      {
+        id: `new-${Date.now()}`,
+        title: 'Payment Successful',
+        message: 'Your payment of ₦1,200.00 to MTN was successful',
+        timestamp: new Date(),
+        read: false,
+        type: 'transaction',
+        icon: '✅',
+      },
+      {
+        id: `new-${Date.now() + 1}`,
+        title: 'Account Update',
+        message: 'Your profile information has been updated successfully',
+        timestamp: new Date(Date.now() - 1000 * 60 * 5), // 5 minutes ago
+        read: false,
+        type: 'system',
+        icon: '👤',
+      },
+    ];
+    
+    // Add new notifications to the beginning of the list
+    setNotifications(prev => [...newNotifications, ...prev]);
+    
+    // Haptic feedback when refresh completes
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    
+    setRefreshing(false);
+  };
 
   const formatTimestamp = (timestamp: Date): string => {
     const now = new Date();
@@ -220,9 +266,29 @@ const NotificationScreen: React.FC = () => {
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+              progressBackgroundColor={colors.background}
+            />
+          }
         />
       ) : (
-        <View style={styles.emptyContainer}>
+        <ScrollView
+          contentContainerStyle={styles.emptyContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+              progressBackgroundColor={colors.background}
+            />
+          }
+        >
           <Mail size={64} color={colors.secondaryText} />
           <Text style={styles.emptyTitle}>
             {filter === 'unread' ? 'No unread notifications' : 'No notifications'}
@@ -233,7 +299,10 @@ const NotificationScreen: React.FC = () => {
               : 'When you receive notifications, they will appear here.'
             }
           </Text>
-        </View>
+          <Text style={styles.pullToRefreshHint}>
+            Pull down to refresh
+          </Text>
+        </ScrollView>
       )}
     </SafeAreaView>
   );
@@ -378,6 +447,13 @@ const styles = StyleSheet.create({
     color: colors.secondaryText,
     textAlign: 'center',
     lineHeight: 20,
+    marginBottom: spacing.md,
+  },
+  pullToRefreshHint: {
+    fontSize: 12,
+    color: colors.primary,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });
 

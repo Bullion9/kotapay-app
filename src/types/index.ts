@@ -8,6 +8,10 @@ export interface User {
   pin?: string;
   createdAt: string;
   updatedAt: string;
+  // Additional profile fields
+  address?: string;
+  dateOfBirth?: string;
+  nationality?: string;
 }
 
 export interface Transaction {
@@ -67,22 +71,7 @@ export interface AuthContextType {
   updateUser: (userData: Partial<User>) => Promise<void>;
   verifyPin: (pin: string) => Promise<boolean>;
   updatePin: (currentPin: string, newPin: string) => Promise<void>;
-}
-
-export interface AppwriteUser {
-  $id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  emailVerification: boolean;
-  phoneVerification: boolean;
-  prefs: {
-    balance?: number;
-    pin?: string;
-    isVerified?: boolean;
-  };
-  $createdAt: string;
-  $updatedAt: string;
+  deleteAccount: () => Promise<void>;
 }
 
 export interface QRData {
@@ -109,7 +98,6 @@ export type RootStackParamList = {
   QRCode: undefined;
   Settings: undefined;
   Profile: undefined;
-  AccountSettings: undefined;
   Transactions: undefined;
   Contacts: { scannedData?: string };
   AddContact: undefined;
@@ -133,4 +121,27 @@ export type TabParamList = {
   Contacts: undefined;
   History: undefined;
   Profile: undefined;
+};
+
+export type ProfileParamList = {
+  ProfileMain: undefined;
+  PersonalInformation: undefined;
+  AccountSettings: undefined;
+  DocumentCenter: undefined;
+  AccountInformation: undefined;
+  FreezeAccount: undefined;
+  AccountStatements: undefined;
+  KycLimits: undefined;
+  TierDashboard: undefined;
+  KycProcessingScreen: { submissionData: any };
+  SuggestionBox: undefined;
+  PaymentMethods: undefined;
+  AddPaymentMethod: undefined;
+  SecuritySettings: undefined;
+  ChangePin: undefined;
+  TransactionLimit: undefined;
+  Preferences: undefined;
+  HelpSupport: undefined;
+  FAQ: undefined;
+  ReferralProgram: undefined;
 };

@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import {
-  ArrowLeft,
+  ChevronLeft,
   DollarSign,
   Languages,
   Sun,
@@ -146,7 +146,7 @@ const PreferencesScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={goBack}>
-          <ArrowLeft size={24} color="#06402B" />
+          <ChevronLeft size={24} color="#06402B" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Preferences</Text>
       </View>

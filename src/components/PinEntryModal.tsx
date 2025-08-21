@@ -14,6 +14,8 @@ import {
   Fingerprint,
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius, shadows, iconSizes } from '../theme';
+import LoadingOverlay from './LoadingOverlay';
+import { useLoading } from '../hooks/useLoading';
 
 interface PinEntryModalProps {
   visible: boolean;
@@ -38,6 +40,9 @@ const PinEntryModal: React.FC<PinEntryModalProps> = ({
   const [attempts, setAttempts] = useState(0);
   const [isError, setIsError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Enhanced loading states
+  const { isLoading, setConfirming, stopLoading } = useLoading();
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -46,18 +51,23 @@ const PinEntryModal: React.FC<PinEntryModalProps> = ({
       setAttempts(0);
       setIsError(false);
       setIsSubmitting(false);
+      stopLoading(); // Reset loading state
     }
-  }, [visible]);
+  }, [visible, stopLoading]);
 
-  // Handle PIN completion
+  // Handle PIN completion with enhanced loading
   useEffect(() => {
     if (pin.length === 4 && !isSubmitting) {
       setIsSubmitting(true);
+      setConfirming();
+      
+      // Simulate PIN verification with loading phases
       setTimeout(() => {
+        stopLoading();
         onPinEntered(pin);
-      }, 100);
+      }, 1200);
     }
-  }, [pin, onPinEntered, isSubmitting]);
+  }, [pin, onPinEntered, isSubmitting, setConfirming, stopLoading]);
 
   const handleNumberPress = (number: string) => {
     if (pin.length < 4 && !isSubmitting) {
@@ -192,6 +202,13 @@ const PinEntryModal: React.FC<PinEntryModalProps> = ({
           {renderNumberPad()}
         </SafeAreaView>
       </View>
+      
+      {/* Loading Overlay */}
+      <LoadingOverlay 
+        isVisible={isLoading}
+        title="Verifying PIN..."
+        subtitle="Please wait while we verify your PIN"
+      />
     </Modal>
   );
 };

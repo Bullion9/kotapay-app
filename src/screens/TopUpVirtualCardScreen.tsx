@@ -22,6 +22,9 @@ import {
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius, shadows, globalStyles } from '../theme';
 import PinEntryModal from '../components/PinEntryModal';
+import LoadingOverlay from '../components/LoadingOverlay';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { useLoading } from '../hooks/useLoading';
 
 type RootStackParamList = {
   VirtualCardDetailScreen: { cardId: string };
@@ -61,10 +64,22 @@ const TopUpVirtualCardScreen: React.FC = () => {
   const [amount, setAmount] = useState('');
   const [selectedSource, setSelectedSource] = useState<FundingSource | null>(null);
   const [feePreview, setFeePreview] = useState<FeePreview | null>(null);
-  const [loading, setLoading] = useState(false);
   const [loadingFees, setLoadingFees] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [quickAmountLoading, setQuickAmountLoading] = useState(false);
+  
+  // Loading state management
+  const {
+    isLoading,
+    loadingState,
+    loadingMessage,
+    startLoading,
+    setProcessing,
+    setConfirming,
+    setError,
+    stopLoading,
+  } = useLoading();
   
   // Focus states
   const [isAmountFocused, setIsAmountFocused] = useState(false);
@@ -114,13 +129,13 @@ const TopUpVirtualCardScreen: React.FC = () => {
   
   const remainingLimit = cardData.spendLimit - cardData.balance;
   
-  // Calculate fees using mock Appwrite function
+  // Calculate fees using mock API function
   const calculateFees = async (topUpAmount: number, source: FundingSource) => {
     setLoadingFees(true);
     
     try {
-      // Mock API call to Appwrite function
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Mock API call to server function
+      await new Promise<void>(resolve => setTimeout(resolve, 1000));
       
       // Mock fee calculation
       let fee = 0;
@@ -168,21 +183,30 @@ const TopUpVirtualCardScreen: React.FC = () => {
     }
   };
   
-  // Handle quick amount selection
-  const handleQuickAmount = (quickAmount: number) => {
-    if (quickAmount <= remainingLimit) {
-      setAmount(quickAmount.toString());
-      setFeePreview(null);
-      
-      if (selectedSource) {
-        calculateFees(quickAmount, selectedSource);
-      }
-    } else {
+  // Handle quick amount selection with silent loading animation
+  const handleQuickAmount = async (quickAmount: number) => {
+    if (quickAmount > remainingLimit) {
       Alert.alert(
         'Amount Exceeds Limit',
         `Maximum top-up amount is ₦${remainingLimit.toLocaleString()}`
       );
+      return;
     }
+
+    setQuickAmountLoading(true);
+    
+    // Simulate processing time for amount selection
+    await new Promise<void>(resolve => setTimeout(resolve, 400));
+    
+    // Set the amount after loading
+    setAmount(quickAmount.toString());
+    setFeePreview(null);
+    
+    if (selectedSource) {
+      calculateFees(quickAmount, selectedSource);
+    }
+    
+    setQuickAmountLoading(false);
   };
   
   // Handle source selection
@@ -227,15 +251,31 @@ const TopUpVirtualCardScreen: React.FC = () => {
   // Handle PIN verification
   const handlePinVerified = async () => {
     setShowPinModal(false);
-    setLoading(true);
     
     try {
       const topUpAmount = parseInt(amount);
       
-      // Mock API call for top-up
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Manual loading sequence that ends before confirmation animation
+      startLoading('Processing top-up...');
       
-      // Show success animation
+      // Processing phase
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      setProcessing('Adding funds to card...');
+      
+      // Confirming phase  
+      await new Promise<void>(resolve => setTimeout(resolve, 800));
+      setConfirming('Confirming transaction...');
+      
+      // Mock API call
+      await new Promise<void>(resolve => setTimeout(resolve, 1000));
+      
+      // Stop loading completely before showing confirmation animation
+      stopLoading();
+      
+      // Small delay to ensure loading overlay disappears
+      await new Promise<void>(resolve => setTimeout(resolve, 200));
+      
+      // Now show separate success animation
       showSuccessAnimation();
       
       // Mock push notification
@@ -249,9 +289,7 @@ const TopUpVirtualCardScreen: React.FC = () => {
       
     } catch (error) {
       console.error('Top-up failed:', error);
-      Alert.alert('Top-up Failed', 'Please try again later.');
-    } finally {
-      setLoading(false);
+      setError('Top-up Failed. Please try again later.');
     }
   };
 
@@ -354,9 +392,10 @@ const TopUpVirtualCardScreen: React.FC = () => {
                   styles.quickAmountButton,
                   parseInt(amount) === quickAmount && styles.quickAmountButtonSelected,
                   quickAmount > remainingLimit && styles.quickAmountButtonDisabled,
+                  quickAmountLoading && styles.quickAmountButtonDisabled,
                 ]}
                 onPress={() => handleQuickAmount(quickAmount)}
-                disabled={quickAmount > remainingLimit}
+                disabled={quickAmount > remainingLimit || quickAmountLoading}
               >
                 <Text style={[
                   styles.quickAmountText,
@@ -463,12 +502,12 @@ const TopUpVirtualCardScreen: React.FC = () => {
         <TouchableOpacity
           style={[
             styles.topUpButton,
-            (!selectedSource || !amount || loading) && styles.topUpButtonDisabled,
+            (!selectedSource || !amount || isLoading) && styles.topUpButtonDisabled,
           ]}
           onPress={handleTopUp}
-          disabled={!selectedSource || !amount || loading}
+          disabled={!selectedSource || !amount || isLoading}
         >
-          {loading ? (
+          {isLoading ? (
             <ActivityIndicator color={colors.white} />
           ) : (
             <Text style={styles.topUpButtonText}>
@@ -506,6 +545,22 @@ const TopUpVirtualCardScreen: React.FC = () => {
               ₦{parseInt(amount).toLocaleString()} added to {cardData.nickname}
             </Text>
           </Animated.View>
+        </View>
+      )}
+
+      {/* Loading Overlay */}
+      <LoadingOverlay
+        visible={isLoading}
+        type={loadingState}
+        message={loadingMessage}
+      />
+
+      {/* Simple Quick Amount Loading */}
+      {quickAmountLoading && (
+        <View style={styles.quickAmountLoadingOverlay}>
+          <View style={styles.quickAmountLoadingContainer}>
+            <LoadingSpinner size={40} color={colors.primary} />
+          </View>
         </View>
       )}
     </SafeAreaView>
@@ -848,6 +903,25 @@ const styles = StyleSheet.create({
     color: colors.secondaryText,
     textAlign: 'center',
     marginTop: spacing.xs,
+  },
+  quickAmountLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  quickAmountLoadingContainer: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.large,
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.medium,
   },
 });
 

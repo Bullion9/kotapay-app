@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -8,29 +8,63 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ScrollView
+  ScrollView,
+  Animated
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ChevronLeft, Mail, Lock } from 'lucide-react-native';
+import { ChevronLeft, Mail, Lock, CheckCircle } from 'lucide-react-native';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, borderRadius, shadows, iconSizes, globalStyles } from '../theme';
 import { EyeIcon } from '../components/icons';
 import ForgotPasswordModal from '../components/ForgotPasswordModal';
+import LoadingOverlay from '../components/LoadingOverlay';
+import PageLoadingOverlay from '../components/PageLoadingOverlay';
+import { useLoading } from '../hooks/useLoading';
+import { usePageLoading } from '../hooks/usePageLoading';
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
-  const { login, isLoading } = useAuth();
+  const { login } = useAuth();
   const [email, setEmail] = useState('demo@kotapay.com');
   const [password, setPassword] = useState('password');
   const [showPassword, setShowPassword] = useState(false);
   const [isEmailFocused, setIsEmailFocused] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Page loading state management
+  const { isPageLoading } = usePageLoading({ duration: 600 });
+
+  // Login loading state management
+  const { isLoading, loadingState, loadingMessage, setConfirming, setError, stopLoading } = useLoading();
+
+  // Success animation
+  const animationValue = useRef(new Animated.Value(0)).current;
+
+  const triggerSuccessAnimation = () => {
+    setShowSuccess(true);
+    Animated.sequence([
+      Animated.timing(animationValue, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(animationValue, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setShowSuccess(false);
+      animationValue.setValue(0);
+    });
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -39,10 +73,28 @@ const LoginScreen: React.FC = () => {
     }
 
     try {
+      // Start loading phase
+      setConfirming();
+
+      // Simulate API call delay
+      await new Promise<void>(resolve => setTimeout(resolve, 1500));
+      
       await login(email, password);
-      navigation.replace('MainTabs');
+      
+      // Stop loading and show success
+      stopLoading();
+      triggerSuccessAnimation();
+      
+      // Navigate after success animation
+      setTimeout(() => {
+        navigation.replace('MainTabs');
+      }, 800);
     } catch {
-      Alert.alert('Login Failed', 'Invalid email or password');
+      setError();
+      setTimeout(() => {
+        stopLoading();
+        Alert.alert('Login Failed', 'Invalid email or password');
+      }, 1000);
     }
   };
 
@@ -173,6 +225,41 @@ const LoginScreen: React.FC = () => {
           navigation.navigate('MainTabs');
         }}
       />
+
+      {/* Loading Overlay */}
+      <LoadingOverlay
+        visible={isLoading}
+        type={loadingState}
+        message={loadingMessage}
+      />
+
+      {/* Success Animation */}
+      {showSuccess && (
+        <View style={styles.successOverlay}>
+          <Animated.View
+            style={[
+              styles.successContainer,
+              {
+                opacity: animationValue,
+                transform: [
+                  {
+                    scale: animationValue.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.5, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <CheckCircle size={60} color={colors.success} />
+            <Text style={styles.successText}>Login Successful!</Text>
+          </Animated.View>
+        </View>
+      )}
+
+      {/* Page Loading Overlay */}
+      <PageLoadingOverlay visible={isPageLoading} />
     </SafeAreaView>
   );
 };
@@ -320,6 +407,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.primary,
     fontWeight: '600',
+  },
+  successOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  successContainer: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.large,
+    padding: spacing.xl,
+    alignItems: 'center',
+    ...shadows.large,
+  },
+  successText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.success,
+    marginTop: spacing.md,
   },
 });
 

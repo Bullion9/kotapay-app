@@ -8,7 +8,6 @@ import {
   TextInput,
   ScrollView,
   Alert,
-  ActivityIndicator,
   Animated,
 } from 'react-native';
 import {
@@ -24,6 +23,9 @@ import {
 import { colors, spacing, borderRadius, shadows, typography, iconSizes, globalStyles } from '../theme';
 import { EyeIcon } from '../components/icons';
 import PinEntryModal from '../components/PinEntryModal';
+import LoadingOverlay from '../components/LoadingOverlay';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { useLoading } from '../hooks/useLoading';
 import { notificationService } from '../services/notifications';
 
 interface Contact {
@@ -49,7 +51,6 @@ const SendMoneyScreen: React.FC<SendMoneyScreenProps> = ({ navigation, route }) 
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [showPinModal, setShowPinModal] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState<TransactionStatus>('pending');
-  const [isProcessing, setIsProcessing] = useState(false);
   const [description, setDescription] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [notificationSent, setNotificationSent] = useState(false);
@@ -57,7 +58,22 @@ const SendMoneyScreen: React.FC<SendMoneyScreenProps> = ({ navigation, route }) 
   const [manualName, setManualName] = useState('');
   const [manualPhone, setManualPhone] = useState('');
   const [manualEmail, setManualEmail] = useState('');
+  
+  // Loading state management
+  const {
+    isLoading,
+    loadingState,
+    loadingMessage,
+    startLoading,
+    setProcessing,
+    setConfirming,
+    stopLoading,
+  } = useLoading({
+    defaultMessage: 'Processing transaction...',
+    successDuration: 2000,
+  });
   const [showBalance, setShowBalance] = useState(false);
+  const [quickAmountLoading, setQuickAmountLoading] = useState(false);
   const [isAmountFocused, setIsAmountFocused] = useState(false);
   const [isDescriptionFocused, setIsDescriptionFocused] = useState(false);
 
@@ -115,7 +131,6 @@ const SendMoneyScreen: React.FC<SendMoneyScreenProps> = ({ navigation, route }) 
     setShowSuccess(false);
     setNotificationSent(false);
     setTransactionStatus('pending');
-    setIsProcessing(false);
     animationValue.setValue(0);
   };
 
@@ -235,19 +250,33 @@ const SendMoneyScreen: React.FC<SendMoneyScreenProps> = ({ navigation, route }) 
   // Handle PIN verification and transaction processing
   const handlePinVerified = async (enteredPin: string) => {
     setShowPinModal(false);
-    setIsProcessing(true);
     setCurrentStep('result');
 
     try {
+      // Manual loading control - start with loading
+      startLoading('Initializing transaction...');
+      
+      // Processing phase
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      setProcessing('Processing payment...');
+      
+      // Confirming phase  
+      await new Promise<void>(resolve => setTimeout(resolve, 800));
+      setConfirming('Confirming transfer...');
+      
+      // Execute the actual operation
+      await new Promise<void>(resolve => setTimeout(resolve, 1000));
+      
       // Simulate transaction processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise<void>(resolve => setTimeout(resolve, 1500));
       
-      // Always successful (like TopUp/CashOut) to prevent glitching
-      // For testing failures, change this to: Math.random() > 0.8 ? 'success' : 'failed'
+      // Set transaction as successful but don't show animations yet
       setTransactionStatus('success');
-      setIsProcessing(false);
       
-      // Start success animation
+      // Stop loading before success animation
+      stopLoading();
+      
+      // After loading is complete, start success animation
       setShowSuccess(true);
       animationValue.setValue(0);
       Animated.spring(animationValue, {
@@ -260,22 +289,29 @@ const SendMoneyScreen: React.FC<SendMoneyScreenProps> = ({ navigation, route }) 
       // Send notification only once
       if (selectedContact && !notificationSent) {
         setNotificationSent(true);
-        notificationService.sendMoneySentNotification({
+        await notificationService.sendMoneySentNotification({
           transactionId: `tx_${Date.now()}`,
           amount: parseFloat(amount),
           currency: '₦',
           senderName: 'You',
           recipientName: selectedContact.name,
-        }).catch(error => {
-          console.error('Failed to send notification:', error);
         });
       }
-      
     } catch (error) {
       console.error('Transaction error:', error);
+      stopLoading();
       setTransactionStatus('failed');
-      setIsProcessing(false);
     }
+  };
+
+  // Handle quick amount selection with loading animation
+  const handleQuickAmountPress = async (amount: number) => {
+    setQuickAmountLoading(true);
+    
+    await new Promise<void>(resolve => setTimeout(resolve, 400));
+    
+    setAmount(amount.toString());
+    setQuickAmountLoading(false);
   };
 
   const renderStepIndicator = () => {
@@ -384,8 +420,12 @@ const SendMoneyScreen: React.FC<SendMoneyScreenProps> = ({ navigation, route }) 
           {[100, 500, 1000, 5000].map((quickAmount) => (
             <TouchableOpacity
               key={quickAmount}
-              style={styles.quickAmountButton}
-              onPress={() => setAmount(quickAmount.toString())}
+              style={[
+                styles.quickAmountButton,
+                quickAmountLoading && styles.quickAmountButtonDisabled
+              ]}
+              onPress={() => handleQuickAmountPress(quickAmount)}
+              disabled={quickAmountLoading}
             >
               <Text style={styles.quickAmountText}>₦{quickAmount.toLocaleString()}</Text>
             </TouchableOpacity>
@@ -606,30 +646,24 @@ const SendMoneyScreen: React.FC<SendMoneyScreenProps> = ({ navigation, route }) 
 
     return (
       <View style={styles.stepContent}>
-        {isProcessing ? (
-          <View style={styles.processingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.processingText}>Processing transaction...</Text>
-          </View>
-        ) : (
-          <Animated.View
-            style={[
-              styles.resultContainer,
-              showSuccess && transactionStatus === 'success' && {
-                opacity: animationValue.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.7, 1],
-                }),
-                transform: [
-                  {
-                    scale: animationValue.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.9, 1],
-                    }),
-                  },
-                ],
-              },
-            ]}
+        <Animated.View
+          style={[
+            styles.resultContainer,
+            showSuccess && transactionStatus === 'success' && {
+              opacity: animationValue.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.7, 1],
+              }),
+              transform: [
+                {
+                  scale: animationValue.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.9, 1],
+                  }),
+                },
+              ],
+            },
+          ]}
           >
             <View style={[styles.resultIcon, { backgroundColor: config.color }]}>
               <IconComponent size={iconSizes.xxl} color={colors.white} />
@@ -658,7 +692,6 @@ const SendMoneyScreen: React.FC<SendMoneyScreenProps> = ({ navigation, route }) 
               </TouchableOpacity>
             )}
           </Animated.View>
-        )}
       </View>
     );
   };
@@ -730,6 +763,20 @@ const SendMoneyScreen: React.FC<SendMoneyScreenProps> = ({ navigation, route }) 
         subtitle={`Send ₦${parseFloat(amount || '0').toLocaleString()} to ${selectedContact?.name}`}
         allowBiometric={true}
       />
+
+      {/* Loading Overlay */}
+      <LoadingOverlay
+        visible={isLoading}
+        type={loadingState}
+        message={loadingMessage}
+      />
+
+      {/* Quick Amount Loading Overlay */}
+      {quickAmountLoading && (
+        <View style={styles.quickAmountLoadingOverlay}>
+          <LoadingSpinner size={40} color={colors.primary} />
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -1234,6 +1281,20 @@ const styles = StyleSheet.create({
   nextButtonText: {
     ...typography.body,
     color: colors.white,
+  },
+  quickAmountButtonDisabled: {
+    opacity: 0.5,
+  },
+  quickAmountLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.overlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
   },
 });
 

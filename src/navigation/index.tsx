@@ -2,16 +2,17 @@ import React, { useRef, useEffect } from 'react';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { 
-  CreditCard, 
-  Users, 
-  Clock
-} from 'lucide-react-native';
 
-import { RootStackParamList, TabParamList } from '../types';
+import { RootStackParamList, TabParamList, ProfileParamList } from '../types';
 import { colors } from '../theme';
 import { deepLinkService } from '../services/deepLinking';
-import { HomeIcon, ProfileIcon } from '../components/icons';
+import { 
+  HomeIcon, 
+  CardIcon, 
+  ContactsIcon, 
+  NavigationHistoryIcon, 
+  NavigationProfileIcon 
+} from '../components/icons';
 
 // Screen imports
 import {
@@ -27,6 +28,8 @@ import {
   CreateVirtualCardScreen,
   VirtualCardDetailScreen,
   TopUpVirtualCardScreen,
+  WithdrawalScreen,
+  WithdrawalProcessingScreen,
   ContactsScreen,
   AddContactScreen,
   ContactDetailScreen,
@@ -34,6 +37,18 @@ import {
   QRCodeScreen,
   QRScannerScreen,
   ProfileScreen,
+  PersonalInformationScreen,
+  AccountSettingsScreen,
+  DocumentCenterScreen,
+  AccountInformationScreen,
+  FreezeAccountScreen,
+  AccountStatementsScreen,
+  KycLimitsScreen,
+  TierDashboard,
+  KycProcessingScreen,
+  SuggestionBoxScreen,
+  PaymentMethodsScreen,
+  AddPaymentMethodScreen,
   RequestMoneyScreen,
   SettingsScreen,
   BillsHubScreen,
@@ -44,13 +59,21 @@ import {
   AirtimeTopUpScreen,
   PayWithLinkScreen,
   ReceiptScreen,
+  SecuritySettingsScreen,
+  ChangePinScreen,
+  TransactionLimitScreen,
+  PreferencesScreen,
 } from '../screens';
 
 import NotificationScreen from '../screens/NotificationScreen';
+import HelpSupportScreen from '../screens/HelpSupportScreen';
+import FAQScreen from '../screens/FAQScreen';
+import ReferralScreen from '../screens/ReferralScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 const CardStack = createStackNavigator();
+const ProfileStack = createStackNavigator<ProfileParamList>();
 
 function CardStackNavigator() {
   return (
@@ -76,10 +99,109 @@ function CardStackNavigator() {
         component={TopUpVirtualCardScreen}
       />
       <CardStack.Screen 
+        name="WithdrawalScreen" 
+        component={WithdrawalScreen}
+      />
+      <CardStack.Screen 
+        name="WithdrawalProcessingScreen" 
+        component={WithdrawalProcessingScreen}
+      />
+      <CardStack.Screen 
         name="TransactionHistoryScreen" 
         component={TransactionHistoryScreen}
       />
     </CardStack.Navigator>
+  );
+}
+
+function ProfileStackNavigator() {
+  return (
+    <ProfileStack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <ProfileStack.Screen 
+        name="ProfileMain" 
+        component={ProfileScreen}
+      />
+      <ProfileStack.Screen 
+        name="PersonalInformation" 
+        component={PersonalInformationScreen}
+      />
+      <ProfileStack.Screen 
+        name="AccountSettings" 
+        component={AccountSettingsScreen}
+      />
+      <ProfileStack.Screen 
+        name="DocumentCenter" 
+        component={DocumentCenterScreen}
+      />
+      <ProfileStack.Screen 
+        name="AccountInformation" 
+        component={AccountInformationScreen}
+      />
+      <ProfileStack.Screen 
+        name="FreezeAccount" 
+        component={FreezeAccountScreen}
+      />
+      <ProfileStack.Screen 
+        name="AccountStatements" 
+        component={AccountStatementsScreen}
+      />
+      <ProfileStack.Screen 
+        name="KycLimits" 
+        component={KycLimitsScreen}
+      />
+      <ProfileStack.Screen 
+        name="TierDashboard" 
+        component={TierDashboard}
+      />
+      <ProfileStack.Screen 
+        name="KycProcessingScreen" 
+        component={KycProcessingScreen}
+      />
+      <ProfileStack.Screen 
+        name="SuggestionBox" 
+        component={SuggestionBoxScreen}
+      />
+      <ProfileStack.Screen 
+        name="PaymentMethods" 
+        component={PaymentMethodsScreen}
+      />
+      <ProfileStack.Screen 
+        name="AddPaymentMethod" 
+        component={AddPaymentMethodScreen}
+      />
+      <ProfileStack.Screen 
+        name="SecuritySettings" 
+        component={SecuritySettingsScreen}
+      />
+      <ProfileStack.Screen 
+        name="ChangePin" 
+        component={ChangePinScreen}
+      />
+      <ProfileStack.Screen 
+        name="TransactionLimit" 
+        component={TransactionLimitScreen}
+      />
+      <ProfileStack.Screen 
+        name="Preferences" 
+        component={PreferencesScreen}
+      />
+      <ProfileStack.Screen 
+        name="HelpSupport" 
+        component={HelpSupportScreen}
+      />
+      <ProfileStack.Screen 
+        name="FAQ" 
+        component={FAQScreen}
+      />
+      <ProfileStack.Screen 
+        name="ReferralProgram" 
+        component={ReferralScreen}
+      />
+    </ProfileStack.Navigator>
   );
 }
 
@@ -88,26 +210,42 @@ function TabNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
+          // Use a brighter color for inactive state
+          const inactiveColor = colors.primary + 'B3'; // Adding 70% opacity
+          const iconColor = focused ? colors.primary : inactiveColor;
+          const iconSize = focused ? size + 2 : size;
+
           switch (route.name) {
             case 'Home':
-              return <HomeIcon size={size} color={color} focused={focused} />;
+              return <HomeIcon size={iconSize} color={iconColor} focused={focused} />;
             case 'Card':
-              return <CreditCard size={size} color={color} />;
+              return <CardIcon size={iconSize} color={iconColor} focused={focused} />;
             case 'Contacts':
-              return <Users size={size} color={color} />;
+              return <ContactsIcon size={iconSize} color={iconColor} focused={focused} />;
             case 'History':
-              return <Clock size={size} color={color} />;
+              return <NavigationHistoryIcon size={iconSize} color={iconColor} focused={focused} />;
             case 'Profile':
-              return <ProfileIcon size={size} color={color} focused={focused} />;
+              return <NavigationProfileIcon size={iconSize} color={iconColor} focused={focused} />;
             default:
-              return <HomeIcon size={size} color={color} focused={focused} />;
+              return <HomeIcon size={iconSize} color={iconColor} focused={focused} />;
           }
         },
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.secondaryText,
+        tabBarInactiveTintColor: colors.primary + 'B3', // Match icon color
         tabBarStyle: {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
+          height: 80, // Increased height for better visibility
+          paddingBottom: 12, // More bottom padding
+          paddingTop: 12, // More top padding
+          elevation: 8, // Add elevation for Android
+          shadowColor: '#000', // Add shadow for iOS
+          shadowOffset: {
+            width: 0,
+            height: -2,
+          },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
         },
         headerShown: false,
       })}
@@ -134,7 +272,7 @@ function TabNavigator() {
       />
       <Tab.Screen 
         name="Profile" 
-        component={ProfileScreen}
+        component={ProfileStackNavigator}
         options={{ title: 'Profile' }}
       />
     </Tab.Navigator>

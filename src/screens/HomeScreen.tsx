@@ -9,23 +9,27 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { AvatarImage } from '../components/AvatarImage';
 import { StackNavigationProp } from '@react-navigation/stack';
 import {
-  Coins,
   Copy,
-  Feather,
   FileText,
-  HandCoins,
   Mail,
-  QrCode,
-  Rocket,
-  Scroll,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, shadows, borderRadius, iconSizes } from '../theme';
 import { notificationService } from '../services/notifications';
-import { EyeIcon } from '../components/icons';
+import { 
+  EyeIcon,
+  HomeSendIcon,
+  HomeRequestIcon,
+  HomeQRCodeIcon,
+  HomeCashOutIcon,
+  HomeTopUpIcon,
+  HomeBillsIcon,
+  HomePayLinkIcon
+} from '../components/icons';
 import NotificationMailIcon from '../components/NotificationMailIcon';
 import CarouselAds from '../components/CarouselAds';
 import ActivityCard from '../components/ActivityCard';
@@ -46,37 +50,37 @@ const HomeScreen: React.FC = () => {
   const quickActions = [
     {
       title: 'Send',
-      icon: Feather,
+      icon: HomeSendIcon,
       color: colors.primary,
       onPress: () => navigation.navigate('SendMoney', {}),
     },
     {
       title: 'Request',
-      icon: HandCoins,
+      icon: HomeRequestIcon,
       color: colors.success,
       onPress: () => navigation.navigate('RequestMoney', {}),
     },
     {
       title: 'QR Code',
-      icon: QrCode,
+      icon: HomeQRCodeIcon,
       color: colors.warning,
       onPress: () => navigation.navigate('QRScanner'),
     },
     {
       title: 'Top Up',
-      icon: Rocket,
+      icon: HomeTopUpIcon,
       color: colors.accent,
       onPress: () => navigation.navigate('TopUp'),
     },
     {
       title: 'Cash Out',
-      icon: Coins,
+      icon: HomeCashOutIcon,
       color: colors.error,
       onPress: () => navigation.navigate('CashOut'),
     },
     {
       title: 'Test PIN',
-      icon: Feather,
+      icon: HomeSendIcon,
       color: colors.accent,
       onPress: () => navigation.navigate('CreateAccountPin'),
     },
@@ -88,13 +92,13 @@ const HomeScreen: React.FC = () => {
     },
     {
       title: 'Bills',
-      icon: Scroll,
+      icon: HomeBillsIcon,
       color: colors.warning,
       onPress: () => navigation.navigate('BillsHub'),
     },
     {
       title: 'Pay Link',
-      icon: Mail,
+      icon: HomePayLinkIcon,
       color: '#10B981',
       onPress: () => navigation.navigate('PayWithLink', { linkId: 'demo-link-123' }),
     },
@@ -136,11 +140,11 @@ const HomeScreen: React.FC = () => {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <View style={styles.avatarContainer}>
-              <Text style={styles.avatarText}>
-                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-              </Text>
-            </View>
+            <AvatarImage 
+              size={50}
+              userName={user?.name}
+              showInitials={true}
+            />
             <View style={styles.greetingContainer}>
               <Text style={styles.greeting}>Good Morning</Text>
               <Text style={styles.userName}>{user?.name || 'User'}</Text>
@@ -223,7 +227,7 @@ const HomeScreen: React.FC = () => {
         style={styles.fab}
         onPress={() => navigation.navigate('SendMoney', {})}
       >
-        <Feather size={iconSizes.md} color={colors.white} />
+        <HomeSendIcon size={iconSizes.md} color={colors.white} />
       </TouchableOpacity>
     </SafeAreaView>
   );

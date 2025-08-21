@@ -8,7 +8,6 @@ import {
   SafeAreaView,
   TextInput,
   Alert,
-  ActivityIndicator,
   Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -25,7 +24,12 @@ import { RootStackParamList } from '../types';
 import { colors, spacing, shadows, borderRadius, iconSizes, globalStyles } from '../theme';
 import { EyeIcon } from '../components/icons';
 import PinEntryModal from '../components/PinEntryModal';
+import LoadingOverlay from '../components/LoadingOverlay';
+import LoadingIcon from '../components/icons/LoadingIcon';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { useLoading } from '../hooks/useLoading';
 import { notificationService } from '../services/notifications';
+import { useToast } from '../components/ToastProvider';
 
 type TopUpScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -55,17 +59,35 @@ const TopUpScreen: React.FC = () => {
     symbol: '₦', 
     name: 'Nigerian Naira' 
   });
+  const [selectedQuickAmount, setSelectedQuickAmount] = useState<number | null>(null);
   const [showBalance, setShowBalance] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [successAnimation] = useState(new Animated.Value(0));
   const [slideAnimation] = useState(new Animated.Value(0));
   const [isAmountFocused, setIsAmountFocused] = useState(false);
+  const [quickAmountLoading, setQuickAmountLoading] = useState(false);
+  
+  // Loading state management
+  const {
+    isLoading,
+    loadingState,
+    loadingMessage,
+    startLoading,
+    setProcessing,
+    setConfirming,
+    stopLoading,
+  } = useLoading();
+  
+  // Toast hook
+  const { showToast } = useToast();
   
   // Mock user balance
   const userBalance = 450000;
+  
+  // Quick amount options for top-up
+  const quickAmounts = [1000, 5000, 10000, 20000, 50000, 100000];
   
   // Available currencies
   const currencies: Currency[] = [
@@ -121,6 +143,26 @@ const TopUpScreen: React.FC = () => {
     return true;
   };
 
+  // Handle quick amount selection with simple loading animation
+  const handleQuickAmountPress = async (quickAmount: number) => {
+    setQuickAmountLoading(true);
+    
+    // Simulate processing time for amount selection
+    await new Promise<void>(resolve => setTimeout(resolve, 400));
+    
+    // Set the amount after loading
+    setAmount(quickAmount.toString());
+    setSelectedQuickAmount(quickAmount);
+    
+    setQuickAmountLoading(false);
+  };
+
+  // Handle custom amount input
+  const handleAmountChange = (text: string) => {
+    setAmount(text);
+    setSelectedQuickAmount(null); // Clear quick amount selection when typing custom amount
+  };
+
   // Handle continue button press
   const handleContinue = () => {
     if (!validateAmount() || !selectedMethod) {
@@ -133,13 +175,35 @@ const TopUpScreen: React.FC = () => {
   // Handle PIN verification and transaction processing
   const handlePinVerified = async (enteredPin: string) => {
     setShowPinModal(false);
-    setLoading(true);
 
     try {
-      // Mock transaction processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Show initial processing toast
+      showToast('warning', 'Processing top-up transaction...', 2000);
 
-      // Start success animation
+      // Manual loading control
+      startLoading('Initializing top-up...');
+      
+      // Processing phase
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      setProcessing('Processing payment...');
+      
+      // Confirming phase
+      await new Promise<void>(resolve => setTimeout(resolve, 800));
+      setConfirming('Confirming transaction...');
+      
+      // Execute operation
+      await new Promise<void>(resolve => setTimeout(resolve, 1000));
+      
+      // Mock transaction processing
+      await new Promise<void>(resolve => setTimeout(resolve, 2000));
+
+      // Stop loading before success animation
+      stopLoading();
+
+      // Show success toast
+      showToast('success', 'Top-up completed successfully!');
+
+      // After loading is complete, start success animation
       setShowSuccess(true);
       
       // Ensure animation starts immediately
@@ -164,9 +228,8 @@ const TopUpScreen: React.FC = () => {
       }
     } catch (err) {
       console.error('Transaction error:', err);
+      showToast('error', 'Top-up failed. Please try again.');
       Alert.alert('Error', 'Failed to process top-up. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -327,13 +390,41 @@ const TopUpScreen: React.FC = () => {
                 isAmountFocused && styles.amountInputFocused
               ]}
               value={amount}
-              onChangeText={setAmount}
+              onChangeText={handleAmountChange}
               placeholder="0"
               keyboardType="numeric"
               placeholderTextColor={colors.placeholder}
               onFocus={() => setIsAmountFocused(true)}
               onBlur={() => setIsAmountFocused(false)}
             />
+          </View>
+        </View>
+
+        {/* Quick Amount Buttons */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Amount</Text>
+          <View style={styles.quickAmountsGrid}>
+            {quickAmounts.map((quickAmount) => (
+              <TouchableOpacity
+                key={quickAmount}
+                style={[
+                  styles.quickAmountButton,
+                  selectedQuickAmount === quickAmount && styles.quickAmountButtonSelected,
+                  (isLoading || quickAmountLoading) && styles.quickAmountButtonDisabled
+                ]}
+                onPress={() => handleQuickAmountPress(quickAmount)}
+                disabled={isLoading || quickAmountLoading}
+              >
+                <Text
+                  style={[
+                    styles.quickAmountText,
+                    selectedQuickAmount === quickAmount && styles.quickAmountTextSelected
+                  ]}
+                >
+                  ₦{(quickAmount / 1000)}k
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
@@ -373,13 +464,13 @@ const TopUpScreen: React.FC = () => {
         <TouchableOpacity
           style={[
             styles.continueButton,
-            (!amount || !selectedMethod || loading) && styles.disabledButton,
+            (!amount || !selectedMethod || isLoading) && styles.disabledButton,
           ]}
           onPress={handleContinue}
-          disabled={!amount || !selectedMethod || loading}
+          disabled={!amount || !selectedMethod || isLoading}
         >
-          {loading ? (
-            <ActivityIndicator color={colors.white} />
+          {isLoading ? (
+            <LoadingIcon size={24} strokeWidth={3} />
           ) : (
             <Text style={styles.continueButtonText}>
               Continue with {selectedCurrency.symbol}{amount ? parseFloat(amount).toLocaleString() : '0'}
@@ -389,6 +480,22 @@ const TopUpScreen: React.FC = () => {
       </View>
 
       <PinModal />
+      
+      {/* Loading Overlay */}
+      <LoadingOverlay
+        visible={isLoading}
+        type={loadingState}
+        message={loadingMessage}
+      />
+
+      {/* Simple Quick Amount Loading */}
+      {quickAmountLoading && (
+        <View style={styles.quickAmountLoadingOverlay}>
+          <View style={styles.quickAmountLoadingContainer}>
+            <LoadingSpinner size={40} color={colors.seaGreen} />
+          </View>
+        </View>
+      )}
       
       {/* Currency Picker Bottom Sheet */}
       {showCurrencyPicker && (
@@ -557,6 +664,56 @@ const styles = StyleSheet.create({
   },
   amountInputFocused: {
     borderColor: '#06402B',
+    ...shadows.medium,
+  },
+  quickAmountsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  quickAmountButton: {
+    width: '30%',
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.medium,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    alignItems: 'center',
+    ...shadows.small,
+  },
+  quickAmountButtonSelected: {
+    borderColor: colors.seaGreen,
+    backgroundColor: colors.accentTransparent,
+  },
+  quickAmountButtonDisabled: {
+    opacity: 0.6,
+  },
+  quickAmountText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  quickAmountTextSelected: {
+    color: colors.seaGreen,
+  },
+  quickAmountLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  quickAmountLoadingContainer: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.large,
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
     ...shadows.medium,
   },
   methodCard: {

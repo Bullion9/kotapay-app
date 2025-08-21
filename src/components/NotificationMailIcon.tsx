@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Mail } from 'lucide-react-native';
+import HomeNotificationIcon from './icons/HomeNotificationIcon';
 // @ts-ignore
 import * as Haptics from 'expo-haptics';
 import { colors } from '../theme';
@@ -45,7 +45,7 @@ const NotificationMailIcon: React.FC<NotificationMailIconProps> = ({
       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
     >
       <View style={styles.iconContainer}>
-        <Mail size={size} color={color} />
+        <HomeNotificationIcon size={size} color={color} />
         
         {/* Notification Badge */}
         {unreadCount > 0 && (

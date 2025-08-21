@@ -59,9 +59,9 @@ const AddContactScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      // Here you would typically save to your backend/database
+      // Here you would typically save to your database/server
       // For now, we'll just simulate the save
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise<void>(resolve => setTimeout(resolve, 1000));
       
       Alert.alert(
         'Success',

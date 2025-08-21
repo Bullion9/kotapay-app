@@ -24,6 +24,8 @@ import {
 import { RootStackParamList } from '../types';
 import { colors, spacing, shadows, borderRadius, iconSizes } from '../theme';
 import PinEntryModal from '../components/PinEntryModal';
+import LoadingOverlay from '../components/LoadingOverlay';
+import { useLoading } from '../hooks/useLoading';
 import { billNotificationService } from '../services/billNotifications';
 import { useToast } from '../components/ToastProvider';
 
@@ -93,8 +95,10 @@ const BettingScreen: React.FC = () => {
   const [showPinModal, setShowPinModal] = useState(false);
   const [showAgeConfirmation, setShowAgeConfirmation] = useState(false);
   const [ageConfirmed, setAgeConfirmed] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  
+  // Loading state management
+  const { isLoading, loadingState, loadingMessage, setConfirming, setError, stopLoading } = useLoading();
   
   // Animation state for success feedback  
   const animationValue = useRef(new Animated.Value(0)).current;
@@ -152,12 +156,14 @@ const BettingScreen: React.FC = () => {
   // Handle PIN verification and transaction processing
   const handlePinVerified = async (enteredPin: string) => {
     setShowPinModal(false);
-    setLoading(true);
 
     const transactionId = `betting_${Date.now()}`;
     const transactionAmount = parseFloat(amount);
 
     try {
+      // Start confirming phase directly (skip loading)
+      setConfirming('Confirming funding...');
+      
       // Show pending notification
       showToast('warning', 'Processing betting account funding...', 2000);
       
@@ -171,7 +177,7 @@ const BettingScreen: React.FC = () => {
       });
 
       // Mock transaction processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise<void>(resolve => setTimeout(resolve, 2000));
       
       // Send success notification
       await billNotificationService.sendBettingFundingSuccessNotification({
@@ -180,6 +186,9 @@ const BettingScreen: React.FC = () => {
         accountId: fieldValue,
         amount: transactionAmount,
       });
+
+      // End loading before success animation
+      stopLoading();
 
       // Show success toast
       showToast('success', 'Betting account funded successfully!');
@@ -202,6 +211,9 @@ const BettingScreen: React.FC = () => {
     } catch (error) {
       console.error('Transaction failed:', error);
       
+      // Stop loading and show error
+      setError('Betting funding failed');
+      
       // Send failure notification
       await billNotificationService.sendBillPaymentFailedNotification({
         transactionId,
@@ -215,8 +227,6 @@ const BettingScreen: React.FC = () => {
       showToast('error', 'Betting account funding failed. Please try again.');
       
       Alert.alert('❌ Transaction Failed', 'Please try again later.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -405,13 +415,13 @@ const BettingScreen: React.FC = () => {
         <TouchableOpacity
           style={[
             styles.continueButton,
-            (!selectedProvider || !fieldValue || !amount || loading) && styles.continueButtonDisabled
+            (!selectedProvider || !fieldValue || !amount || isLoading) && styles.continueButtonDisabled
           ]}
           onPress={handleContinue}
-          disabled={!selectedProvider || !fieldValue || !amount || loading}
+          disabled={!selectedProvider || !fieldValue || !amount || isLoading}
         >
           <Text style={styles.continueButtonText}>
-            {loading ? 'Processing...' : 'Continue'}
+            {isLoading ? 'Processing...' : 'Continue'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -462,6 +472,13 @@ const BettingScreen: React.FC = () => {
           </Animated.View>
         </View>
       )}
+      
+      {/* Loading Overlay */}
+      <LoadingOverlay 
+        visible={isLoading}
+        type={loadingState}
+        message={loadingMessage}
+      />
     </SafeAreaView>
   );
 };

@@ -88,7 +88,7 @@ class VirtualCardSecurityService {
     const tokenId = this.generateSecureToken();
     const maskedPan = this.maskPAN(cardData.pan);
 
-    // In real implementation, sensitive data would be sent to secure backend
+    // In real implementation, sensitive data would be sent to secure server
     console.log(`Card tokenization request - Token: ${tokenId}, Masked PAN: ${maskedPan}`);
     
     return {
@@ -125,7 +125,7 @@ class VirtualCardSecurityService {
 
     console.log(`Security event logged: ${securityEvent.id} for card ${securityEvent.cardId}`);
 
-    // In real implementation, get current declined attempts from secure backend
+    // In real implementation, get current declined attempts from secure server
     const currentAttempts = await this.getCurrentDeclinedAttempts(cardId);
     const newAttempts = currentAttempts + 1;
     const shouldFreeze = newAttempts >= this.config.maxDeclinedAttempts;
@@ -158,8 +158,8 @@ class VirtualCardSecurityService {
 
     console.log(`Auto-freeze triggered: ${securityEvent.id} for card ${securityEvent.cardId}`);
     
-    // In real implementation, call Appwrite function to freeze card
-    // await this.callAppwriteFunction('freezeCard', { cardId, reason });
+    // In real implementation, call API function to freeze card
+    // await this.callApiFunction('freezeCard', { cardId, reason });
   }
 
   /**
@@ -239,7 +239,7 @@ class VirtualCardSecurityService {
   }
 
   private async getCurrentDeclinedAttempts(cardId: string): Promise<number> {
-    // Mock implementation - would query secure backend
+    // Mock implementation - would query secure server
     console.log(`Fetching declined attempts for card ${this.maskCardId(cardId)}`);
     return Math.floor(Math.random() * 2); // Mock 0-2 current attempts
   }

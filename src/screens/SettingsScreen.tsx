@@ -13,20 +13,14 @@ import {
   Mail,
   Globe,
   Shield,
-  Moon,
-  Info,
-  MessageCircle,
   ChevronRight,
   Fingerprint,
   Lock,
   Smartphone,
   Palette,
-  MessageSquare,
-  Users,
-  HeadphonesIcon,
-  RefreshCw,
 } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius, shadows, iconSizes } from '../theme';
+import { spacing, typography, borderRadius, shadows, iconSizes } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SettingsItemProps {
   icon: React.ComponentType<any>;
@@ -50,11 +44,12 @@ interface Language {
 }
 
 const SettingsScreen: React.FC = () => {
+  const { themeMode, setThemeMode, colors } = useTheme();
+  
   // State for toggles
   const [pushNotifications, setPushNotifications] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(false);
   const [biometricsEnabled, setBiometricsEnabled] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   
   // State for selections
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>({
@@ -67,8 +62,6 @@ const SettingsScreen: React.FC = () => {
     code: 'en',
     name: 'English'
   });
-
-  const [darkMode, setDarkMode] = useState(false);
 
   const currencies: Currency[] = [
     { code: 'NGN', name: 'Nigerian Naira', symbol: '₦' },
@@ -115,84 +108,27 @@ const SettingsScreen: React.FC = () => {
     );
   };
 
-  const handleSecuritySettings = () => {
-    Alert.alert('Security Settings', 'Navigate to detailed security settings');
-  };
-
-  const handleAbout = () => {
-    Alert.alert('About KotaPay', 'Version 1.0.0\n\nA secure and simple payment app for all your financial needs.');
-  };
-
-  const handleSupport = () => {
+  const handleThemeChange = () => {
     Alert.alert(
-      'Help & Support',
-      'How would you like to get help?',
+      'Select Theme',
+      'Choose your preferred theme',
       [
-        { text: 'Email Support', onPress: () => Alert.alert('Email', 'Opening email client...') },
-        { text: 'Live Chat', onPress: () => Alert.alert('Chat', 'Opening chat support...') },
-        { text: 'FAQ', onPress: () => Alert.alert('FAQ', 'Opening FAQ section...') },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
-  };
-
-  const handleSuggestionBox = () => {
-    Alert.prompt(
-      'Suggestion Box',
-      'We value your feedback! Please share your suggestions or ideas to help us improve KotaPay.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
+        { 
+          text: 'Light', 
+          onPress: () => setThemeMode('light'),
+          style: themeMode === 'light' ? 'default' : undefined
         },
-        {
-          text: 'Submit',
-          onPress: (text) => {
-            if (text && text.trim()) {
-              Alert.alert('Thank You!', 'Your suggestion has been submitted. We appreciate your feedback!');
-            }
-          },
+        { 
+          text: 'Dark', 
+          onPress: () => setThemeMode('dark'),
+          style: themeMode === 'dark' ? 'default' : undefined
         },
-      ],
-      'plain-text',
-      '',
-      'What would you like to suggest?'
-    );
-  };
-
-  const handleReferFriend = () => {
-    Alert.alert(
-      'Refer a Friend',
-      'Invite your friends to KotaPay and earn rewards!',
-      [
-        { text: 'Share via SMS', onPress: () => Alert.alert('SMS', 'Opening SMS with referral link...') },
-        { text: 'Share via Email', onPress: () => Alert.alert('Email', 'Opening email with referral link...') },
-        { text: 'Copy Link', onPress: () => Alert.alert('Copied!', 'Referral link copied to clipboard') },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
-  };
-
-  const handleContactSupport = () => {
-    Alert.alert(
-      'Contact Support',
-      'Need help? Choose how you\'d like to contact us.',
-      [
-        { text: 'Phone Support', onPress: () => Alert.alert('Phone', 'Calling support: +1-800-KOTAPAY') },
-        { text: 'Email Support', onPress: () => Alert.alert('Email', 'Opening email: support@kotapay.com') },
-        { text: 'Live Chat', onPress: () => Alert.alert('Chat', 'Opening live chat...') },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
-  };
-
-  const handleAppUpdate = () => {
-    Alert.alert(
-      'App Update',
-      'Check for the latest version of KotaPay',
-      [
-        { text: 'Check for Updates', onPress: () => Alert.alert('Update', 'You have the latest version!') },
-        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'System', 
+          onPress: () => setThemeMode('system'),
+          style: themeMode === 'system' ? 'default' : undefined
+        },
+        { text: 'Cancel', style: 'cancel' }
       ]
     );
   };
@@ -230,6 +166,83 @@ const SettingsScreen: React.FC = () => {
       </View>
     </TouchableOpacity>
   );
+
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      ...typography.h2,
+      color: colors.text,
+      fontWeight: '600',
+    },
+    section: {
+      marginTop: spacing.xl,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      color: colors.text,
+      fontWeight: '600',
+      marginBottom: spacing.md,
+      paddingHorizontal: spacing.xl,
+    },
+    sectionContent: {
+      backgroundColor: colors.card,
+      marginHorizontal: spacing.xl,
+      borderRadius: borderRadius.large,
+      ...shadows.small,
+    },
+    settingsItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    settingsItemLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    settingsItemIcon: {
+      width: 45,
+      height: 45,
+      borderRadius: 22.5,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: spacing.md,
+    },
+    settingsItemContent: {
+      flex: 1,
+    },
+    settingsItemTitle: {
+      ...typography.body,
+      color: colors.text,
+      fontWeight: '600',
+      marginBottom: 2,
+    },
+    settingsItemSubtitle: {
+      ...typography.caption,
+      color: colors.secondaryText,
+    },
+    settingsItemRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    bottomSpacing: {
+      height: spacing.xxl,
+    },
+  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -295,32 +308,9 @@ const SettingsScreen: React.FC = () => {
             <SettingsItem
               icon={Palette}
               title="Theme"
-              subtitle={darkMode ? "Dark Mode" : "Light Mode"}
-              showChevron={false}
-              rightComponent={
-                <Switch
-                  value={darkMode}
-                  onValueChange={setDarkMode}
-                  trackColor={{ false: '#E5E5E5', true: colors.primary }}
-                  thumbColor={darkMode ? '#FFFFFF' : '#F4F3F4'}
-                />
-              }
+              subtitle={themeMode === 'dark' ? "Dark" : themeMode === 'light' ? "Light" : `System`}
+              onPress={handleThemeChange}
               iconColor={colors.primary}
-            />
-            <SettingsItem
-              icon={Moon}
-              title="Dark Mode"
-              subtitle={darkModeEnabled ? 'Enabled' : 'Disabled'}
-              showChevron={false}
-              rightComponent={
-                <Switch
-                  value={darkModeEnabled}
-                  onValueChange={setDarkModeEnabled}
-                  trackColor={{ false: colors.border, true: colors.primary }}
-                  thumbColor={colors.white}
-                />
-              }
-              iconColor={colors.accent}
             />
           </View>
         </View>
@@ -355,7 +345,7 @@ const SettingsScreen: React.FC = () => {
               icon={Shield}
               title="Security Settings"
               subtitle="Advanced security options"
-              onPress={handleSecuritySettings}
+              onPress={() => Alert.alert('Security Settings', 'Navigate to detailed security settings')}
               iconColor={colors.accent}
             />
           </View>
@@ -375,150 +365,10 @@ const SettingsScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Support */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Support</Text>
-          <View style={styles.sectionContent}>
-            <SettingsItem
-              icon={MessageCircle}
-              title="Help & Support"
-              subtitle="Get help with your account"
-              onPress={handleSupport}
-              iconColor={colors.success}
-            />
-            <SettingsItem
-              icon={Info}
-              title="About"
-              subtitle="App version and information"
-              onPress={handleAbout}
-              iconColor={colors.primary}
-            />
-          </View>
-        </View>
-
-        {/* Feedback & Community */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Feedback & Community</Text>
-          <View style={styles.sectionContent}>
-            <SettingsItem
-              icon={MessageSquare}
-              title="Suggestion Box"
-              subtitle="Share your ideas to improve KotaPay"
-              onPress={handleSuggestionBox}
-              iconColor={colors.accent}
-            />
-            <SettingsItem
-              icon={Users}
-              title="Refer a Friend"
-              subtitle="Invite friends and earn rewards"
-              onPress={handleReferFriend}
-              iconColor={colors.success}
-            />
-          </View>
-        </View>
-
-        {/* Additional Support */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Additional Support</Text>
-          <View style={styles.sectionContent}>
-            <SettingsItem
-              icon={HeadphonesIcon}
-              title="Contact Support"
-              subtitle="Get direct help from our team"
-              onPress={handleContactSupport}
-              iconColor={colors.primary}
-            />
-            <SettingsItem
-              icon={RefreshCw}
-              title="App Updates"
-              subtitle="Check for latest version"
-              onPress={handleAppUpdate}
-              iconColor={colors.warning}
-            />
-          </View>
-        </View>
-
         <View style={styles.bottomSpacing} />
       </ScrollView>
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerTitle: {
-    ...typography.h2,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  section: {
-    marginTop: spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    color: colors.text,
-    fontWeight: '600',
-    marginBottom: spacing.md,
-    paddingHorizontal: spacing.xl,
-  },
-  sectionContent: {
-    backgroundColor: colors.white,
-    marginHorizontal: spacing.xl,
-    borderRadius: borderRadius.large,
-    ...shadows.small,
-  },
-  settingsItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  settingsItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  settingsItemIcon: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-  },
-  settingsItemContent: {
-    flex: 1,
-  },
-  settingsItemTitle: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  settingsItemSubtitle: {
-    ...typography.caption,
-    color: colors.secondaryText,
-  },
-  settingsItemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  bottomSpacing: {
-    height: spacing.xxl,
-  },
-});
 
 export default SettingsScreen;

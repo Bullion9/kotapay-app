@@ -1,6 +1,7 @@
 import React, { useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { ArrowUp, ArrowDown, CreditCard, FileText, Receipt } from 'lucide-react-native';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface Transaction {
   id: string;
@@ -58,10 +59,12 @@ const TransactionRow: React.FC<TransactionRowProps> = React.memo(({ transaction,
     [transaction.type]
   );
 
+  const { formatCurrency } = useSettings();
+
   const formattedAmount = useMemo(() => {
     const sign = transaction.type === 'sent' || transaction.type === 'bill' ? '-' : '+';
-    return `${sign}${transaction.currency}${transaction.amount.toLocaleString()}`;
-  }, [transaction.amount, transaction.currency, transaction.type]);
+    return `${sign}${formatCurrency(transaction.amount, transaction.currency)}`;
+  }, [transaction.amount, transaction.currency, transaction.type, formatCurrency]);
 
   const timeAgo = useMemo(() => {
     const now = new Date();

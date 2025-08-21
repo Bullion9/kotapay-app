@@ -272,7 +272,7 @@ const ContactsScreen: React.FC<ContactsScreenProps> = ({ navigation, route }) =>
     setRefreshing(true);
     try {
       // Simulate refresh delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise<void>(resolve => setTimeout(resolve, 1000));
       await fetchContacts();
     } finally {
       setRefreshing(false);

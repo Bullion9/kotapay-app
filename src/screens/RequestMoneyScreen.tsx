@@ -25,6 +25,9 @@ import {
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius, shadows, typography, iconSizes, globalStyles } from '../theme';
 import { notificationService } from '../services/notifications';
+import LoadingOverlay from '../components/LoadingOverlay';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { useLoading } from '../hooks/useLoading';
 
 interface Contact {
   id: string;
@@ -55,6 +58,18 @@ const RequestMoneyScreen: React.FC<RequestMoneyScreenProps> = ({ navigation, rou
   const [manualEmail, setManualEmail] = useState('');
   const [isAmountFocused, setIsAmountFocused] = useState(false);
   const [isDescriptionFocused, setIsDescriptionFocused] = useState(false);
+  const [quickAmountLoading, setQuickAmountLoading] = useState(false);
+  
+  // Loading state management
+  const {
+    isLoading,
+    loadingState,
+    loadingMessage,
+    startLoading,
+    setProcessing,
+    setConfirming,
+    stopLoading,
+  } = useLoading();
   const [isNoteFocused, setIsNoteFocused] = useState(false);
   const [isManualNameFocused, setIsManualNameFocused] = useState(false);
   const [isManualPhoneFocused, setIsManualPhoneFocused] = useState(false);
@@ -199,68 +214,128 @@ const RequestMoneyScreen: React.FC<RequestMoneyScreenProps> = ({ navigation, rou
   };
 
   const handleBack = () => {
-    switch (currentStep) {
-      case 'amount':
-        navigation.goBack();
-        break;
-      case 'contact':
-        setCurrentStep('amount');
-        break;
-      case 'note':
-        setCurrentStep('contact');
-        break;
-      case 'generate':
-        setCurrentStep('note');
-        break;
-      case 'sent':
-        navigation.goBack();
-        break;
+    if (currentStep === 'contact') {
+      setCurrentStep('amount');
+    } else if (currentStep === 'note') {
+      setCurrentStep('contact');
+    } else if (currentStep === 'generate') {
+      setCurrentStep('note');
+    } else {
+      // If we're on the first step (amount), go back to previous screen
+      navigation.goBack();
     }
   };
 
-  const sendDirectRequest = async () => {
-    // Generate unique request ID
-    const newRequestId = `REQ_${Date.now()}`;
-    setRequestId(newRequestId);
-    setCurrentStep('sent');
+  // Handle quick amount selection with silent loading animation
+  const handleQuickAmountPress = async (quickAmount: number) => {
+    setQuickAmountLoading(true);
     
-    // Animate success
-    Animated.sequence([
-      Animated.timing(animationValue, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.timing(animationValue, {
-        toValue: 0,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    // Simulate processing time for amount selection
+    await new Promise<void>(resolve => setTimeout(resolve, 400));
+    
+    // Set the amount after loading
+    setAmount(quickAmount.toString());
+    
+    setQuickAmountLoading(false);
+  };
 
-    // Send push notification to recipient
-    sendPushNotification(newRequestId);
+  const sendDirectRequest = async () => {
+    try {
+      let newRequestId: string;
+      
+      // Manual loading control
+      startLoading('Preparing request...');
+      
+      // Processing phase
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      setProcessing('Sending request...');
+      
+      // Confirming phase
+      await new Promise<void>(resolve => setTimeout(resolve, 800));
+      setConfirming('Confirming delivery...');
+      
+      // Execute operation
+      await new Promise<void>(resolve => setTimeout(resolve, 1000));
+      
+      // Generate unique request ID
+      newRequestId = `REQ_${Date.now()}`;
+      setRequestId(newRequestId);
+      
+      // Simulate API call
+      await new Promise<void>(resolve => setTimeout(resolve, 1500));
+      
+      setCurrentStep('sent');
+
+      // Stop loading before success animation
+      stopLoading();
+
+      // After loading is complete, start success animation
+      Animated.sequence([
+        Animated.timing(animationValue, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animationValue, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Send push notification to recipient using the local variable
+      sendPushNotification(newRequestId);
+    } catch (error) {
+      console.error('Failed to send direct request:', error);
+      Alert.alert('Error', 'Failed to send request. Please try again.');
+    }
   };
 
   const generateQRRequest = async () => {
-    // Generate unique request ID for QR
-    const newRequestId = `QR_${Date.now()}`;
-    setRequestId(newRequestId);
-    setCurrentStep('sent');
-    
-    // Animate success
-    Animated.sequence([
-      Animated.timing(animationValue, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.timing(animationValue, {
-        toValue: 0,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    try {
+      // Manual loading control
+      startLoading('Generating QR code...');
+      
+      // Processing phase
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      setProcessing('Creating request...');
+      
+      // Confirming phase
+      await new Promise<void>(resolve => setTimeout(resolve, 800));
+      setConfirming('Finalizing QR code...');
+      
+      // Execute operation
+      await new Promise<void>(resolve => setTimeout(resolve, 1000));
+      
+      // Generate unique request ID for QR
+      const newRequestId = `QR_${Date.now()}`;
+      setRequestId(newRequestId);
+      
+      // Simulate QR generation processing
+      await new Promise<void>(resolve => setTimeout(resolve, 1200));
+      
+      setCurrentStep('sent');
+
+      // Stop loading before success animation
+      stopLoading();
+
+      // After loading is complete, start success animation
+      Animated.sequence([
+        Animated.timing(animationValue, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animationValue, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } catch (error) {
+      console.error('Failed to generate QR request:', error);
+      Alert.alert('Error', 'Failed to generate QR code. Please try again.');
+    }
   };
 
   const sendPushNotification = async (reqId: string) => {
@@ -385,9 +460,8 @@ const RequestMoneyScreen: React.FC<RequestMoneyScreenProps> = ({ navigation, rou
             <TouchableOpacity
               key={amount}
               style={styles.suggestionCard}
-              onPress={() => {
-                setAmount(amount.toString());
-              }}
+              onPress={() => handleQuickAmountPress(amount)}
+              disabled={quickAmountLoading}
             >
               <Text style={styles.suggestionCardText}>₦{amount.toLocaleString()}</Text>
             </TouchableOpacity>
@@ -716,7 +790,8 @@ const RequestMoneyScreen: React.FC<RequestMoneyScreenProps> = ({ navigation, rou
               styles.nextButton,
               (!amount && currentStep === 'amount') ||
               (!selectedContact && currentStep === 'contact') ||
-              (!requestMethod && currentStep === 'generate')
+              (!requestMethod && currentStep === 'generate') ||
+              isLoading
                 ? styles.nextButtonDisabled
                 : {},
             ]}
@@ -724,13 +799,30 @@ const RequestMoneyScreen: React.FC<RequestMoneyScreenProps> = ({ navigation, rou
             disabled={
               (!amount && currentStep === 'amount') ||
               (!selectedContact && currentStep === 'contact') ||
-              (!requestMethod && currentStep === 'generate')
+              (!requestMethod && currentStep === 'generate') ||
+              isLoading
             }
           >
             <Text style={styles.nextButtonText}>
               {currentStep === 'generate' ? 'Send Request' : 'Continue'}
             </Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Loading Overlay */}
+      <LoadingOverlay
+        visible={isLoading}
+        type={loadingState}
+        message={loadingMessage}
+      />
+
+      {/* Simple Quick Amount Loading */}
+      {quickAmountLoading && (
+        <View style={styles.quickAmountLoadingOverlay}>
+          <View style={styles.quickAmountLoadingContainer}>
+            <LoadingSpinner size={40} color={colors.primary} />
+          </View>
         </View>
       )}
     </SafeAreaView>
@@ -1311,6 +1403,25 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.white,
     fontWeight: '600',
+  },
+  quickAmountLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  quickAmountLoadingContainer: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.large,
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.medium,
   },
 });
 

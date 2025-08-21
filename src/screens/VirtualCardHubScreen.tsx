@@ -8,11 +8,12 @@ import {
   TouchableOpacity,
   FlatList,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { PlusCircle } from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows, iconSizes } from '../theme';
+import { colors, spacing, borderRadius, shadows } from '../theme';
 import { EyeIcon } from '../components/icons';
 
 type RootStackParamList = {
@@ -37,7 +38,6 @@ const cardWidth = screenWidth * 0.85;
 
 const VirtualCardHubScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
-  const [showBalance, setShowBalance] = useState(false);
   const [showCardBalances, setShowCardBalances] = useState<{[key: string]: boolean}>({});
   
   // Mock data for virtual cards
@@ -70,8 +70,6 @@ const VirtualCardHubScreen: React.FC = () => {
       gradientColors: ['#4B0082', '#663399'],
     },
   ]);
-
-  const totalBalance = virtualCards.reduce((sum, card) => sum + card.balance, 0);
 
   const toggleCardBalance = (cardId: string) => {
     setShowCardBalances(prev => ({
@@ -154,26 +152,6 @@ const VirtualCardHubScreen: React.FC = () => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Balance Summary Card */}
-        <View style={styles.balanceSummaryCard}>
-          <View style={styles.balanceContent}>
-            <View style={styles.balanceHeader}>
-              <Text style={styles.balanceLabel}>Total Balance</Text>
-              <TouchableOpacity onPress={() => setShowBalance(!showBalance)}>
-                <EyeIcon 
-                  size={iconSizes.sm} 
-                  color={colors.white} 
-                  filled={!showBalance}
-                />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.balanceAmount}>
-              {showBalance ? `₦${totalBalance.toLocaleString()}` : '••••••'}
-            </Text>
-            <Text style={styles.balanceSubtext}>Across {virtualCards.length} virtual cards</Text>
-          </View>
-        </View>
-
         {/* Active Cards Section */}
         <View style={styles.cardsSection}>
           <Text style={styles.sectionTitle}>Your Virtual Cards</Text>
@@ -198,14 +176,39 @@ const VirtualCardHubScreen: React.FC = () => {
         </View>
       </ScrollView>
 
+      {/* Card Limit Message */}
+      {virtualCards.some(card => card.status === 'Active') && (
+        <View style={styles.limitMessage}>
+          <Text style={styles.limitMessageText}>
+            You can only have one active virtual card at a time
+          </Text>
+        </View>
+      )}
+
       {/* FAB */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate('CreateVirtualCardScreen')}
-        activeOpacity={0.8}
-      >
-        <PlusCircle size={24} color={colors.white} />
-      </TouchableOpacity>
+      {!virtualCards.some(card => card.status === 'Active') ? (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => navigation.navigate('CreateVirtualCardScreen')}
+          activeOpacity={0.8}
+        >
+          <PlusCircle size={24} color={colors.white} />
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={[styles.fab, styles.fabDisabled]}
+          onPress={() => {
+            Alert.alert(
+              'Card Limit Reached',
+              'You can only have one active virtual card at a time. Please deactivate your current card before creating a new one.',
+              [{ text: 'OK', style: 'default' }]
+            );
+          }}
+          activeOpacity={0.8}
+        >
+          <PlusCircle size={24} color={colors.white} />
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 };
@@ -238,43 +241,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  balanceSummaryCard: {
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.xl,
-    padding: spacing.xl,
-    borderRadius: borderRadius.xl,
-    backgroundColor: colors.primary,
-    ...shadows.medium,
-  },
-  balanceContent: {
-    alignItems: 'flex-start',
-  },
-  balanceHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: spacing.sm,
-  },
-  balanceLabel: {
-    fontSize: 14,
-    color: colors.white,
-    opacity: 0.8,
-    marginBottom: spacing.xs,
-  },
-  balanceAmount: {
-    fontSize: 36,
-    fontWeight: 'normal',
-    color: colors.white,
-    marginBottom: spacing.xs,
-    textAlign: 'left',
-  },
-  balanceSubtext: {
-    fontSize: 12,
-    color: colors.white,
-    opacity: 0.7,
-    textAlign: 'left',
-  },
+
   cardsSection: {
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.xl,
@@ -386,6 +353,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...shadows.large,
     elevation: 8,
+  },
+  fabDisabled: {
+    backgroundColor: colors.secondaryText,
+    opacity: 0.7,
+  },
+  limitMessage: {
+    position: 'absolute',
+    bottom: spacing.xl + 70, // Position above FAB
+    left: spacing.lg,
+    right: spacing.lg,
+    backgroundColor: colors.primary + '15', // Very light primary color
+    padding: spacing.md,
+    borderRadius: borderRadius.medium,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  limitMessageText: {
+    color: colors.primary,
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });
 

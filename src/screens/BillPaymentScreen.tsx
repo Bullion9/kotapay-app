@@ -8,7 +8,6 @@ import {
   SafeAreaView,
   TextInput,
   Alert,
-  ActivityIndicator,
   Animated,
   Modal,
 } from 'react-native';
@@ -20,7 +19,6 @@ import {
   Search,
   CreditCard,
   CheckCircle,
-  Zap,
   Users,
   QrCode,
 } from 'lucide-react-native';
@@ -29,6 +27,9 @@ import { colors, spacing, shadows, borderRadius, iconSizes } from '../theme';
 import { ProviderGridSkeleton, BouquetListSkeleton } from '../components/LoadingSkeleton';
 import { billNotificationService } from '../services/billNotifications';
 import { useToast } from '../components/ToastProvider';
+import LoadingOverlay from '../components/LoadingOverlay';
+import LoadingIcon from '../components/icons/LoadingIcon';
+import { useLoading } from '../hooks/useLoading';
 import PinEntryModal from '../components/PinEntryModal';
 
 type BillPaymentScreenNavigationProp = StackNavigationProp<RootStackParamList>;
@@ -75,6 +76,17 @@ const BillPaymentScreen: React.FC = () => {
   const [providersLoading, setProvidersLoading] = useState(true);
   const [packagesLoading, setPackagesLoading] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
+  
+  // Payment loading state management
+  const {
+    isLoading: isPaymentLoading,
+    loadingState,
+    loadingMessage,
+    setConfirming,
+    setError,
+    stopLoading,
+  } = useLoading();
+  
   const [paymentForm, setPaymentForm] = useState<PaymentForm>({
     provider: null,
     package: null,
@@ -88,12 +100,10 @@ const BillPaymentScreen: React.FC = () => {
 
   // PIN Modal state
   const [showPinModal, setShowPinModal] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Animation values
-  const processingRotation = useRef(new Animated.Value(0)).current;
   const successScale = useRef(new Animated.Value(0)).current;
   const successOpacity = useRef(new Animated.Value(0)).current;
   
@@ -102,7 +112,6 @@ const BillPaymentScreen: React.FC = () => {
 
   // Animation functions (defined early to avoid dependency issues)
   const resetAnimations = useCallback(() => {
-    processingRotation.setValue(0);
     successScale.setValue(0);
     successOpacity.setValue(0);
     setShowSuccess(false);
@@ -110,7 +119,7 @@ const BillPaymentScreen: React.FC = () => {
     // Clear any pending timeouts
     timeoutRefs.current.forEach(timeout => clearTimeout(timeout));
     timeoutRefs.current = [];
-  }, [processingRotation, successScale, successOpacity]);
+  }, [successScale, successOpacity]);
 
   // State for providers and packages
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -174,7 +183,6 @@ const BillPaymentScreen: React.FC = () => {
   // Cleanup function to reset states
   const resetPaymentStates = useCallback(() => {
     setLoading(false);
-    setIsProcessing(false);
     setShowSuccess(false);
     setIsSubmitting(false);
     setShowPinModal(false);
@@ -351,17 +359,6 @@ const BillPaymentScreen: React.FC = () => {
   };
 
   // Animation functions
-  const startProcessingAnimation = useCallback(() => {
-    processingRotation.setValue(0);
-    Animated.loop(
-      Animated.timing(processingRotation, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      })
-    ).start();
-  }, [processingRotation]);
-
   const showSuccessAnimation = useCallback(() => {
     setShowSuccess(true);
     successScale.setValue(0);
@@ -385,11 +382,9 @@ const BillPaymentScreen: React.FC = () => {
   // PIN verification handler
   const handlePinVerified = async (pin: string) => {
     console.log('PIN verified:', pin);
-    if (isProcessing || loading || isSubmitting) return; // Prevent double execution
+    if (loading || isSubmitting) return; // Prevent double execution
     
     setIsSubmitting(true);
-    setIsProcessing(true);
-    startProcessingAnimation();
     
     // Hide PIN modal after a short delay to show processing
     const timeout = setTimeout(() => {
@@ -401,21 +396,20 @@ const BillPaymentScreen: React.FC = () => {
 
   // Modified payment handler to show PIN modal
   const handlePayment = async () => {
-    if (!validateForm() || loading || isProcessing || isSubmitting) return; // Prevent double execution
+    if (!validateForm() || isPaymentLoading || isSubmitting) return; // Prevent double execution
     setShowPinModal(true);
   };
 
   // Actual payment processing
   const proceedWithPayment = async () => {
-    if (!validateForm() || loading) return; // Prevent double execution
+    if (!validateForm() || isPaymentLoading) return; // Prevent double execution
     
-    setLoading(true);
     const transactionId = `bill_${Date.now()}`;
     const billAmount = paymentForm.customAmount ? parseFloat(paymentForm.amount) : paymentForm.package?.amount || 0;
     
     try {
-      // Show pending notification
-      showToast('warning', 'Processing bill payment...', 2000);
+      // Start confirming phase directly (skip loading)
+      setConfirming('Confirming transaction...');
       
       // Send pending notification
       await billNotificationService.sendBillPaymentPendingNotification({
@@ -427,7 +421,7 @@ const BillPaymentScreen: React.FC = () => {
       });
 
       // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise<void>(resolve => setTimeout(resolve, 2000));
       
       // Send success notification
       await billNotificationService.sendBillPaymentSuccessNotification({
@@ -438,11 +432,10 @@ const BillPaymentScreen: React.FC = () => {
         accountNumber: paymentForm.accountNumber,
       });
 
-      // Show success toast
-      showToast('success', 'Bill payment successful!');
-      
-      // Show success animation and stop processing
-      setIsProcessing(false);
+      // Stop loading before success animation
+      stopLoading();
+
+      // After loading is complete, start success animation
       showSuccessAnimation();
       
       // Auto dismiss after 2 seconds like other screens
@@ -452,9 +445,11 @@ const BillPaymentScreen: React.FC = () => {
         navigation.goBack();
       }, 2000);
       timeoutRefs.current.push(timeout);
-    } catch (err) {
-      console.error('Payment failed:', err);
-      setIsProcessing(false);
+    } catch (error) {
+      console.error('Payment failed:', error);
+      
+      // Stop loading and show error
+      setError('Bill payment failed');
       setIsSubmitting(false);
       setShowSuccess(false);
       resetAnimations();
@@ -472,8 +467,6 @@ const BillPaymentScreen: React.FC = () => {
       showToast('error', 'Bill payment failed. Please try again.');
       
       Alert.alert('❌ Payment Failed', 'Please try again later.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -705,12 +698,12 @@ const BillPaymentScreen: React.FC = () => {
       </View>
       
       <TouchableOpacity
-        style={[styles.payButton, (loading || isProcessing || isSubmitting) && styles.payButtonDisabled]}
+        style={[styles.payButton, (isPaymentLoading || isSubmitting) && styles.payButtonDisabled]}
         onPress={handlePayment}
-        disabled={loading || isProcessing || isSubmitting}
+        disabled={isPaymentLoading || isSubmitting}
       >
-        {(loading || isProcessing || isSubmitting) ? (
-          <ActivityIndicator color={colors.white} />
+        {(isPaymentLoading || isSubmitting) ? (
+          <LoadingIcon size={24} strokeWidth={3} />
         ) : (
           <>
             <CreditCard size={iconSizes.sm} color={colors.white} />
@@ -782,32 +775,6 @@ const BillPaymentScreen: React.FC = () => {
         {renderCurrentStep()}
       </ScrollView>
 
-      {/* Processing Overlay */}
-      {isProcessing && (
-        <View style={styles.processingOverlay}>
-          <View style={styles.processingContainer}>
-            <Animated.View
-              style={[
-                styles.processingIcon,
-                {
-                  transform: [
-                    {
-                      rotate: processingRotation.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0deg', '360deg'],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              <Zap size={40} color={colors.primaryBills} />
-            </Animated.View>
-            <Text style={styles.processingText}>Processing Payment...</Text>
-          </View>
-        </View>
-      )}
-
       {/* Success Animation */}
       {showSuccess && (
         <View style={styles.processingOverlay}>
@@ -842,7 +809,6 @@ const BillPaymentScreen: React.FC = () => {
         visible={showPinModal}
         onClose={() => {
           setShowPinModal(false);
-          setIsProcessing(false);
           setIsSubmitting(false);
           resetAnimations();
         }}
@@ -900,6 +866,13 @@ const BillPaymentScreen: React.FC = () => {
           </SafeAreaView>
         </Modal>
       )}
+
+      {/* Loading Overlay */}
+      <LoadingOverlay
+        visible={isPaymentLoading}
+        type={loadingState}
+        message={loadingMessage}
+      />
     </SafeAreaView>
   );
 };
@@ -1143,22 +1116,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
-  },
-  processingContainer: {
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.large,
-    padding: spacing.xl,
-    marginHorizontal: spacing.xl,
-  },
-  processingIcon: {
-    marginBottom: spacing.md,
-  },
-  processingText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    textAlign: 'center',
   },
   successContainer: {
     position: 'absolute',

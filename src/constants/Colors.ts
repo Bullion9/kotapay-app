@@ -1,0 +1,40 @@
+export const lightColors = {
+  background: '#F8F8FA',
+  card: '#FFFFFF',
+  text: '#111827',
+  secondaryText: '#6B7280',
+  border: '#E5E7EB',
+  primary: '#06402B',
+  success: '#10B981',
+  warning: '#FBBF24',
+  error: '#EF4444',
+  placeholder: '#9CA3AF',
+  disabled: '#D1D5DB',
+  seaGreen: '#06402B',
+  primaryBills: '#06402B',
+  primaryTransparent: 'rgba(6, 64, 43, 0.1)',
+  borderBills: '#E5E7EB',
+  white: '#FFFFFF',
+} as const;
+
+export const darkColors = {
+  ...lightColors,
+  background: '#000000',
+  card: '#1C1C1E',
+  text: '#FFFFFF',
+  secondaryText: '#AEAEB2',
+  border: '#38383A',
+  primary: '#2C9F6F',
+  success: '#32D74B',
+  warning: '#FFD60A',
+  error: '#FF453A',
+  placeholder: '#666668',
+  disabled: '#3A3A3C',
+  seaGreen: '#2C9F6F',
+  primaryBills: '#2C9F6F',
+  primaryTransparent: 'rgba(44, 159, 111, 0.1)',
+  borderBills: '#38383A',
+  white: '#FFFFFF',
+} as const;
+
+export const colors = lightColors;

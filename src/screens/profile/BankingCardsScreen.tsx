@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, memo } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,39 @@ import {
 } from 'lucide-react-native';
 // @ts-ignore
 import * as Haptics from 'expo-haptics';
+
+interface BankAccount {
+  id: string;
+  bankName: string;
+  accountNumber: string;
+  accountType: string;
+  isDefault: boolean;
+}
+
+interface VirtualCard {
+  id: string;
+  cardName: string;
+  lastFour: string;
+  status: string;
+  balance: string;
+}
+
+interface BankAccountItemProps {
+  account: BankAccount;
+  onPress: (account: BankAccount) => void;
+}
+
+interface VirtualCardItemProps {
+  card: VirtualCard;
+  onPress: (card: VirtualCard) => void;
+}
+
+interface ActionButtonProps {
+  icon: React.ReactNode;
+  label: string;
+  onPress: () => void;
+  primary?: boolean;
+}
 
 const BankingCardsScreen: React.FC = () => {
   const bankAccounts = [
@@ -64,22 +97,22 @@ const BankingCardsScreen: React.FC = () => {
     },
   ];
 
-  const handleAddBankAccount = async () => {
+  const handleAddBankAccount = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     console.log('Add bank account');
-  };
+  }, []);
 
-  const handleCreateVirtualCard = async () => {
+  const handleCreateVirtualCard = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     console.log('Create virtual card');
-  };
+  }, []);
 
-  const handleAccountSettings = async () => {
+  const handleAccountSettings = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     console.log('Account settings');
-  };
+  }, []);
 
-  const handleBankAccountPress = async (account: any) => {
+  const handleBankAccountPress = useCallback(async (account: BankAccount) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert(
       account.bankName,
@@ -90,23 +123,24 @@ const BankingCardsScreen: React.FC = () => {
         { text: 'Cancel', style: 'cancel' },
       ]
     );
-  };
+  }, []);
 
-  const handleVirtualCardPress = async (card: any) => {
+  const handleVirtualCardPress = useCallback(async (card: VirtualCard) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     console.log('Open virtual card details');
-  };
+  }, []);
 
-  const goBack = async () => {
+  const goBack = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     console.log('Going back to profile');
-  };
+  }, []);
 
-  const renderBankAccount = (account: any) => (
+const BankAccountItem = memo<BankAccountItemProps>(({ account, onPress }) => {
+  BankAccountItem.displayName = 'BankAccountItem';
+  return (
     <TouchableOpacity
-      key={account.id}
       style={styles.listItem}
-      onPress={() => handleBankAccountPress(account)}
+      onPress={() => onPress(account)}
     >
       <View style={styles.itemLeft}>
         <View style={styles.iconContainer}>
@@ -125,12 +159,14 @@ const BankingCardsScreen: React.FC = () => {
       <MoreHorizontal size={20} color="#A3AABE" />
     </TouchableOpacity>
   );
+});
 
-  const renderVirtualCard = (card: any) => (
+const VirtualCardItem = memo<VirtualCardItemProps>(({ card, onPress }) => {
+  VirtualCardItem.displayName = 'VirtualCardItem';
+  return (
     <TouchableOpacity
-      key={card.id}
       style={styles.listItem}
-      onPress={() => handleVirtualCardPress(card)}
+      onPress={() => onPress(card)}
     >
       <View style={styles.itemLeft}>
         <View style={styles.iconContainer}>
@@ -147,13 +183,11 @@ const BankingCardsScreen: React.FC = () => {
       <Eye size={20} color="#A3AABE" />
     </TouchableOpacity>
   );
+});
 
-  const renderActionButton = (
-    icon: React.ReactNode,
-    label: string,
-    onPress: () => void,
-    primary?: boolean
-  ) => (
+const ActionButton = memo<ActionButtonProps>(({ icon, label, onPress, primary }) => {
+  ActionButton.displayName = 'ActionButton';
+  return (
     <TouchableOpacity
       style={[styles.actionButton, primary && styles.primaryButton]}
       onPress={onPress}
@@ -164,6 +198,7 @@ const BankingCardsScreen: React.FC = () => {
       </Text>
     </TouchableOpacity>
   );
+});
 
   return (
     <SafeAreaView style={styles.container}>
@@ -185,29 +220,41 @@ const BankingCardsScreen: React.FC = () => {
 
           {/* Quick Actions */}
           <View style={styles.quickActions}>
-            {renderActionButton(
-              <Plus size={20} color="#FFFFFF" />,
-              'Add Bank Account',
-              handleAddBankAccount,
-              true
-            )}
-            {renderActionButton(
-              <CreditCard size={20} color="#06402B" />,
-              'Create Virtual Card',
-              handleCreateVirtualCard
-            )}
+            <ActionButton
+              icon={<Plus size={20} color="#FFFFFF" />}
+              label="Add Bank Account"
+              onPress={handleAddBankAccount}
+              primary
+            />
+            <ActionButton
+              icon={<CreditCard size={20} color="#06402B" />}
+              label="Create Virtual Card"
+              onPress={handleCreateVirtualCard}
+            />
           </View>
 
           {/* Linked Bank Accounts */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Linked Bank Accounts</Text>
-            {bankAccounts.map(renderBankAccount)}
+            {bankAccounts.map(account => (
+              <BankAccountItem
+                key={account.id}
+                account={account}
+                onPress={handleBankAccountPress}
+              />
+            ))}
           </View>
 
           {/* Virtual Cards */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Virtual Cards</Text>
-            {virtualCards.map(renderVirtualCard)}
+            {virtualCards.map(card => (
+              <VirtualCardItem
+                key={card.id}
+                card={card}
+                onPress={handleVirtualCardPress}
+              />
+            ))}
           </View>
 
           {/* Account Settings */}
@@ -392,4 +439,5 @@ const styles = StyleSheet.create({
   },
 });
 
-export default BankingCardsScreen;
+BankingCardsScreen.displayName = 'BankingCardsScreen';
+export default memo(BankingCardsScreen);

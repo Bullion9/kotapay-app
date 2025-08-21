@@ -21,6 +21,9 @@ import {
 import { colors, spacing, typography, borderRadius, shadows, iconSizes, globalStyles } from '../theme';
 import { useNavigation } from '@react-navigation/native';
 import PinEntryModal from '../components/PinEntryModal';
+import LoadingOverlay from '../components/LoadingOverlay';
+import CardTransactionRow, { CardTransaction } from '../components/CardTransactionRow';
+import { useLoading } from '../hooks/useLoading';
 
 const CardScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -28,6 +31,14 @@ const CardScreen: React.FC = () => {
   const [showBalance, setShowBalance] = React.useState(false);
   const [showPinModal, setShowPinModal] = React.useState(false);
   const [pinModalAction, setPinModalAction] = React.useState<'viewCard' | 'freezeCard' | 'addCard' | 'settings' | null>(null);
+
+  // Loading state management
+  const {
+    isLoading,
+    loadingState,
+    loadingMessage,
+    executeWithLoading,
+  } = useLoading();
 
   const cards = [
     {
@@ -51,6 +62,46 @@ const CardScreen: React.FC = () => {
   // Calculate total balance across all cards
   const totalBalance = cards.reduce((sum, card) => sum + card.balance, 0);
 
+  // Mock transaction data
+  const transactions: CardTransaction[] = [
+    {
+      id: '1',
+      type: 'debit',
+      amount: 25000,
+      merchant: 'Amazon',
+      date: '2025-08-19',
+      category: 'Online Shopping',
+      status: 'completed'
+    },
+    {
+      id: '2',
+      type: 'debit',
+      amount: 15000,
+      merchant: 'Shoprite',
+      date: '2025-08-18',
+      category: 'Groceries',
+      status: 'completed'
+    },
+    {
+      id: '3',
+      type: 'credit',
+      amount: 50000,
+      merchant: 'Refund - Jumia',
+      date: '2025-08-17',
+      category: 'Refund',
+      status: 'completed'
+    },
+    {
+      id: '4',
+      type: 'debit',
+      amount: 5000,
+      merchant: 'Netflix',
+      date: '2025-08-16',
+      category: 'Entertainment',
+      status: 'pending'
+    }
+  ];
+
   const handlePinVerified = (pin: string) => {
     setShowPinModal(false);
     
@@ -59,7 +110,14 @@ const CardScreen: React.FC = () => {
         setShowCardNumber(!showCardNumber);
         break;
       case 'freezeCard':
-        handleFreezeCard();
+        Alert.alert(
+          'Freeze Card',
+          'Are you sure you want to freeze this card? You can unfreeze it later.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Freeze', style: 'destructive', onPress: handleFreezeCard },
+          ]
+        );
         break;
       case 'addCard':
         handleAddCard();
@@ -78,18 +136,27 @@ const CardScreen: React.FC = () => {
 
   const toggleCardNumber = () => requirePinForAction('viewCard');
 
-  const handleFreezeCard = () => {
-    Alert.alert(
-      'Freeze Card',
-      'Are you sure you want to freeze this card? You can unfreeze it later.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Freeze', style: 'destructive', onPress: () => {
-          // Implement freeze card logic
+  const handleFreezeCard = async () => {
+    try {
+      await executeWithLoading(
+        async () => {
+          // Simulate API call to freeze card
+          await new Promise<void>(resolve => setTimeout(resolve, 1500));
+          
           Alert.alert('Success', 'Card has been frozen successfully');
-        }},
-      ]
-    );
+        },
+        {
+          loading: 'Freezing card...',
+          processing: 'Processing request...',
+          confirming: 'Confirming changes...',
+          success: 'Card frozen successfully!',
+          error: 'Failed to freeze card',
+        }
+      );
+    } catch (error) {
+      console.error('Failed to freeze card:', error);
+      Alert.alert('Error', 'Failed to freeze card. Please try again.');
+    }
   };
 
   const handleAddCard = () => {
@@ -225,21 +292,12 @@ const CardScreen: React.FC = () => {
           </View>
         </View>
 
-        <View style={styles.infoContainer}>
-          <Text style={styles.sectionTitle}>Card Information</Text>
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Virtual Card Limit</Text>
-              <Text style={styles.infoValue}>₦2,000,000/month</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Physical Card Fee</Text>
-              <Text style={styles.infoValue}>₦4,000.00</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>International Transactions</Text>
-              <Text style={styles.infoValue}>Enabled</Text>
-            </View>
+        <View style={styles.transactionContainer}>
+          <Text style={styles.sectionTitle}>Transaction History</Text>
+          <View style={styles.transactionCard}>
+            {transactions.map((transaction) => (
+              <CardTransactionRow key={transaction.id} transaction={transaction} />
+            ))}
           </View>
         </View>
       </ScrollView>
@@ -261,6 +319,13 @@ const CardScreen: React.FC = () => {
           'Enter your PIN to continue'
         }
         allowBiometric={true}
+      />
+      
+      {/* Loading Overlay */}
+      <LoadingOverlay
+        visible={isLoading}
+        type={loadingState}
+        message={loadingMessage}
       />
     </SafeAreaView>
   );
@@ -437,32 +502,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
   },
-  infoContainer: {
+  transactionContainer: {
     padding: spacing.xl,
     paddingTop: 0,
   },
-  infoCard: {
+  transactionCard: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.medium,
     padding: spacing.lg,
     ...shadows.small,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  infoLabel: {
-    ...typography.body,
-    color: colors.text,
-  },
-  infoValue: {
-    ...typography.body,
-    color: colors.secondaryText,
-    fontWeight: '600',
   },
 });
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -11,10 +11,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ArrowLeft, Shield, Fingerprint, Check, X } from 'lucide-react-native';
+import { ArrowLeft, Shield, Fingerprint, X, CheckCircle } from 'lucide-react-native';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { globalStyles, colors, spacing, iconSizes, shadows } from '../theme';
+import LoadingOverlay from '../components/LoadingOverlay';
+import PageLoadingOverlay from '../components/PageLoadingOverlay';
+import { useLoading } from '../hooks/useLoading';
+import { usePageLoading } from '../hooks/usePageLoading';
 
 type CreateAccountPinScreenNavigationProp = StackNavigationProp<RootStackParamList, 'CreateAccountPin'>;
 
@@ -24,14 +28,18 @@ const CreateAccountPinScreen: React.FC = () => {
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [step, setStep] = useState<'setup' | 'confirm'>('setup');
-  const [isLoading, setIsLoading] = useState(false);
+  
+  // Enhanced loading states
+  const { isLoading, setConfirming, setError, stopLoading } = useLoading();
+  const { isPageLoading } = usePageLoading();
+  
+  // Animation values
+  const successOpacity = useRef(new Animated.Value(0)).current;
+  const successScale = useRef(new Animated.Value(0.5)).current;
+  
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-
-  // Animation values
-  const fadeAnim = useState(new Animated.Value(0))[0];
-  const scaleAnim = useState(new Animated.Value(0.5))[0];
 
   const handleNumberPress = (number: string) => {
     // Add haptic feedback vibration for each number input
@@ -71,17 +79,21 @@ const CreateAccountPinScreen: React.FC = () => {
 
   const validatePin = async (enteredConfirmPin: string) => {
     if (pin === enteredConfirmPin) {
-      setIsLoading(true);
+      setConfirming();
       try {
+        await new Promise<void>(resolve => setTimeout(resolve, 1500)); // Show confirming state
         await updatePin('', pin); // Empty current PIN for new setup
         Vibration.vibrate([0, 100, 50, 100]);
+        stopLoading(); // Stop loading before success animation
         showSuccessAnimation();
       } catch (error: any) {
         console.error('PIN creation failed:', error);
         const errorMessage = error.message || 'Failed to create PIN. Please try again.';
-        showErrorAnimation(errorMessage);
-      } finally {
-        setIsLoading(false);
+        setError(errorMessage);
+        setTimeout(() => {
+          stopLoading();
+          showErrorAnimation(errorMessage);
+        }, 500);
       }
     } else {
       showErrorAnimation('PINs do not match. Please try again.');
@@ -99,12 +111,12 @@ const CreateAccountPinScreen: React.FC = () => {
   const showSuccessAnimation = () => {
     setShowSuccess(true);
     Animated.parallel([
-      Animated.timing(fadeAnim, {
+      Animated.timing(successOpacity, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }),
-      Animated.spring(scaleAnim, {
+      Animated.spring(successScale, {
         toValue: 1,
         tension: 100,
         friction: 8,
@@ -273,13 +285,13 @@ const CreateAccountPinScreen: React.FC = () => {
           styles.overlay,
           styles.successOverlay,
           {
-            opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }]
+            opacity: successOpacity,
+            transform: [{ scale: successScale }]
           }
         ]}>
           <View style={styles.overlayContent}>
             <View style={styles.successIcon}>
-              <Check size={48} color={colors.white} />
+              <CheckCircle size={48} color={colors.white} />
             </View>
             <Text style={styles.overlayTitle}>Success!</Text>
             <Text style={styles.overlayMessage}>Your PIN has been created successfully</Text>
@@ -299,6 +311,16 @@ const CreateAccountPinScreen: React.FC = () => {
           </View>
         </View>
       )}
+
+      {/* Loading Overlay */}
+      <LoadingOverlay 
+        isVisible={isLoading} 
+        title="Creating PIN..."
+        subtitle="Please wait while we set up your secure PIN"
+      />
+
+      {/* Page Loading Overlay */}
+      <PageLoadingOverlay isVisible={isPageLoading} />
     </SafeAreaView>
   );
 };

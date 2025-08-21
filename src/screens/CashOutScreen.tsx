@@ -8,7 +8,6 @@ import {
   SafeAreaView,
   TextInput,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -23,12 +22,16 @@ import {
 import { RootStackParamList } from '../types';
 import { colors, spacing, shadows, borderRadius, iconSizes, globalStyles } from '../theme';
 import { EyeIcon } from '../components/icons';
+import { useSettings } from '../contexts/SettingsContext';
 import { 
   cashOutService, 
   CashOutMethod as PayoutMethod, 
   CashOutTransaction 
 } from '../services/CashOutService';
 import PinEntryModal from '../components/PinEntryModal';
+import LoadingOverlay from '../components/LoadingOverlay';
+import LoadingIcon from '../components/icons/LoadingIcon';
+import { useLoading } from '../hooks/useLoading';
 import { notificationService } from '../services/notifications';
 
 type CashOutScreenNavigationProp = StackNavigationProp<RootStackParamList>;
@@ -39,12 +42,23 @@ interface LocalPayoutMethod extends PayoutMethod {
 
 const CashOutScreen: React.FC = () => {
   const navigation = useNavigation<CashOutScreenNavigationProp>();
+  const { formatCurrency } = useSettings();
+  
+  // Loading state management
+  const {
+    isLoading,
+    loadingState,
+    loadingMessage,
+    startLoading,
+    setProcessing,
+    setConfirming,
+    stopLoading,
+  } = useLoading();
   
   // State management
   const [amount, setAmount] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<LocalPayoutMethod | null>(null);
   const [showBalance, setShowBalance] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [transaction, setTransaction] = useState<CashOutTransaction | null>(null);
@@ -137,11 +151,26 @@ const CashOutScreen: React.FC = () => {
   // Handle PIN verification and transaction processing
   const handlePinVerified = async (enteredPin: string) => {
     setShowPinModal(false);
-    setLoading(true);
 
     try {
+      let newTransaction: CashOutTransaction;
+      
+      // Manual loading control
+      startLoading('Initializing cash out...');
+      
+      // Processing phase
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      setProcessing('Processing withdrawal...');
+      
+      // Confirming phase
+      await new Promise<void>(resolve => setTimeout(resolve, 800));
+      setConfirming('Confirming transaction...');
+      
+      // Execute operation
+      await new Promise<void>(resolve => setTimeout(resolve, 1000));
+      
       // Process cash-out using the service
-      const newTransaction = await cashOutService.processCashOut(
+      newTransaction = await cashOutService.processCashOut(
         parseFloat(amount),
         selectedMethod?.id || '',
         {}, // Account details would be collected in a real implementation
@@ -149,6 +178,11 @@ const CashOutScreen: React.FC = () => {
       );
 
       setTransaction(newTransaction);
+
+      // Stop loading before success animation
+      stopLoading();
+
+      // After loading is complete, start success animation
       setShowSuccess(true);
 
       // Send push notification
@@ -165,8 +199,6 @@ const CashOutScreen: React.FC = () => {
     } catch (err) {
       console.error('Transaction error:', err);
       Alert.alert('Error', 'Failed to process cash-out. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -202,7 +234,7 @@ const CashOutScreen: React.FC = () => {
         </View>
         <View style={styles.transactionRow}>
           <Text style={styles.transactionLabel}>Fee</Text>
-          <Text style={styles.transactionValue}>₦{transaction?.fee}</Text>
+                        <Text style={styles.transactionValue}>{formatCurrency(transaction?.fee || 0)}</Text>
         </View>
         <View style={styles.transactionRow}>
           <Text style={styles.transactionLabel}>Method</Text>
@@ -283,10 +315,10 @@ const CashOutScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
           <Text style={styles.balanceAmount}>
-            {showBalance ? `₦${userBalance.toLocaleString()}` : '••••••'}
+            {showBalance ? formatCurrency(userBalance) : '••••••'}
           </Text>
           <Text style={styles.balanceSubtext}>
-            Daily limit: ₦{tierLimit.toLocaleString()}
+            Daily limit: {formatCurrency(tierLimit)}
           </Text>
         </View>
 
@@ -308,7 +340,7 @@ const CashOutScreen: React.FC = () => {
           </View>
           {amount && parseFloat(amount) > tierLimit && (
             <Text style={styles.warningText}>
-              Amount exceeds daily limit of ₦{tierLimit.toLocaleString()}
+              Amount exceeds daily limit of {formatCurrency(tierLimit)}
             </Text>
           )}
         </View>
@@ -337,7 +369,7 @@ const CashOutScreen: React.FC = () => {
                 <Text style={styles.methodTime}>{method.processingTime}</Text>
               </View>
               <View style={styles.methodFee}>
-                <Text style={styles.feeAmount}>₦{method.fee}</Text>
+                <Text style={styles.feeAmount}>{formatCurrency(method.fee)}</Text>
                 <Text style={styles.feeLabel}>Fee</Text>
               </View>
             </TouchableOpacity>
@@ -350,15 +382,15 @@ const CashOutScreen: React.FC = () => {
             <Text style={styles.feePreviewTitle}>Transaction Summary</Text>
             <View style={styles.feeRow}>
               <Text style={styles.feeLabel}>Amount</Text>
-              <Text style={styles.feeValue}>₦{parseFloat(amount).toLocaleString()}</Text>
+              <Text style={styles.feeValue}>{formatCurrency(parseFloat(amount) || 0)}</Text>
             </View>
             <View style={styles.feeRow}>
               <Text style={styles.feeLabel}>Processing Fee</Text>
-              <Text style={styles.feeValue}>₦{selectedMethod.fee}</Text>
+              <Text style={styles.feeValue}>{formatCurrency(selectedMethod.fee)}</Text>
             </View>
             <View style={[styles.feeRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>₦{calculateTotal().toLocaleString()}</Text>
+              <Text style={styles.totalValue}>{formatCurrency(calculateTotal())}</Text>
             </View>
           </View>
         )}
@@ -369,22 +401,27 @@ const CashOutScreen: React.FC = () => {
         <TouchableOpacity
           style={[
             styles.cashOutButton,
-            (!amount || !selectedMethod || loading) && styles.disabledButton,
+            (!amount || !selectedMethod || isLoading) && styles.disabledButton,
           ]}
           onPress={handleCashOut}
-          disabled={!amount || !selectedMethod || loading}
+          disabled={!amount || !selectedMethod || isLoading}
         >
-          {loading ? (
-            <ActivityIndicator color={colors.white} />
+          {isLoading ? (
+            <LoadingIcon size={24} strokeWidth={3} />
           ) : (
             <Text style={styles.cashOutButtonText}>
-              Cash-Out ₦{amount ? parseFloat(amount).toLocaleString() : '0'}
+              Cash-Out {amount ? formatCurrency(parseFloat(amount)) : formatCurrency(0)}
             </Text>
           )}
         </TouchableOpacity>
       </View>
 
       <PinModal />
+      <LoadingOverlay
+        visible={isLoading}
+        type={loadingState}
+        message={loadingMessage}
+      />
     </SafeAreaView>
   );
 };

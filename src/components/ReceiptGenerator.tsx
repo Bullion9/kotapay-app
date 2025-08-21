@@ -8,6 +8,7 @@ import {
   Alert,
   Share,
 } from 'react-native';
+import { useSettings } from '../contexts/SettingsContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Download,
@@ -77,10 +78,12 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     }
   };
 
+  const { formatCurrency } = useSettings();
+
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `KotaPay Receipt\nTransaction ID: ${transaction.id}\nAmount: ${transaction.currency}${transaction.total.toLocaleString()}\nStatus: ${transaction.status}`,
+        message: `KotaPay Receipt\nTransaction ID: ${transaction.id}\nAmount: ${formatCurrency(transaction.total, transaction.currency)}\nStatus: ${transaction.status}`,
         title: 'KotaPay Receipt',
       });
     } catch {
@@ -132,7 +135,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
           {/* Hero Row */}
           <View style={styles.heroRow}>
             <Text style={[styles.heroAmount, { color: getTypeColor(transaction.type) }]}>
-              {getAmountSign(transaction.type)}{transaction.currency}{transaction.amount.toLocaleString()}
+              {getAmountSign(transaction.type)}{formatCurrency(transaction.amount, transaction.currency)}
             </Text>
           </View>
 
@@ -174,14 +177,14 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Fee</Text>
                 <Text style={styles.detailValue}>
-                  {transaction.currency}{transaction.fee.toFixed(2)}
+                  {formatCurrency(transaction.fee, transaction.currency)}
                 </Text>
               </View>
 
               <View style={[styles.detailRow, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Total</Text>
                 <Text style={styles.totalValue}>
-                  {transaction.currency}{transaction.total.toLocaleString()}
+                  {formatCurrency(transaction.total, transaction.currency)}
                 </Text>
               </View>
             </View>

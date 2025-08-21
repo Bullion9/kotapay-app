@@ -1,0 +1,352 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity,
+  Switch,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../types/navigation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  ChevronLeft,
+  KeyRound,
+  Fingerprint,
+  Bell,
+  Eye,
+  Shield,
+  ChevronRight,
+} from 'lucide-react-native';
+import { colors, spacing, typography, borderRadius, shadows } from '../theme';
+
+interface SecuritySettings {
+  biometricsEnabled: boolean;
+  transactionPinEnabled: boolean;
+  loginPinEnabled: boolean;
+  pushNotificationsEnabled: boolean;
+  showBalance: boolean;
+  transactionLimit: number;
+}
+
+const SecuritySettingsScreen: React.FC = () => {
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const [isLoading, setIsLoading] = useState(true);
+  const [settings, setSettings] = useState<SecuritySettings>({
+    biometricsEnabled: false,
+    transactionPinEnabled: true,
+    loginPinEnabled: true,
+    pushNotificationsEnabled: true,
+    showBalance: true,
+    transactionLimit: 100000,
+  });
+
+  // Load settings from AsyncStorage on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const savedSettings = await AsyncStorage.getItem('securitySettings');
+        if (savedSettings) {
+          setSettings(JSON.parse(savedSettings));
+        }
+      } catch (error) {
+        console.error('Error loading security settings:', error);
+        Alert.alert('Error', 'Failed to load security settings');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
+  // Save settings whenever they change
+  useEffect(() => {
+    const saveSettings = async () => {
+      try {
+        await AsyncStorage.setItem('securitySettings', JSON.stringify(settings));
+      } catch (error) {
+        console.error('Error saving security settings:', error);
+        Alert.alert('Error', 'Failed to save security settings');
+      }
+    };
+
+    if (!isLoading) {
+      saveSettings();
+    }
+  }, [settings, isLoading]);
+
+  const handleBack = () => {
+    navigation.goBack();
+  };
+
+  const handleChangePin = () => {
+    navigation.navigate('ChangePin');
+  };
+
+  const handleTransactionLimit = () => {
+    navigation.navigate('TransactionLimit');
+  };
+
+  const toggleSetting = (setting: keyof SecuritySettings) => {
+    setSettings(prev => ({
+      ...prev,
+      [setting]: !prev[setting],
+    }));
+  };
+
+  const renderSettingItem = (
+    icon: React.ReactNode,
+    title: string,
+    description: string,
+    value: boolean,
+    onToggle: () => void,
+    isFirst = false,
+    isLast = false,
+  ) => (
+    <View style={[
+      styles.settingCard,
+      isFirst && styles.firstItem,
+      isLast && styles.lastItem,
+    ]}>
+      <View style={styles.settingInfo}>
+        <View style={styles.settingIcon}>
+          {icon}
+        </View>
+        <View style={styles.settingDetails}>
+          <Text style={styles.settingTitle}>{title}</Text>
+          <Text style={styles.settingDescription}>{description}</Text>
+        </View>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onToggle}
+        trackColor={{ false: colors.border, true: colors.primary }}
+        thumbColor={colors.white}
+      />
+    </View>
+  );
+
+  const renderActionItem = (
+    icon: React.ReactNode,
+    title: string,
+    description: string,
+    onPress: () => void,
+    isFirst = false,
+    isLast = false,
+  ) => (
+    <TouchableOpacity 
+      style={[
+        styles.settingCard,
+        isFirst && styles.firstItem,
+        isLast && styles.lastItem,
+      ]} 
+      onPress={onPress}
+    >
+      <View style={styles.settingInfo}>
+        <View style={styles.settingIcon}>
+          {icon}
+        </View>
+        <View style={styles.settingDetails}>
+          <Text style={styles.settingTitle}>{title}</Text>
+          <Text style={styles.settingDescription}>{description}</Text>
+        </View>
+      </View>
+      <ChevronRight size={20} color={colors.text} />
+    </TouchableOpacity>
+  );
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+          <ChevronLeft size={24} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Security Settings</Text>
+        <View style={styles.placeholder} />
+      </View>
+
+      <ScrollView style={styles.content}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Authentication</Text>
+          {renderSettingItem(
+            <Fingerprint size={24} color={colors.primary} />,
+            'Biometric Authentication',
+            'Use fingerprint or face ID to secure your account',
+            settings.biometricsEnabled,
+            () => toggleSetting('biometricsEnabled'),
+            true
+          )}
+          {renderActionItem(
+            <KeyRound size={24} color={colors.primary} />,
+            'Change PIN',
+            'Update your transaction and login PIN',
+            handleChangePin,
+            false,
+            true
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Privacy</Text>
+          {renderSettingItem(
+            <Eye size={24} color={colors.primary} />,
+            'Show Balance',
+            'Display account balance in the app',
+            settings.showBalance,
+            () => toggleSetting('showBalance'),
+            true
+          )}
+          {renderSettingItem(
+            <Bell size={24} color={colors.primary} />,
+            'Push Notifications',
+            'Receive alerts for transactions and updates',
+            settings.pushNotificationsEnabled,
+            () => toggleSetting('pushNotificationsEnabled'),
+            false,
+            true
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Transactions</Text>
+          {renderActionItem(
+            <Shield size={24} color={colors.primary} />,
+            'Transaction Limit',
+            `Current limit: ₦${settings.transactionLimit.toLocaleString()}`,
+            handleTransactionLimit,
+            true
+          )}
+          {renderSettingItem(
+            <KeyRound size={24} color={colors.primary} />,
+            'Transaction PIN',
+            'Require PIN for all transactions',
+            settings.transactionPinEnabled,
+            () => toggleSetting('transactionPinEnabled'),
+            false,
+            true
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.lg,
+    backgroundColor: colors.background,
+  },
+  headerTitle: {
+    ...typography.h3,
+    color: colors.text,
+  },
+  backButton: {
+    padding: spacing.sm,
+    borderRadius: borderRadius.small,
+  },
+  placeholder: {
+    width: 40,
+  },
+  content: {
+    flex: 1,
+  },
+  section: {
+    marginBottom: spacing.lg,
+    marginHorizontal: spacing.md,
+    borderRadius: borderRadius.large,
+    overflow: 'hidden',
+    ...shadows.small,
+  },
+  sectionTitle: {
+    ...typography.caption,
+    color: colors.secondaryText,
+    marginLeft: spacing.lg,
+    marginBottom: spacing.md,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  settingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.lg,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderLeftColor: colors.primary,
+    borderRightColor: colors.primary,
+    minHeight: 64,
+  },
+  firstItem: {
+    borderTopLeftRadius: borderRadius.large,
+    borderTopRightRadius: borderRadius.large,
+    borderTopWidth: 1,
+    borderTopColor: colors.primary,
+  },
+  lastItem: {
+    borderBottomLeftRadius: borderRadius.large,
+    borderBottomRightRadius: borderRadius.large,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.primary,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  settingIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  settingDetails: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  settingTitle: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  settingDescription: {
+    ...typography.caption,
+    color: colors.secondaryText,
+  },
+});
+
+export default SecuritySettingsScreen;

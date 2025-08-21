@@ -177,7 +177,7 @@ const SendScreen: React.FC<SendScreenProps> = ({ visible, onClose }) => {
     
     try {
       // Mock transaction processing
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise<void>(resolve => setTimeout(resolve, 1000));
       
       // Show success animation
       showSuccessAnimation();

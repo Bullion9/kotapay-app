@@ -1,5 +1,5 @@
 import React from 'react';
-import Svg, { Path, Polygon } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 
 interface HomeIconProps {
   size?: number;
@@ -12,6 +12,7 @@ const HomeIcon: React.FC<HomeIconProps> = ({
   color = '#000000', 
   focused = false 
 }) => {
+  const opacity = focused ? 1 : 0.7;
   return (
     <Svg 
       width={size} 
@@ -19,54 +20,13 @@ const HomeIcon: React.FC<HomeIconProps> = ({
       viewBox="0 0 24 24" 
       fill="none"
     >
-      {focused ? (
-        // Filled version - Simple home with filled areas
-        <>
-          {/* Roof triangle */}
-          <Polygon
-            points="12,3 20,10 20,21 4,21 4,10"
-            fill={color}
-          />
-          {/* Door */}
-          <Path
-            d="M9 21V14h6v7"
-            fill="#ffffff"
-            stroke={color}
-            strokeWidth="1"
-          />
-        </>
-      ) : (
-        // Outline version - Clean line art matching Flaticon style
-        <>
-          {/* House outline */}
-          <Path
-            d="M3 12h2l7-9 7 9h2"
-            stroke={color}
-            strokeWidth="2"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          {/* House body */}
-          <Path
-            d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"
-            stroke={color}
-            strokeWidth="2"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          {/* Door */}
-          <Path
-            d="M9 21v-6a2 2 0 012-2h0a2 2 0 012 2v6"
-            stroke={color}
-            strokeWidth="2"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </>
-      )}
+      <Path
+        clipRule="evenodd"
+        d="m10.0236 2.74643c1.1915-.81523 2.7613-.81523 3.9528 0l6.5 4.44737c.9535.65239 1.5236 1.73327 1.5236 2.8886v8.4176c0 1.933-1.567 3.5-3.5 3.5h-13c-1.933 0-3.5-1.567-3.5-3.5v-8.4176c0-1.15533.57012-2.23621 1.52361-2.8886zm-.5236 14.75357c-.27614 0-.5.2239-.5.5s.22386.5.5.5h5c.2761 0 .5-.2239.5-.5s-.2239-.5-.5-.5z"
+        fill={color}
+        opacity={opacity}
+        fillRule="evenodd"
+      />
     </Svg>
   );
 };

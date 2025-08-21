@@ -6,12 +6,15 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { Shield, Zap, QrCode, ArrowRight, Smartphone, CreditCard } from 'lucide-react-native';
 import { RootStackParamList } from '../types';
 import { globalStyles, colors, spacing, iconSizes, shadows, borderRadius } from '../theme';
+import PageLoadingOverlay from '../components/PageLoadingOverlay';
+import { usePageLoading } from '../hooks/usePageLoading';
 
 type OnboardingScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Onboarding'>;
 
 const OnboardingScreen: React.FC = () => {
   const navigation = useNavigation<OnboardingScreenNavigationProp>();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const { isPageLoading } = usePageLoading();
 
   const slides = [
     {
@@ -119,6 +122,9 @@ const OnboardingScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      
+      {/* Page Loading Overlay */}
+      <PageLoadingOverlay isVisible={isPageLoading} />
     </SafeAreaView>
   );
 };

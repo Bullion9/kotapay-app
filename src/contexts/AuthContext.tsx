@@ -92,6 +92,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const deleteAccount = async () => {
+    if (!user) throw new Error('User not authenticated');
+    
+    setIsLoading(true);
+    try {
+      await authService.deleteAccount();
+      setUser(null);
+    } catch (error) {
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
@@ -102,6 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateUser,
     verifyPin,
     updatePin,
+    deleteAccount,
   };
 
   return (

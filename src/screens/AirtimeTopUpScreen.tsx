@@ -27,6 +27,11 @@ import {
 import { RootStackParamList } from '../types';
 import { colors, spacing, shadows, borderRadius, iconSizes } from '../theme';
 import PinEntryModal from '../components/PinEntryModal';
+import LoadingOverlay from '../components/LoadingOverlay';
+import PageLoadingOverlay from '../components/PageLoadingOverlay';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { useLoading } from '../hooks/useLoading';
+import { usePageLoading } from '../hooks/usePageLoading';
 import { billNotificationService } from '../services/billNotifications';
 import { useToast } from '../components/ToastProvider';
 
@@ -106,9 +111,15 @@ const AirtimeTopUpScreen: React.FC = () => {
   const [amount, setAmount] = useState('');
   const [selectedQuickAmount, setSelectedQuickAmount] = useState<number | null>(null);
   const [showPinModal, setShowPinModal] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [quickAmountLoading, setQuickAmountLoading] = useState(false);
+  
+  // Loading state management
+  const { isLoading, loadingState, loadingMessage, setConfirming, setError, stopLoading } = useLoading();
+
+  // Page loading state management
+  const { isPageLoading } = usePageLoading({ duration: 800 });
   
   // Animation state for success feedback  
   const animationValue = useRef(new Animated.Value(0)).current;
@@ -234,10 +245,18 @@ const AirtimeTopUpScreen: React.FC = () => {
     }
   };
 
-  // Handle quick amount selection
-  const handleQuickAmountPress = (quickAmount: QuickAmount) => {
+  // Handle quick amount selection with simple loading animation
+  const handleQuickAmountPress = async (quickAmount: QuickAmount) => {
+    setQuickAmountLoading(true);
+    
+    // Simulate processing time for amount selection
+    await new Promise<void>(resolve => setTimeout(resolve, 500));
+    
+    // Set the amount after loading
     setAmount(quickAmount.value.toString());
     setSelectedQuickAmount(quickAmount.value);
+    
+    setQuickAmountLoading(false);
   };
 
   // Handle custom amount input
@@ -255,13 +274,15 @@ const AirtimeTopUpScreen: React.FC = () => {
   // Handle PIN verification and transaction processing
   const handlePinVerified = async (enteredPin: string) => {
     setShowPinModal(false);
-    setLoading(true);
 
     const transactionId = `airtime_${Date.now()}`;
     const transactionAmount = parseFloat(amount);
 
     try {
-      // Show pending notification
+      // Start confirming phase directly (skip loading)
+      setConfirming('Confirming top-up...');
+      
+      // Send pending notification
       showToast('warning', 'Processing airtime top-up...', 2000);
       
       // Send pending notification
@@ -274,7 +295,7 @@ const AirtimeTopUpScreen: React.FC = () => {
       });
 
       // Mock transaction processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise<void>(resolve => setTimeout(resolve, 2000));
       
       // Send success notification
       await billNotificationService.sendAirtimeTopUpSuccessNotification({
@@ -284,6 +305,9 @@ const AirtimeTopUpScreen: React.FC = () => {
         amount: transactionAmount,
         bonus: getCurrentBonus() || undefined,
       });
+
+      // End loading before success animation
+      stopLoading();
 
       // Show success toast
       showToast('success', 'Airtime top-up successful!');
@@ -306,6 +330,9 @@ const AirtimeTopUpScreen: React.FC = () => {
     } catch (error) {
       console.error('Transaction failed:', error);
       
+      // Stop loading and show error
+      setError('Airtime top-up failed');
+      
       // Send failure notification
       await billNotificationService.sendBillPaymentFailedNotification({
         transactionId,
@@ -319,8 +346,6 @@ const AirtimeTopUpScreen: React.FC = () => {
       showToast('error', 'Airtime top-up failed. Please try again.');
       
       Alert.alert('❌ Transaction Failed', 'Please try again later.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -417,6 +442,7 @@ const AirtimeTopUpScreen: React.FC = () => {
         selectedQuickAmount === quickAmount.value && styles.quickAmountButtonSelected
       ]}
       onPress={() => handleQuickAmountPress(quickAmount)}
+      disabled={quickAmountLoading}
     >
       <Text
         style={[
@@ -529,13 +555,13 @@ const AirtimeTopUpScreen: React.FC = () => {
         <TouchableOpacity
           style={[
             styles.continueButton,
-            (!selectedProvider || !phoneNumber || !amount || loading) && styles.continueButtonDisabled
+            (!selectedProvider || !phoneNumber || !amount || isLoading) && styles.continueButtonDisabled
           ]}
           onPress={handleContinue}
-          disabled={!selectedProvider || !phoneNumber || !amount || loading}
+          disabled={!selectedProvider || !phoneNumber || !amount || isLoading}
         >
           <Text style={styles.continueButtonText}>
-            {loading ? 'Processing...' : 'Continue'}
+            {isLoading ? 'Processing...' : 'Continue'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -626,6 +652,25 @@ const AirtimeTopUpScreen: React.FC = () => {
               ₦{parseFloat(amount || '0').toLocaleString()} airtime sent to {phoneNumber}
             </Text>
           </Animated.View>
+        </View>
+      )}
+      
+      {/* Loading Overlay */}
+      <LoadingOverlay 
+        visible={isLoading}
+        type={loadingState}
+        message={loadingMessage}
+      />
+
+      {/* Page Loading Overlay */}
+      <PageLoadingOverlay visible={isPageLoading} />
+
+      {/* Simple Quick Amount Loading */}
+      {quickAmountLoading && (
+        <View style={styles.quickAmountLoadingOverlay}>
+          <View style={styles.quickAmountLoadingContainer}>
+            <LoadingSpinner size={40} color={colors.primary} />
+          </View>
         </View>
       )}
     </SafeAreaView>
@@ -1003,6 +1048,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: colors.white,
+  },
+  quickAmountLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  quickAmountLoadingContainer: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.large,
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.medium,
   },
 });
 

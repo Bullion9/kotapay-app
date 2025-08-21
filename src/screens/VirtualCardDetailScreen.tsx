@@ -20,23 +20,25 @@ import {
   Plus,
   Snowflake,
   Unlock,
-  List,
+  ArrowDown,
   Edit3,
   Check,
   X,
   Copy,
-  Shield,
-  Clock,
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius, shadows, globalStyles } from '../theme';
 import { EyeIcon } from '../components/icons';
+import { useAuth } from '../contexts/AuthContext';
 import PinEntryModal from '../components/PinEntryModal';
 import FreezeCardModal from '../components/FreezeCardModal';
 import DeleteCardModal from '../components/DeleteCardModal';
+import LoadingOverlay from '../components/LoadingOverlay';
+import { useLoading } from '../hooks/useLoading';
 
 type RootStackParamList = {
   TopUpVirtualCardScreen: { cardId: string };
   TransactionHistoryScreen: { cardId?: string };
+  WithdrawalScreen: { cardId: string; availableBalance: number; cardNickname: string };
 };
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
@@ -68,7 +70,8 @@ interface Transaction {
 const VirtualCardDetailScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute();
-  const { cardId } = route.params as { cardId: string };
+  const { user } = useAuth();
+  const cardId = (route.params as any)?.cardId || '1';
   
   // Animation for card flip
   const flipAnimation = useRef(new Animated.Value(0)).current;
@@ -85,6 +88,18 @@ const VirtualCardDetailScreen: React.FC = () => {
   const [showConfirmationAnimation, setShowConfirmationAnimation] = useState(false);
   const [confirmationMessage, setConfirmationMessage] = useState('');
   
+  // Loading state management
+  const {
+    isLoading,
+    loadingState,
+    loadingMessage,
+    startLoading,
+    setProcessing,
+    setConfirming,
+    setError,
+    stopLoading,
+  } = useLoading();
+  
   // Focus states
   const [isNicknameFocused, setIsNicknameFocused] = useState(false);
   
@@ -95,7 +110,7 @@ const VirtualCardDetailScreen: React.FC = () => {
     pan: '4532 1234 5678 9012',
     cvv: '123',
     expiryDate: '12/26',
-    cardholderName: 'JOHN DOE',
+    cardholderName: user?.name?.toUpperCase() || 'JOHN DOE',
     status: 'Active',
     balance: 25000,
     spendLimit: 50000,
@@ -215,7 +230,7 @@ const VirtualCardDetailScreen: React.FC = () => {
     
     switch (pinModalAction) {
       case 'viewCard':
-        setShowCardDetails(true);
+        executeViewCard();
         break;
       case 'freeze':
         executeFreeze();
@@ -273,26 +288,120 @@ const VirtualCardDetailScreen: React.FC = () => {
     }, 2000);
   };
 
-  const executeFreeze = () => {
-    const shouldFreeze = (cardData as any)._pendingFreeze;
-    const newStatus = shouldFreeze ? 'Frozen' : 'Active';
-    setCardData(prev => ({
-      ...prev,
-      status: newStatus,
-      _pendingFreeze: undefined
-    }));
-    
-    const message = newStatus === 'Frozen' ? 'Card Frozen Successfully!' : 'Card Unfrozen Successfully!';
-    showConfirmationWithAnimation(message);
+  const executeViewCard = async () => {
+    try {
+      // Manual loading sequence that ends before showing card details
+      startLoading('Retrieving card details...');
+      
+      // Processing phase
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      setProcessing('Decrypting sensitive data...');
+      
+      // Confirming phase  
+      await new Promise<void>(resolve => setTimeout(resolve, 800));
+      setConfirming('Preparing card view...');
+      
+      // Simulate API call to decrypt and retrieve card details
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      
+      // Stop loading completely before showing card details
+      stopLoading();
+      
+      // Small delay to ensure loading overlay disappears
+      await new Promise<void>(resolve => setTimeout(resolve, 200));
+      
+      // Now show card details
+      setShowCardDetails(true);
+      
+    } catch (error) {
+      console.error('View card failed:', error);
+      setError('Failed to retrieve card details. Please try again.');
+    }
   };
 
-  const executeDelete = () => {
-    showConfirmationWithAnimation('Card Deleted Successfully!');
-    setTimeout(() => {
-      navigation.goBack();
-    }, 2000);
+  const executeFreeze = async () => {
+    try {
+      const shouldFreeze = (cardData as any)._pendingFreeze;
+      const newStatus = shouldFreeze ? 'Frozen' : 'Active';
+      
+      // Manual loading sequence that ends before confirmation animation
+      startLoading(shouldFreeze ? 'Freezing card...' : 'Unfreezing card...');
+      
+      // Processing phase
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      setProcessing('Updating card status...');
+      
+      // Confirming phase  
+      await new Promise<void>(resolve => setTimeout(resolve, 800));
+      setConfirming('Confirming changes...');
+      
+      // Simulate API call
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      
+      // Update card status
+      setCardData(prev => ({
+        ...prev,
+        status: newStatus,
+        _pendingFreeze: undefined
+      }));
+      
+      // Stop loading completely before showing confirmation animation
+      stopLoading();
+      
+      // Small delay to ensure loading overlay disappears
+      await new Promise<void>(resolve => setTimeout(resolve, 200));
+      
+      // Now show separate confirmation animation
+      const message = newStatus === 'Frozen' ? 'Card Frozen Successfully!' : 'Card Unfrozen Successfully!';
+      showConfirmationWithAnimation(message);
+    } catch (error) {
+      console.error('Freeze operation failed:', error);
+    }
+  };
+
+  const executeDelete = async () => {
+    try {
+      // Manual loading sequence that ends before confirmation animation
+      startLoading('Deleting card...');
+      
+      // Processing phase
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      setProcessing('Removing card data...');
+      
+      // Confirming phase  
+      await new Promise<void>(resolve => setTimeout(resolve, 800));
+      setConfirming('Finalizing deletion...');
+      
+      // Simulate API call for card deletion
+      await new Promise<void>(resolve => setTimeout(resolve, 1000));
+      
+      // Stop loading completely before showing confirmation animation
+      stopLoading();
+      
+      // Small delay to ensure loading overlay disappears
+      await new Promise<void>(resolve => setTimeout(resolve, 200));
+      
+      // Now show separate confirmation animation
+      showConfirmationWithAnimation('Card Deleted Successfully!');
+      setTimeout(() => {
+        navigation.goBack();
+      }, 2000);
+    } catch (error) {
+      console.error('Delete operation failed:', error);
+      setError('Failed to delete card. Please try again.');
+    }
   };
   
+  const handleWithdraw = () => {
+    console.log('Withdraw button pressed, navigating to WithdrawalScreen...');
+    navigation.navigate('WithdrawalScreen', {
+      cardId: cardData.id,
+      availableBalance: cardData.balance,
+      cardNickname: cardData.nickname,
+    });
+    console.log('Navigation to WithdrawalScreen completed');
+  };
+
   const getStatusColor = () => {
     switch (cardData.status) {
       case 'Active':
@@ -317,14 +426,6 @@ const VirtualCardDetailScreen: React.FC = () => {
       default:
         return '#A3AABE';
     }
-  };
-  
-  const getDaysUntilExpiry = () => {
-    const today = new Date();
-    const expiryDate = new Date(cardData.autoExpiryDate);
-    const diffTime = expiryDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
   };
   
   const renderCardFront = () => (
@@ -489,27 +590,33 @@ const VirtualCardDetailScreen: React.FC = () => {
             style={styles.actionButton}
             onPress={() => navigation.navigate('TopUpVirtualCardScreen', { cardId: cardData.id })}
           >
-            <Plus size={24} color="#06402B" />
+            <View style={styles.iconBackground}>
+              <Plus size={24} color="#06402B" />
+            </View>
             <Text style={styles.actionButtonText}>Top-Up</Text>
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.actionButton} onPress={handleToggleCardDetails}>
-            <EyeIcon 
-              size={24} 
-              color="#06402B" 
-              filled={showCardDetails}
-            />
+            <View style={styles.iconBackground}>
+              <EyeIcon 
+                size={24} 
+                color="#06402B" 
+                filled={showCardDetails}
+              />
+            </View>
             <Text style={styles.actionButtonText}>
               {showCardDetails ? 'Hide Card' : 'View Card'}
             </Text>
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.actionButton} onPress={() => setShowFreezeModal(true)}>
-            {cardData.status === 'Frozen' ? (
-              <Unlock size={24} color="#06402B" />
-            ) : (
-              <Snowflake size={24} color="#06402B" />
-            )}
+            <View style={styles.iconBackground}>
+              {cardData.status === 'Frozen' ? (
+                <Unlock size={24} color="#06402B" />
+              ) : (
+                <Snowflake size={24} color="#06402B" />
+              )}
+            </View>
             <Text style={styles.actionButtonText}>
               {cardData.status === 'Frozen' ? 'Unfreeze' : 'Freeze'}
             </Text>
@@ -517,77 +624,65 @@ const VirtualCardDetailScreen: React.FC = () => {
           
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => navigation.navigate('TransactionHistoryScreen', { cardId: cardData.id })}
+            onPress={handleWithdraw}
           >
-            <List size={24} color="#06402B" />
-            <Text style={styles.actionButtonText}>History</Text>
+            <View style={styles.iconBackground}>
+              <ArrowDown size={24} color="#06402B" />
+            </View>
+            <Text style={styles.actionButtonText}>Withdraw</Text>
           </TouchableOpacity>
         </View>
         
-        {/* Security Info Card */}
-        <View style={styles.securityCard}>
-          <Text style={styles.securityTitle}>Security & Usage</Text>
+        {/* Transaction History Card */}
+        <View style={styles.transactionHistoryCard}>
+          <Text style={styles.transactionHistoryTitle}>Transaction History</Text>
           
-          {/* Recent Transactions */}
-          <View style={styles.securitySection}>
-            <Text style={styles.securitySectionTitle}>Recent Transactions</Text>
-            {recentTransactions.map((transaction) => (
-              <View key={transaction.id} style={styles.transactionItem}>
-                <View style={styles.transactionInfo}>
-                  <Text style={styles.transactionMerchant}>{transaction.merchant}</Text>
-                  <Text style={styles.transactionDate}>{transaction.date}</Text>
-                </View>
-                <View style={styles.transactionRight}>
-                  <Text style={styles.transactionAmount}>₦{transaction.amount.toLocaleString()}</Text>
+          {recentTransactions.length > 0 ? (
+            <View style={styles.transactionsContainer}>
+              {recentTransactions.map((transaction) => (
+                <View key={transaction.id} style={styles.transactionHistoryItem}>
                   <View style={[
-                    styles.transactionStatus,
-                    { backgroundColor: getTransactionStatusColor(transaction.status) }
+                    styles.transactionIcon,
+                    { backgroundColor: transaction.status === 'Success' ? colors.success + '20' : colors.error + '20' }
                   ]}>
-                    <Text style={styles.transactionStatusText}>{transaction.status}</Text>
+                    <Text style={[
+                      styles.transactionIconText,
+                      { color: transaction.status === 'Success' ? colors.success : colors.error }
+                    ]}>
+                      ₦
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.transactionHistoryInfo}>
+                    <Text style={styles.transactionHistoryMerchant}>{transaction.merchant}</Text>
+                    <Text style={styles.transactionHistoryDate}>{transaction.date}</Text>
+                  </View>
+                  
+                  <View style={styles.transactionHistoryRight}>
+                    <Text style={styles.transactionHistoryAmount}>-₦{transaction.amount.toLocaleString()}</Text>
+                    <View style={[
+                      styles.transactionHistoryStatus,
+                      { backgroundColor: getTransactionStatusColor(transaction.status) }
+                    ]}>
+                      <Text style={styles.transactionHistoryStatusText}>{transaction.status}</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
-            ))}
-          </View>
-          
-          {/* Merchant Lock Status */}
-          {cardData.merchantLock && (
-            <View style={styles.securitySection}>
-              <Text style={styles.securitySectionTitle}>Merchant Lock</Text>
-              <View style={styles.merchantLockInfo}>
-                <Shield size={20} color="#06402B" />
-                <Text style={styles.merchantLockText}>
-                  Restricted to {cardData.merchantLock}
-                </Text>
-              </View>
+              ))}
+              
+              <TouchableOpacity
+                style={styles.viewAllTransactionsButton}
+                onPress={() => navigation.navigate('TransactionHistoryScreen', { cardId: cardData.id })}
+              >
+                <Text style={styles.viewAllTransactionsText}>View All Transactions</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.noTransactionsState}>
+              <Text style={styles.noTransactionsText}>No transactions yet</Text>
+              <Text style={styles.noTransactionsSubtext}>Your card transactions will appear here</Text>
             </View>
           )}
-          
-          {/* Auto-Expiry Countdown */}
-          <View style={styles.securitySection}>
-            <Text style={styles.securitySectionTitle}>Auto-Expiry</Text>
-            <View style={styles.expiryInfo}>
-              <Clock size={20} color="#EA3B52" />
-              <Text style={styles.expiryText}>
-                {getDaysUntilExpiry()} days remaining
-              </Text>
-            </View>
-          </View>
-          
-          {/* Balance & Limit */}
-          <View style={styles.securitySection}>
-            <Text style={styles.securitySectionTitle}>Spending</Text>
-            <View style={styles.spendingInfo}>
-              <View style={styles.spendingItem}>
-                <Text style={styles.spendingLabel}>Available Balance</Text>
-                <Text style={styles.spendingValue}>₦{cardData.balance.toLocaleString()}</Text>
-              </View>
-              <View style={styles.spendingItem}>
-                <Text style={styles.spendingLabel}>Spend Limit</Text>
-                <Text style={styles.spendingValue}>₦{cardData.spendLimit.toLocaleString()}</Text>
-              </View>
-            </View>
-          </View>
         </View>
       </ScrollView>
       
@@ -644,6 +739,12 @@ const VirtualCardDetailScreen: React.FC = () => {
           </Animated.View>
         </View>
       )}
+      {/* Loading Overlay */}
+      <LoadingOverlay
+        visible={isLoading}
+        type={loadingState}
+        message={loadingMessage}
+      />
     </SafeAreaView>
   );
 };
@@ -896,13 +997,19 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     alignItems: 'center',
-    backgroundColor: colors.white,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.medium,
     flex: 1,
     marginHorizontal: spacing.xs,
-    ...shadows.small,
+  },
+  iconBackground: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F0F9F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
   },
   actionButtonText: {
     fontSize: 14,
@@ -910,103 +1017,99 @@ const styles = StyleSheet.create({
     color: '#06402B',
     marginTop: spacing.xs,
   },
-  securityCard: {
+  transactionHistoryCard: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.large,
     padding: spacing.lg,
     marginBottom: spacing.xl,
     ...shadows.medium,
   },
-  securityTitle: {
+  transactionHistoryTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
     marginBottom: spacing.lg,
   },
-  securitySection: {
-    marginBottom: spacing.lg,
+  transactionsContainer: {
+    gap: spacing.sm,
   },
-  securitySectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  transactionItem: {
+  transactionHistoryItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  transactionInfo: {
+  transactionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  transactionIconText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  transactionHistoryInfo: {
     flex: 1,
   },
-  transactionMerchant: {
+  transactionHistoryMerchant: {
     fontSize: 14,
     fontWeight: '500',
     color: colors.text,
+    marginBottom: 2,
   },
-  transactionDate: {
+  transactionHistoryDate: {
     fontSize: 12,
     color: colors.secondaryText,
-    marginTop: 2,
   },
-  transactionRight: {
+  transactionHistoryRight: {
     alignItems: 'flex-end',
   },
-  transactionAmount: {
+  transactionHistoryAmount: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.error,
     marginBottom: 4,
   },
-  transactionStatus: {
+  transactionHistoryStatus: {
     paddingHorizontal: spacing.xs,
     paddingVertical: 2,
     borderRadius: borderRadius.small,
   },
-  transactionStatusText: {
+  transactionHistoryStatusText: {
     fontSize: 10,
     fontWeight: '500',
     color: colors.white,
   },
-  merchantLockInfo: {
-    flexDirection: 'row',
+  viewAllTransactionsButton: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.medium,
+    paddingVertical: spacing.md,
     alignItems: 'center',
+    marginTop: spacing.md,
   },
-  merchantLockText: {
+  viewAllTransactionsText: {
     fontSize: 14,
-    color: colors.text,
-    marginLeft: spacing.sm,
-  },
-  expiryInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  expiryText: {
-    fontSize: 14,
-    color: '#EA3B52',
-    marginLeft: spacing.sm,
-    fontWeight: '500',
-  },
-  spendingInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  spendingItem: {
-    flex: 1,
-  },
-  spendingLabel: {
-    fontSize: 12,
-    color: colors.secondaryText,
-    marginBottom: 4,
-  },
-  spendingValue: {
-    fontSize: 16,
     fontWeight: '600',
-    color: '#06402B',
+    color: colors.white,
+  },
+  noTransactionsState: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+  },
+  noTransactionsText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  noTransactionsSubtext: {
+    fontSize: 14,
+    color: colors.secondaryText,
+    textAlign: 'center',
   },
   confirmationOverlay: {
     position: 'absolute',
