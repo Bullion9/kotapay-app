@@ -2,165 +2,99 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
+  TextInput,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
-  TextInput,
+  StyleSheet,
   Alert,
+  ActivityIndicator,
+  Modal,
   Animated,
+  RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import {
-  ChevronLeft,
-  CreditCard,
-  Landmark,
-  Store,
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { 
+  ChevronLeft, 
+  ChevronDown, 
+  CreditCard, 
+  Smartphone, 
   CheckCircle,
-  ChevronDown,
+  X 
 } from 'lucide-react-native';
-import { RootStackParamList } from '../types';
-import { colors, spacing, shadows, borderRadius, iconSizes, globalStyles } from '../theme';
-import { EyeIcon } from '../components/icons';
 import PinEntryModal from '../components/PinEntryModal';
-import LoadingOverlay from '../components/LoadingOverlay';
-import LoadingIcon from '../components/icons/LoadingIcon';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { useLoading } from '../hooks/useLoading';
 import { notificationService } from '../services/notifications';
-import { useToast } from '../components/ToastProvider';
-
-type TopUpScreenNavigationProp = StackNavigationProp<RootStackParamList>;
+import { colors } from '../theme';
 
 interface PaymentMethod {
   id: string;
   name: string;
   description: string;
-  icon: React.ComponentType<any>;
-  processingTime: string;
-  isAvailable: boolean;
+  icon: any;
 }
 
 interface Currency {
   code: string;
   symbol: string;
-  name: string;
 }
 
 const TopUpScreen: React.FC = () => {
-  const navigation = useNavigation<TopUpScreenNavigationProp>();
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   
-  // State management
+  // State
   const [amount, setAmount] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
-  const [selectedCurrency, setSelectedCurrency] = useState<Currency>({ 
-    code: 'NGN', 
-    symbol: '₦', 
-    name: 'Nigerian Naira' 
-  });
-  const [selectedQuickAmount, setSelectedQuickAmount] = useState<number | null>(null);
-  const [showBalance, setShowBalance] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [selectedCurrency, setSelectedCurrency] = useState<Currency>({ code: 'NGN', symbol: '₦' });
+  const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [successAnimation] = useState(new Animated.Value(0));
-  const [slideAnimation] = useState(new Animated.Value(0));
-  const [isAmountFocused, setIsAmountFocused] = useState(false);
-  const [quickAmountLoading, setQuickAmountLoading] = useState(false);
-  
-  // Loading state management
-  const {
-    isLoading,
-    loadingState,
-    loadingMessage,
-    startLoading,
-    setProcessing,
-    setConfirming,
-    stopLoading,
-  } = useLoading();
-  
-  // Toast hook
-  const { showToast } = useToast();
-  
-  // Mock user balance
-  const userBalance = 450000;
-  
-  // Quick amount options for top-up
-  const quickAmounts = [1000, 5000, 10000, 20000, 50000, 100000];
-  
-  // Available currencies
-  const currencies: Currency[] = [
-    { code: 'NGN', symbol: '₦', name: 'Nigerian Naira' },
-    { code: 'USD', symbol: '$', name: 'US Dollar' },
-    { code: 'EUR', symbol: '€', name: 'Euro' },
-    { code: 'GBP', symbol: '£', name: 'British Pound' },
-  ];
-  
+  const [refreshing, setRefreshing] = useState(false);
+  const [amountFocused, setAmountFocused] = useState(false);
+
   // Payment methods
   const paymentMethods: PaymentMethod[] = [
     {
       id: 'card',
       name: 'Debit/Credit Card',
-      description: 'Add money using your debit or credit card',
+      description: 'Pay with your bank card',
       icon: CreditCard,
-      processingTime: 'Instant',
-      isAvailable: true,
     },
     {
-      id: 'bank_transfer',
-      name: 'Bank Transfer',
-      description: 'Transfer money from your bank account',
-      icon: Landmark,
-      processingTime: '1-2 business days',
-      isAvailable: true,
+      id: 'ussd',
+      name: 'USSD Code',
+      description: 'Pay with USSD *737#',
+      icon: Smartphone,
     },
-    {
-      id: 'agent_deposit',
-      name: 'Agent Deposit',
-      description: 'Deposit cash at any authorized agent location',
-      icon: Store,
-      processingTime: 'Instant',
-      isAvailable: true,
-    },
+  ];
+
+  // Currencies
+  const currencies: Currency[] = [
+    { code: 'NGN', symbol: '₦' },
+    { code: 'USD', symbol: '$' },
+    { code: 'GBP', symbol: '£' },
   ];
 
   // Validate amount
   const validateAmount = () => {
     const numAmount = parseFloat(amount);
-    if (!numAmount || numAmount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid amount');
+    if (isNaN(numAmount) || numAmount <= 0) {
+      Alert.alert('Error', 'Please enter a valid amount');
       return false;
     }
-    if (numAmount < 1000) {
-      Alert.alert('Minimum Amount', 'Minimum top-up amount is ₦1,000');
+    if (numAmount < 100) {
+      Alert.alert('Error', 'Minimum top-up amount is ₦100');
       return false;
     }
-    if (numAmount > 1000000) {
-      Alert.alert('Maximum Amount', 'Maximum top-up amount is ₦1,000,000 per transaction');
+    if (numAmount > 500000) {
+      Alert.alert('Error', 'Maximum top-up amount is ₦500,000');
       return false;
     }
     return true;
-  };
-
-  // Handle quick amount selection with simple loading animation
-  const handleQuickAmountPress = async (quickAmount: number) => {
-    setQuickAmountLoading(true);
-    
-    // Simulate processing time for amount selection
-    await new Promise<void>(resolve => setTimeout(resolve, 400));
-    
-    // Set the amount after loading
-    setAmount(quickAmount.toString());
-    setSelectedQuickAmount(quickAmount);
-    
-    setQuickAmountLoading(false);
-  };
-
-  // Handle custom amount input
-  const handleAmountChange = (text: string) => {
-    setAmount(text);
-    setSelectedQuickAmount(null); // Clear quick amount selection when typing custom amount
   };
 
   // Handle continue button press
@@ -175,35 +109,13 @@ const TopUpScreen: React.FC = () => {
   // Handle PIN verification and transaction processing
   const handlePinVerified = async (enteredPin: string) => {
     setShowPinModal(false);
+    setLoading(true);
 
     try {
-      // Show initial processing toast
-      showToast('warning', 'Processing top-up transaction...', 2000);
-
-      // Manual loading control
-      startLoading('Initializing top-up...');
-      
-      // Processing phase
-      await new Promise<void>(resolve => setTimeout(resolve, 500));
-      setProcessing('Processing payment...');
-      
-      // Confirming phase
-      await new Promise<void>(resolve => setTimeout(resolve, 800));
-      setConfirming('Confirming transaction...');
-      
-      // Execute operation
-      await new Promise<void>(resolve => setTimeout(resolve, 1000));
-      
       // Mock transaction processing
-      await new Promise<void>(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Stop loading before success animation
-      stopLoading();
-
-      // Show success toast
-      showToast('success', 'Top-up completed successfully!');
-
-      // After loading is complete, start success animation
+      // Start success animation
       setShowSuccess(true);
       
       // Ensure animation starts immediately
@@ -228,208 +140,133 @@ const TopUpScreen: React.FC = () => {
       }
     } catch (err) {
       console.error('Transaction error:', err);
-      showToast('error', 'Top-up failed. Please try again.');
       Alert.alert('Error', 'Failed to process top-up. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Reset form
-  const resetForm = () => {
-    setAmount('');
-    setSelectedMethod(null);
-    setShowSuccess(false);
-    successAnimation.setValue(0);
-    navigation.goBack();
+  // Handle pull to refresh
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      // Simulate refresh data loading
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      // You can add actual data refresh logic here
+      console.log('Data refreshed');
+    } catch (error) {
+      console.error('Refresh error:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
-  // Show currency picker with animation
-  const showCurrencyPickerModal = () => {
-    setShowCurrencyPicker(true);
-    slideAnimation.setValue(0);
-    Animated.spring(slideAnimation, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 8,
-    }).start();
-  };
-
-  // Hide currency picker with animation
-  const hideCurrencyPickerModal = () => {
-    Animated.timing(slideAnimation, {
-      toValue: 0,
-      duration: 250,
-      useNativeDriver: true,
-    }).start(() => {
-      setShowCurrencyPicker(false);
-    });
-  };
-
-  // Success Screen Component
+  // Success screen component
   const SuccessScreen = () => (
-    <View style={styles.successContainer}>
-      <Animated.View 
-        style={[
-          styles.successIcon,
-          {
-            transform: [{
-              rotate: successAnimation.interpolate({
-                inputRange: [0, 1],
-                outputRange: ['0deg', '360deg'],
-              })
-            }]
-          }
-        ]}
-      >
-        <CheckCircle size={48} color={colors.white} />
-      </Animated.View>
-      
-      <Text style={styles.successTitle}>Top-Up Successful!</Text>
-      <Text style={styles.successSubtitle}>
-        {selectedCurrency.symbol}{parseFloat(amount || '0').toLocaleString()} has been added to your wallet
-      </Text>
-      
-      <View style={styles.successDetails}>
-        <View style={styles.successRow}>
-          <Text style={styles.successLabel}>Amount</Text>
-          <Text style={styles.successValue}>
-            {selectedCurrency.symbol}{parseFloat(amount || '0').toLocaleString()}
-          </Text>
-        </View>
-        <View style={styles.successRow}>
-          <Text style={styles.successLabel}>Method</Text>
-          <Text style={styles.successValue}>{selectedMethod?.name || 'N/A'}</Text>
-        </View>
-        <View style={styles.successRow}>
-          <Text style={styles.successLabel}>Processing Time</Text>
-          <Text style={styles.successValue}>{selectedMethod?.processingTime || 'N/A'}</Text>
-        </View>
+    <Animated.View style={[styles.successContainer, {
+      transform: [{
+        scale: successAnimation.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.8, 1],
+        })
+      }]
+    }]}>
+      <View style={styles.successIcon}>
+        <CheckCircle size={80} color={colors.success} />
       </View>
-      
-      <TouchableOpacity style={styles.doneButton} onPress={resetForm}>
+      <Text style={styles.successTitle}>Top-up Successful!</Text>
+      <Text style={styles.successAmount}>
+        {selectedCurrency.symbol}{parseFloat(amount).toLocaleString()}
+      </Text>
+      <Text style={styles.successSubtitle}>
+        Your wallet has been topped up successfully
+      </Text>
+      <TouchableOpacity
+        style={styles.doneButton}
+        onPress={() => navigation.goBack()}
+      >
         <Text style={styles.doneButtonText}>Done</Text>
       </TouchableOpacity>
-    </View>
-  );
-
-  // PIN Modal Component
-  const PinModal = () => (
-    <PinEntryModal
-      visible={showPinModal}
-      onClose={() => setShowPinModal(false)}
-      onPinEntered={handlePinVerified}
-      title="Enter PIN"
-      subtitle="Confirm your transaction PIN to proceed with top-up"
-      allowBiometric={true}
-    />
+    </Animated.View>
   );
 
   if (showSuccess) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <SuccessScreen />
+        {/* Fixed Header */}
+        <View style={styles.header}>
+          <View style={styles.placeholder} />
+          <Text style={styles.headerTitle}>Top-up Complete</Text>
+          <View style={styles.placeholder} />
+        </View>
+        
+        {/* Success Content */}
+        <View style={styles.successContentWrapper}>
+          <SuccessScreen />
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      {/* Fixed Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={globalStyles.backButton}>
-            <ChevronLeft size={24} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-        
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Add Money</Text>
-        </View>
-        
-        <View style={styles.headerRight} />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <ChevronLeft size={24} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Top Up Wallet</Text>
+        <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        {/* Scrollable Content */}
+        <ScrollView 
+          style={styles.scrollContent} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
 
-        {/* Balance Card */}
-        <View style={styles.balanceCard}>
-          <View style={styles.balanceHeader}>
-            <Text style={styles.balanceLabel}>Current Wallet Balance</Text>
-            <TouchableOpacity onPress={() => setShowBalance(!showBalance)}>
-              <EyeIcon 
-                size={iconSizes.sm} 
-                color={colors.white} 
-                filled={!showBalance}
-              />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.balanceAmount}>
-            {showBalance ? `₦${userBalance.toLocaleString()}` : '••••••'}
-          </Text>
-          <Text style={styles.balanceSubtext}>
-            Available for spending
-          </Text>
-        </View>
-
-        {/* Amount Input */}
-        <View style={styles.section}>
+        {/* Amount Input Section */}
+        <View style={styles.amountSection}>
           <Text style={styles.sectionTitle}>Enter Amount</Text>
-          <View style={styles.amountContainer}>
-            <TouchableOpacity 
-              style={styles.currencySelector}
-              onPress={showCurrencyPickerModal}
-            >
+          
+          <View style={[
+            styles.amountContainer,
+            amountFocused && styles.amountContainerFocused
+          ]}>
+            <View style={styles.currencySelector}>
               <Text style={styles.currencySymbol}>{selectedCurrency.symbol}</Text>
-              <Text style={styles.currencyCode}>{selectedCurrency.code}</Text>
-              <ChevronDown size={iconSizes.sm} color={colors.secondaryText} />
-            </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.currencyButton}
+                onPress={() => setShowCurrencyModal(true)}
+              >
+                <Text style={styles.currencyCode}>{selectedCurrency.code}</Text>
+                <ChevronDown size={16} color={colors.secondaryText} />
+              </TouchableOpacity>
+            </View>
             <TextInput
-              style={[
-                styles.amountInput,
-                amount && { borderColor: colors.seaGreen },
-                isAmountFocused && styles.amountInputFocused
-              ]}
+              style={styles.amountInput}
+              placeholder="0.00"
               value={amount}
-              onChangeText={handleAmountChange}
-              placeholder="0"
+              onChangeText={setAmount}
+              onFocus={() => setAmountFocused(true)}
+              onBlur={() => setAmountFocused(false)}
               keyboardType="numeric"
-              placeholderTextColor={colors.placeholder}
-              onFocus={() => setIsAmountFocused(true)}
-              onBlur={() => setIsAmountFocused(false)}
+              placeholderTextColor="#ccc"
+              maxLength={10}
             />
           </View>
         </View>
 
-        {/* Quick Amount Buttons */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Amount</Text>
-          <View style={styles.quickAmountsGrid}>
-            {quickAmounts.map((quickAmount) => (
-              <TouchableOpacity
-                key={quickAmount}
-                style={[
-                  styles.quickAmountButton,
-                  selectedQuickAmount === quickAmount && styles.quickAmountButtonSelected,
-                  (isLoading || quickAmountLoading) && styles.quickAmountButtonDisabled
-                ]}
-                onPress={() => handleQuickAmountPress(quickAmount)}
-                disabled={isLoading || quickAmountLoading}
-              >
-                <Text
-                  style={[
-                    styles.quickAmountText,
-                    selectedQuickAmount === quickAmount && styles.quickAmountTextSelected
-                  ]}
-                >
-                  ₦{(quickAmount / 1000)}k
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
         {/* Payment Methods */}
-        <View style={styles.section}>
+        <View style={styles.methodsSection}>
           <Text style={styles.sectionTitle}>Select Payment Method</Text>
           {paymentMethods.map((method) => (
             <TouchableOpacity
@@ -441,108 +278,90 @@ const TopUpScreen: React.FC = () => {
               onPress={() => setSelectedMethod(method)}
             >
               <View style={styles.methodIcon}>
-                <method.icon 
-                  size={iconSizes.md} 
-                  color={selectedMethod?.id === method.id ? colors.seaGreen : colors.secondaryText} 
-                />
+                <method.icon size={24} color={selectedMethod?.id === method.id ? colors.primary : colors.secondaryText} />
               </View>
               <View style={styles.methodInfo}>
                 <Text style={styles.methodName}>{method.name}</Text>
                 <Text style={styles.methodDescription}>{method.description}</Text>
-                <Text style={styles.methodTime}>{method.processingTime}</Text>
               </View>
               {selectedMethod?.id === method.id && (
-                <CheckCircle size={iconSizes.sm} color={colors.seaGreen} />
+                <CheckCircle size={20} color={colors.primary} />
               )}
             </TouchableOpacity>
           ))}
         </View>
       </ScrollView>
 
-      {/* Continue Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[
-            styles.continueButton,
-            (!amount || !selectedMethod || isLoading) && styles.disabledButton,
-          ]}
-          onPress={handleContinue}
-          disabled={!amount || !selectedMethod || isLoading}
-        >
-          {isLoading ? (
-            <LoadingIcon size={24} strokeWidth={3} />
-          ) : (
-            <Text style={styles.continueButtonText}>
-              Continue with {selectedCurrency.symbol}{amount ? parseFloat(amount).toLocaleString() : '0'}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      <PinModal />
-      
-      {/* Loading Overlay */}
-      <LoadingOverlay
-        visible={isLoading}
-        type={loadingState}
-        message={loadingMessage}
-      />
-
-      {/* Simple Quick Amount Loading */}
-      {quickAmountLoading && (
-        <View style={styles.quickAmountLoadingOverlay}>
-          <View style={styles.quickAmountLoadingContainer}>
-            <LoadingSpinner size={40} color={colors.seaGreen} />
-          </View>
-        </View>
-      )}
-      
-      {/* Currency Picker Bottom Sheet */}
-      {showCurrencyPicker && (
-        <View style={styles.currencyPickerOverlay}>
-          <TouchableOpacity 
-            style={styles.currencyPickerBackdrop} 
-            onPress={hideCurrencyPickerModal}
-          />
-          <Animated.View 
+        {/* Fixed Continue Button */}
+        <View style={[styles.buttonContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+          <TouchableOpacity
             style={[
-              styles.currencyBottomSheet,
-              {
-                transform: [{
-                  translateY: slideAnimation.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [300, 0],
-                  })
-                }]
-              }
+              styles.continueButton,
+              (!amount || !selectedMethod || loading) && styles.disabledButton,
             ]}
+            onPress={handleContinue}
+            disabled={!amount || !selectedMethod || loading}
           >
-            <View style={styles.bottomSheetHandle} />
-            <Text style={styles.currencyPickerTitle}>Select Currency</Text>
-            {currencies.map((currency) => (
-              <TouchableOpacity
-                key={currency.code}
-                style={[
-                  styles.currencyOption,
-                  selectedCurrency.code === currency.code && styles.currencyOptionSelected,
-                ]}
-                onPress={() => {
-                  setSelectedCurrency(currency);
-                  hideCurrencyPickerModal();
-                }}
-              >
-                <Text style={styles.currencySymbol}>{currency.symbol}</Text>
-                <View style={styles.currencyInfo}>
-                  <Text style={styles.currencyCode}>{currency.code}</Text>
-                  <Text style={styles.currencyName}>{currency.name}</Text>
-                </View>
-                {selectedCurrency.code === currency.code && (
-                  <CheckCircle size={iconSizes.sm} color={colors.seaGreen} />
-                )}
-              </TouchableOpacity>
-            ))}
-          </Animated.View>
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.continueButtonText}>
+                Continue
+              </Text>
+            )}
+          </TouchableOpacity>
         </View>
+      </KeyboardAvoidingView>
+
+      {/* PIN Modal */}
+      {showPinModal && (
+        <PinEntryModal
+          visible={showPinModal}
+          onClose={() => setShowPinModal(false)}
+          onPinEntered={handlePinVerified}
+          title="Enter Transaction PIN"
+          subtitle={`Confirm top-up of ${selectedCurrency.symbol}${amount}`}
+        />
+      )}
+
+      {/* Currency Selection Modal */}
+      {showCurrencyModal && (
+        <Modal
+          visible={showCurrencyModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowCurrencyModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.currencyModal}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Currency</Text>
+                <TouchableOpacity onPress={() => setShowCurrencyModal(false)}>
+                  <X size={24} color="#000" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView>
+                {currencies.map((currency) => (
+                  <TouchableOpacity
+                    key={currency.code}
+                    style={styles.currencyOption}
+                    onPress={() => {
+                      setSelectedCurrency(currency);
+                      setShowCurrencyModal(false);
+                    }}
+                  >
+                    <Text style={styles.currencyOptionText}>
+                      {currency.symbol} {currency.code}
+                    </Text>
+                    {selectedCurrency.code === currency.code && (
+                      <CheckCircle size={20} color="#4CAF50" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
       )}
     </SafeAreaView>
   );
@@ -553,191 +372,159 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollView: {
-    flex: 1,
-  },
   header: {
-    backgroundColor: '#FFF0F5',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
-    paddingTop: spacing.xl,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  headerLeft: {
-    width: 56, // Slightly larger to accommodate back button + padding
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
-  headerCenter: {
+  scrollContent: {
     flex: 1,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  buttonContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  successContentWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  headerRight: {
-    width: 56, // Same width as left side for perfect centering
-  },
-  headerPlaceholder: {
-    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#000d10',
-    textAlign: 'center',
+    fontWeight: 'bold',
+    color: colors.text,
   },
-  balanceCard: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
-    padding: spacing.xl,
-    borderRadius: borderRadius.xl,
-    backgroundColor: colors.primary,
-    ...shadows.medium,
+  placeholder: {
+    width: 40,
+    height: 40,
   },
-  balanceHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  balanceLabel: {
-    fontSize: 14,
-    color: colors.white,
-    opacity: 0.8,
-  },
-  balanceAmount: {
-    fontSize: 36,
-    fontWeight: 'normal',
-    color: colors.white,
-    marginBottom: spacing.xs,
-  },
-  balanceSubtext: {
-    fontSize: 12,
-    color: colors.white,
-    opacity: 0.7,
-  },
-  section: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
+  amountSection: {
+    paddingHorizontal: 20,
+    marginBottom: 30,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
+    marginBottom: 15,
     color: colors.text,
-    marginBottom: spacing.md,
   },
   amountContainer: {
     flexDirection: 'row',
-    gap: spacing.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    height: 56,
+    backgroundColor: colors.card,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  amountContainerFocused: {
+    borderColor: colors.primary,
+    borderWidth: 2,
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   currencySelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    gap: spacing.xs,
-    ...shadows.small,
+    paddingRight: 15,
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
   },
   currencySymbol: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: colors.text,
+    marginRight: 5,
+  },
+  currencyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   currencyCode: {
     fontSize: 14,
     color: colors.secondaryText,
+    marginRight: 5,
   },
   amountInput: {
     flex: 1,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
     fontSize: 18,
-    fontWeight: '600',
     color: colors.text,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    ...shadows.small,
+    paddingLeft: 15,
   },
-  amountInputFocused: {
-    borderColor: '#06402B',
-    ...shadows.medium,
-  },
-  quickAmountsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  quickAmountButton: {
-    width: '30%',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    alignItems: 'center',
-    ...shadows.small,
-  },
-  quickAmountButtonSelected: {
-    borderColor: colors.seaGreen,
-    backgroundColor: colors.accentTransparent,
-  },
-  quickAmountButtonDisabled: {
-    opacity: 0.6,
-  },
-  quickAmountText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  quickAmountTextSelected: {
-    color: colors.seaGreen,
-  },
-  quickAmountLoadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
-  },
-  quickAmountLoadingContainer: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.large,
-    padding: spacing.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.medium,
+  methodsSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   methodCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    ...shadows.small,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    marginBottom: 12,
+    backgroundColor: colors.card,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   selectedMethodCard: {
-    borderColor: colors.seaGreen,
+    borderColor: colors.primary,
+    borderWidth: 2,
+    backgroundColor: colors.accentTransparent,
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   methodIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: colors.card,
-    justifyContent: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primaryTransparent,
     alignItems: 'center',
-    marginRight: spacing.md,
+    justifyContent: 'center',
+    marginRight: 15,
   },
   methodInfo: {
     flex: 1,
@@ -746,162 +533,98 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing.xs,
+    marginBottom: 4,
   },
   methodDescription: {
-    fontSize: 12,
+    fontSize: 14,
     color: colors.secondaryText,
-    marginBottom: spacing.xs,
-  },
-  methodTime: {
-    fontSize: 11,
-    color: colors.seaGreen,
-    fontWeight: '500',
-  },
-  footer: {
-    padding: spacing.lg,
-    backgroundColor: 'transparent',
-    borderTopWidth: 0,
   },
   continueButton: {
-    backgroundColor: colors.seaGreen,
-    borderRadius: borderRadius.medium,
-    paddingVertical: spacing.lg,
+    backgroundColor: colors.success,
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: 'center',
   },
   disabledButton: {
-    backgroundColor: colors.disabled,
+    backgroundColor: '#ccc',
   },
   continueButtonText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-    color: colors.white,
   },
-  // Currency Picker Styles
-  currencyPickerOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'flex-end',
+  modalOverlay: {
+    flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  currencyPickerBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  currencyModal: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 20,
+    width: '80%',
+    maxHeight: '60%',
   },
-  currencyBottomSheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.white,
-    borderTopLeftRadius: borderRadius.large,
-    borderTopRightRadius: borderRadius.large,
-    padding: spacing.lg,
-    paddingBottom: spacing.xl + 20, // Extra padding for safe area
-    maxHeight: '70%',
-    ...shadows.large,
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
   },
-  bottomSheetHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: spacing.lg,
-  },
-  currencyPickerTitle: {
+  modalTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: colors.text,
-    marginBottom: spacing.lg,
-    textAlign: 'center',
   },
   currencyOption: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: borderRadius.medium,
-    marginBottom: spacing.xs,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  currencyOptionSelected: {
-    backgroundColor: colors.accentTransparent,
+  currencyOptionText: {
+    fontSize: 16,
+    color: colors.text,
   },
-  currencyInfo: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  currencyName: {
-    fontSize: 12,
-    color: colors.secondaryText,
-  },
-  // Success Screen Styles
   successContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.xl,
-    backgroundColor: colors.background,
+    padding: 40,
   },
   successIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.success,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: 30,
   },
   successTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: spacing.sm,
+    marginBottom: 10,
     textAlign: 'center',
+  },
+  successAmount: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: colors.success,
+    marginBottom: 10,
   },
   successSubtitle: {
     fontSize: 16,
-    color: colors.secondaryText,
+    color: '#666',
     textAlign: 'center',
-    marginBottom: spacing.xl,
-  },
-  successDetails: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.large,
-    padding: spacing.lg,
-    width: '100%',
-    marginBottom: spacing.xl,
-    ...shadows.medium,
-  },
-  successRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
-  successLabel: {
-    fontSize: 14,
-    color: colors.secondaryText,
-  },
-  successValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
+    marginBottom: 40,
   },
   doneButton: {
-    backgroundColor: colors.seaGreen,
-    paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.lg,
-    borderRadius: borderRadius.medium,
+    backgroundColor: colors.success,
+    paddingHorizontal: 40,
+    paddingVertical: 15,
+    borderRadius: 12,
   },
   doneButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.white,
+    color: '#fff',
   },
 });
 

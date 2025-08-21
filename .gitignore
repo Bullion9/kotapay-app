@@ -36,5 +36,15 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Prevent backup/original files from being created
+*_original.tsx
+*_backup.tsx
+*_simple.tsx
+*_old.tsx
+*_v1.tsx
+*_v2.tsx
+*_copy.tsx
+*_temp.tsx
+
 app-example
 .env

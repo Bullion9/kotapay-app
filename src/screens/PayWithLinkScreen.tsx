@@ -1,53 +1,32 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   TextInput,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
   Alert,
-  Dimensions,
-  Platform,
+  ActivityIndicator,
+  RefreshControl,
   KeyboardAvoidingView,
-  Animated,
+  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  Shield,
-  Lock,
-  HelpCircle,
-  FileText,
-  Download,
-  CheckCircle,
-  AlertTriangle,
-  X,
-  Banknote,
+  ChevronLeft,
+  CreditCard,
   University,
   PiggyBank,
-  Check,
-  Clock,
-  CreditCard,
+  CheckCircle,
+  AlertCircle,
+  Banknote,
 } from 'lucide-react-native';
-import { RootStackParamList } from '../types';
-import { useAuth } from '../contexts/AuthContext';
-import { useSettings } from '../contexts/SettingsContext';
-import { colors, spacing, shadows, borderRadius, globalStyles } from '../theme';
-import PinEntryModal from '../components/PinEntryModal';
-import LoadingOverlay from '../components/LoadingOverlay';
-import LoadingSpinner from '../components/LoadingSpinner';
-import PageLoadingOverlay from '../components/PageLoadingOverlay';
-import { useLoading } from '../hooks/useLoading';
-import { usePageLoading } from '../hooks/usePageLoading';
-import PaymentMethodService, { PaymentMethod } from '../services/PaymentMethodService';
-
-type PayWithLinkScreenNavigationProp = StackNavigationProp<RootStackParamList>;
+import { colors } from '../theme';
 
 interface PaymentLink {
   id: string;
-  recipientId: string;
   recipientName: string;
   amount: number;
   currency: string;
@@ -58,117 +37,84 @@ interface PaymentLink {
   maxTip: number;
 }
 
-interface PaymentOption {
+interface PaymentMethod {
   id: string;
   name: string;
-  icon: React.ComponentType<any>;
   description: string;
+  icon: any;
   requiresAuth: boolean;
 }
 
-const { width: screenWidth } = Dimensions.get('window');
-const maxWidth = Math.min(screenWidth - 32, 480);
-
 const PayWithLinkScreen: React.FC = () => {
-  const navigation = useNavigation<PayWithLinkScreenNavigationProp>();
+  const navigation = useNavigation();
   const route = useRoute();
-  const { user } = useAuth();
-  const { formatCurrency } = useSettings();
+  const insets = useSafeAreaInsets();
   
   // Extract linkId from route params
   const linkId = (route.params as any)?.linkId || 'demo-link-123';
   
-  // State management
+  // State
   const [paymentLink, setPaymentLink] = useState<PaymentLink | null>(null);
-  const [tipAmount, setTipAmount] = useState(0);
-  const [payerName, setPayerName] = useState(user?.name || '');
-  const [payerEmail, setPayerEmail] = useState(user?.email || '');
-  const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
-  const [linkStatus, setLinkStatus] = useState<'active' | 'expired' | 'paid'>('active');
-  const [showPinModal, setShowPinModal] = useState(false);
+  const [payerName, setPayerName] = useState('');
+  const [payerEmail, setPayerEmail] = useState('');
+  const [tipAmount, setTipAmount] = useState('');
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
+  const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [transactionStatus, setTransactionStatus] = useState<'success' | 'failed' | 'pending'>('pending');
-  const [tipAmountLoading, setTipAmountLoading] = useState(false);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [paymentOptions] = useState<PaymentOption[]>([
+  const [refreshing, setRefreshing] = useState(false);
+  const [nameFieldFocused, setNameFieldFocused] = useState(false);
+  const [emailFieldFocused, setEmailFieldFocused] = useState(false);
+  const [tipFieldFocused, setTipFieldFocused] = useState(false);
+  const [linkStatus, setLinkStatus] = useState<'active' | 'expired' | 'paid'>('active');
+
+  // Payment methods
+  const paymentMethods: PaymentMethod[] = [
     {
       id: 'card',
-      name: 'Card',
-      icon: Banknote,
-      description: 'Debit/Credit',
+      name: 'Debit/Credit Card',
+      description: 'Pay with your card',
+      icon: CreditCard,
       requiresAuth: false,
     },
     {
       id: 'transfer',
-      name: 'Transfer',
+      name: 'Bank Transfer',
+      description: 'Direct bank transfer',
       icon: University,
-      description: 'Bank account',
       requiresAuth: false,
     },
     {
       id: 'wallet',
-      name: 'Wallet',
+      name: 'KotaPay Wallet',
+      description: 'Use wallet balance',
       icon: PiggyBank,
-      description: 'KotaPay balance',
       requiresAuth: true,
     },
-  ]);
+  ];
 
-  // Page loading state management
-  const { isPageLoading } = usePageLoading({ duration: 1000 });
-
-  // Payment loading state management
-  const {
-    isLoading: isPaymentProcessing,
-    loadingState,
-    loadingMessage,
-    startLoading,
-    setProcessing,
-    setConfirming,
-    stopLoading,
-  } = useLoading();
-
-  const animationValue = useRef(new Animated.Value(0)).current;
-
-  // Reset animation state
-  const resetAnimationState = () => {
-    setShowSuccess(false);
-    animationValue.setValue(0);
-  };
-
-  // Load payment methods from service
-  useEffect(() => {
-    const loadPaymentMethods = async () => {
-      try {
-        const methods = await PaymentMethodService.getPaymentMethods();
-        setPaymentMethods(methods);
-      } catch (error) {
-        console.error('Error loading payment methods:', error);
-      }
-    };
-
-    loadPaymentMethods();
-  }, []);
-
-  // Load payment link data
-  useEffect(() => {
+  // Load payment link data from API
+  React.useEffect(() => {
     const loadPaymentLink = async () => {
+      setLoading(true);
       try {
-        // Simulate API call
-        await new Promise<void>(resolve => setTimeout(resolve, 1000));
+        // In a real app, this would be an API call like:
+        // const response = await fetch(`/api/payment-links/${linkId}`);
+        // const linkData = await response.json();
         
-        // Mock payment link data
+        // For now, simulate API call with mock data
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // This mock data would come from your backend based on linkId
         const mockLink: PaymentLink = {
           id: linkId,
-          recipientId: 'user-123',
-          recipientName: 'John Doe',
-          amount: 5000,
+          recipientName: 'Demo Recipient', // This would come from the payment link creator
+          amount: 1000, // This would be the amount set when the link was created
           currency: '₦',
-          note: 'Payment for freelance design work',
-          expiry: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+          note: 'Demo payment link', // This would be the note from the link creator
+          expiry: new Date(Date.now() + 24 * 60 * 60 * 1000), // Set when link was created
           paid: false,
           allowTips: true,
-          maxTip: 500,
+          maxTip: 100,
         };
 
         // Check link status
@@ -185,503 +131,338 @@ const PayWithLinkScreen: React.FC = () => {
       } catch {
         Alert.alert('Error', 'Failed to load payment link');
         navigation.goBack();
+      } finally {
+        setLoading(false);
       }
     };
 
     loadPaymentLink();
   }, [linkId, navigation]);
 
-  const handleMethodSelection = (methodId: string) => {
-    // Reset any previous success state
-    resetAnimationState();
-    
-    // Validate form before proceeding with payment
+  // Validate form
+  const validateForm = () => {
     if (!payerName.trim()) {
-      Alert.alert('Name Required', 'Please enter your full name to continue.');
-      return;
+      Alert.alert('Error', 'Please enter your full name');
+      return false;
     }
-    
     if (!payerEmail.trim() || !payerEmail.includes('@')) {
-      Alert.alert('Email Required', 'Please enter a valid email address to continue.');
-      return;
+      Alert.alert('Error', 'Please enter a valid email address');
+      return false;
     }
-    
-    if (linkStatus !== 'active') {
-      Alert.alert('Payment Unavailable', 'This payment link is no longer active.');
-      return;
+    if (!selectedMethod) {
+      Alert.alert('Error', 'Please select a payment method');
+      return false;
     }
-    
-    // Set selected method and show PIN modal for payment confirmation
-    setSelectedMethod(methodId);
-    setShowPinModal(true);
+    if (tipAmount && parseFloat(tipAmount) > (paymentLink?.maxTip || 0)) {
+      Alert.alert('Error', `Tip amount cannot exceed ₦${paymentLink?.maxTip}`);
+      return false;
+    }
+    return true;
   };
 
-  const handlePinVerified = async (pin: string) => {
-    // PIN verified successfully, proceed with payment
-    setShowPinModal(false);
+  // Handle payment method selection
+  const handleMethodSelect = (method: PaymentMethod) => {
+    setSelectedMethod(method);
+  };
+
+  // Handle payment
+  const handlePayment = () => {
+    if (!validateForm()) return;
     
-    try {
-      // Manual loading control
-      startLoading('Initializing payment...');
-      
-      // Processing phase
-      await new Promise<void>(resolve => setTimeout(resolve, 500));
-      setProcessing('Processing payment link...');
-      
-      // Confirming phase
-      await new Promise<void>(resolve => setTimeout(resolve, 800));
-      setConfirming('Confirming transaction...');
-      
-      // Execute operation
-      await new Promise<void>(resolve => setTimeout(resolve, 1000));
-      
-      // Process the payment
-      setTransactionStatus('pending');
-      
-      // Simulate payment processing
-      await new Promise<void>(resolve => setTimeout(resolve, 2000));
-      
-      // Payment successful
-      setTransactionStatus('success');
-
-      // Stop loading before success animation
-      stopLoading();
-
-      // After loading is complete, start success animation
+    setLoading(true);
+    
+    // Simulate payment processing
+    setTimeout(() => {
+      setLoading(false);
       setShowSuccess(true);
-      animationValue.setValue(0);
-      Animated.spring(animationValue, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8,
-      }).start();
-    } catch (error) {
-      console.error('Payment failed:', error);
-      setTransactionStatus('failed');
-      stopLoading();
-    }
+      
+      Alert.alert(
+        'Payment Successful!',
+        `Payment of ₦${getTotalAmount().toLocaleString()} has been processed successfully.`
+      );
+    }, 2000);
   };
 
-  const renderPinModal = () => {
-    const selectedPaymentMethod = paymentMethods.find(method => method.id === selectedMethod) || 
-                                 paymentOptions.find(option => option.id === selectedMethod);
-    const methodName = selectedPaymentMethod?.nickname || selectedPaymentMethod?.name || 'Payment Method';
-    
-    return (
-      <PinEntryModal
-        visible={showPinModal}
-        onClose={() => !isPaymentProcessing && setShowPinModal(false)}
-        onPinEntered={handlePinVerified}
-        title={isPaymentProcessing ? "Processing Payment..." : "Enter PIN to Pay"}
-        subtitle={isPaymentProcessing 
-          ? "Please wait while we process your payment..."
-          : `Pay ${formatCurrency(getTotalAmount(), paymentLink?.currency)} to ${paymentLink?.recipientName} via ${methodName}`
-        }
-        allowBiometric={!isPaymentProcessing}
-      />
-    );
-  };
-
+  // Calculate total amount
   const getTotalAmount = () => {
-    return (paymentLink?.amount || 0) + tipAmount;
+    const baseAmount = paymentLink?.amount || 0;
+    const tip = parseFloat(tipAmount) || 0;
+    return baseAmount + tip;
   };
 
-  // Handle tip amount selection with silent loading animation
-  const handleTipAmountPress = async (tip: number) => {
-    setTipAmountLoading(true);
-    
-    // Simulate processing time for tip selection
-    await new Promise<void>(resolve => setTimeout(resolve, 300));
-    
-    // Set the tip amount after loading
-    setTipAmount(tip);
-    
-    setTipAmountLoading(false);
+  // Pull to refresh
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setRefreshing(false);
   };
 
-  const renderStatusBanner = () => {
-    if (linkStatus === 'paid') {
-      return (
-        <View style={[styles.statusBanner, styles.successBanner]}>
-          <CheckCircle size={20} color="#FFFFFF" />
-          <Text style={styles.statusText}>Paid ✓</Text>
-          <TouchableOpacity style={styles.receiptButton}>
-            <Text style={styles.receiptButtonText}>Download Receipt</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    if (linkStatus === 'expired') {
-      return (
-        <View style={[styles.statusBanner, styles.errorBanner]}>
-          <AlertTriangle size={20} color="#FFFFFF" />
-          <Text style={styles.statusText}>This link is no longer active</Text>
-        </View>
-      );
-    }
-
-    return null;
-  };
-
-  const renderSimpleHeader = () => (
-    <View style={styles.simpleHeader}>
-      <TouchableOpacity style={globalStyles.backButton} onPress={() => navigation.goBack()}>
-        <X size={24} color={colors.primary} />
-      </TouchableOpacity>
-      
-      <View style={styles.headerContent}>
-        <Text style={styles.headerTitle}>
-          Pay {paymentLink?.recipientName || 'Merchant'}
-        </Text>
-        <Text style={styles.headerSubtitle}>
-          Secure, instant, no app required
-        </Text>
+  // Success Screen Component
+  const SuccessScreen = () => (
+    <View style={styles.successContainer}>
+      <View style={styles.successIcon}>
+        <CheckCircle size={60} color={colors.primary} />
       </View>
-    </View>
-  );
-
-  const renderAmountPanel = () => (
-    <View style={styles.amountPanel}>
-      <Text style={styles.amountLabel}>Amount</Text>
-      <Text style={styles.amountValue}>
-        {formatCurrency(paymentLink?.amount || 0, paymentLink?.currency)}
+      <Text style={styles.successTitle}>Payment Successful!</Text>
+      <Text style={styles.successMessage}>
+        Your payment of ₦{getTotalAmount().toLocaleString()} has been processed successfully.
+      </Text>
+      <Text style={styles.successRecipient}>
+        Paid to: {paymentLink?.recipientName}
       </Text>
       
-      {paymentLink?.note && (
-        <Text style={styles.paymentNote}>{paymentLink.note}</Text>
-      )}
-
-      {paymentLink?.allowTips && (
-        <View style={styles.tipSection}>
-          <Text style={styles.tipLabel}>Add tip (optional)</Text>
-          <View style={styles.tipSlider}>
-            {[0, 100, 250, 500].map((tip) => (
-              <TouchableOpacity
-                key={tip}
-                style={[
-                  styles.tipOption,
-                  tipAmount === tip && styles.tipOptionSelected,
-                ]}
-                onPress={() => handleTipAmountPress(tip)}
-                disabled={tipAmountLoading}
-              >
-                <Text style={[
-                  styles.tipOptionText,
-                  tipAmount === tip && styles.tipOptionTextSelected,
-                ]}>
-                  {tip === 0 ? 'No tip' : formatCurrency(tip)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          
-          {tipAmount > 0 && (
-            <Text style={styles.totalAmount}>
-              Total: {formatCurrency(getTotalAmount(), paymentLink?.currency)}
-            </Text>
-          )}
-        </View>
-      )}
-    </View>
-  );
-
-  const renderPayerInfoCard = () => (
-    <View style={styles.payerInfoCard}>
-      <Text style={styles.cardTitle}>Your Information</Text>
-      
-      <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Full Name</Text>
-        <TextInput
-          style={styles.textInput}
-          value={payerName}
-          onChangeText={setPayerName}
-          placeholder="Enter your full name"
-          placeholderTextColor="#9CA3AF"
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Email Address</Text>
-        <TextInput
-          style={styles.textInput}
-          value={payerEmail}
-          onChangeText={setPayerEmail}
-          placeholder="your@email.com"
-          placeholderTextColor="#9CA3AF"
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-      </View>
-    </View>
-  );
-
-  const renderPaymentMethodSelector = () => (
-    <View style={styles.paymentMethodCard}>
-      <Text style={styles.cardTitle}>Choose Payment Method</Text>
-      <Text style={styles.paymentMethodSubtitle}>
-        Select a payment method. You&apos;ll enter your PIN to confirm the payment.
-      </Text>
-      
-      {/* Saved Payment Methods */}
-      {paymentMethods.length > 0 && (
-        <View style={styles.savedMethodsSection}>
-          <Text style={styles.sectionTitle}>Saved Payment Methods</Text>
-          <View style={styles.methodGrid}>
-            {paymentMethods.map((method) => {
-              const isSelected = selectedMethod === method.id;
-              
-              return (
-                <TouchableOpacity
-                  key={method.id}
-                  style={[
-                    styles.methodOptionCompact,
-                    isSelected && styles.methodOptionSelected,
-                  ]}
-                  onPress={() => handleMethodSelection(method.id)}
-                >
-                  <CreditCard 
-                    size={24} 
-                    color={isSelected ? '#FFFFFF' : '#06402B'} 
-                  />
-                  <Text style={[
-                    styles.methodNameCompact,
-                    isSelected && styles.methodNameSelected,
-                  ]}>
-                    {method.nickname}
-                  </Text>
-                  <Text style={[
-                    styles.methodDescriptionCompact,
-                    isSelected && styles.methodDescriptionSelected,
-                  ]}>
-                    {PaymentMethodService.formatDisplayText(method)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-      )}
-      
-      {/* Payment Options */}
-      <View style={styles.paymentOptionsSection}>
-        <Text style={styles.sectionTitle}>
-          {paymentMethods.length > 0 ? 'Other Payment Options' : 'Payment Options'}
-        </Text>
-        <View style={styles.methodGrid}>
-          {paymentOptions.map((option) => {
-            const IconComponent = option.icon;
-            const isSelected = selectedMethod === option.id;
-            const isDisabled = option.requiresAuth && !user;
-            
-            return (
-              <TouchableOpacity
-                key={option.id}
-                style={[
-                  styles.methodOptionCompact,
-                  isSelected && styles.methodOptionSelected,
-                  isDisabled && styles.methodOptionDisabled,
-                ]}
-                onPress={() => !isDisabled && handleMethodSelection(option.id)}
-                disabled={isDisabled}
-              >
-                <IconComponent 
-                  size={24} 
-                  color={isSelected ? '#FFFFFF' : isDisabled ? '#9CA3AF' : '#06402B'} 
-                />
-                <Text style={[
-                  styles.methodNameCompact,
-                  isSelected && styles.methodNameSelected,
-                  isDisabled && styles.methodNameDisabled,
-                ]}>
-                  {option.name}
-                </Text>
-                <Text style={[
-                  styles.methodDescriptionCompact,
-                  isSelected && styles.methodDescriptionSelected,
-                  isDisabled && styles.methodDescriptionDisabled,
-                ]}>
-                  {option.description}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderSecurityBadges = () => (
-    <View style={styles.securityBadges}>
-      <View style={styles.badge}>
-        <Shield size={16} color="#06402B" />
-        <Text style={styles.badgeText}>PCI-DSS</Text>
-      </View>
-      <View style={styles.badge}>
-        <Lock size={16} color="#06402B" />
-        <Text style={styles.badgeText}>SSL Secure</Text>
-      </View>
-      <View style={styles.badge}>
-        <Shield size={16} color="#06402B" />
-        <Text style={styles.badgeText}>Fraud Protection</Text>
-      </View>
-    </View>
-  );
-
-  const renderFooterLinks = () => (
-    <View style={styles.footerLinks}>
-      <TouchableOpacity style={styles.footerLink}>
-        <HelpCircle size={16} color="#06402B" />
-        <Text style={styles.footerLinkText}>Need help?</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.footerLink}>
-        <FileText size={16} color="#06402B" />
-        <Text style={styles.footerLinkText}>Terms & Privacy</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.footerLink}>
-        <Download size={16} color="#06402B" />
-        <Text style={styles.footerLinkText}>Download KotaPay</Text>
+      <TouchableOpacity
+        style={styles.doneButton}
+        onPress={() => {
+          setShowSuccess(false);
+          navigation.goBack();
+        }}
+      >
+        <Text style={styles.doneButtonText}>Done</Text>
       </TouchableOpacity>
     </View>
   );
 
-  const renderResultOverlay = () => {
-    if (!showSuccess) return null;
-
-    const statusConfig = {
-      success: {
-        icon: Check,
-        color: '#10B981',
-        title: 'Payment Successful!',
-        subtitle: `${formatCurrency(getTotalAmount(), paymentLink?.currency)} paid to ${paymentLink?.recipientName}`,
-      },
-      failed: {
-        icon: X,
-        color: '#EA3B52',
-        title: 'Payment Failed',
-        subtitle: 'Please try again or use a different payment method',
-      },
-      pending: {
-        icon: Clock,
-        color: '#F59E0B',
-        title: 'Processing Payment',
-        subtitle: 'Please wait while we process your payment',
-      },
-    };
-
-    const config = statusConfig[transactionStatus];
-    const IconComponent = config.icon;
-
+  // Error states
+  if (linkStatus === 'paid') {
     return (
-      <View style={styles.resultOverlay}>
-        <View style={styles.resultContainer}>
-          <View
-            style={[
-              styles.resultContent,
-              showSuccess && transactionStatus === 'success' && {
-                opacity: 1,
-                transform: [{ scale: 1 }],
-              },
-            ]}
-          >
-            <View style={[styles.resultIcon, { backgroundColor: config.color }]}>
-              <IconComponent size={48} color="#FFFFFF" />
-            </View>
-            <Text style={styles.resultTitle}>{config.title}</Text>
-            <Text style={styles.resultSubtitle}>{config.subtitle}</Text>
-              
-              {transactionStatus === 'success' && (
-                <View style={styles.resultButtons}>
-                  <TouchableOpacity
-                    style={styles.doneButton}
-                    onPress={() => navigation.goBack()}
-                  >
-                    <Text style={styles.doneButtonText}>Done</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={styles.resultReceiptButton}
-                    onPress={() => {
-                      // Navigate to transactions and highlight the recent payment
-                      navigation.navigate('Transactions');
-                    }}
-                  >
-                    <Text style={styles.resultReceiptButtonText}>View Receipt</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-              
-              {transactionStatus === 'failed' && (
-                <TouchableOpacity
-                  style={styles.retryButton}
-                  onPress={() => {
-                    setShowSuccess(false);
-                    setTransactionStatus('pending');
-                    animationValue.setValue(0);
-                    setShowPinModal(true);
-                  }}
-                >
-                  <Text style={styles.retryButtonText}>Try Again</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <ChevronLeft size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Payment Link</Text>
+          <View style={styles.placeholder} />
         </View>
-      </View>
+        
+        <View style={styles.statusContainer}>
+          <CheckCircle size={60} color={colors.primary} />
+          <Text style={styles.statusTitle}>Already Paid</Text>
+          <Text style={styles.statusMessage}>This payment link has already been paid.</Text>
+        </View>
+      </SafeAreaView>
     );
-  };
+  }
+
+  if (linkStatus === 'expired') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <ChevronLeft size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Payment Link</Text>
+          <View style={styles.placeholder} />
+        </View>
+        
+        <View style={styles.statusContainer}>
+          <AlertCircle size={60} color={colors.error} />
+          <Text style={styles.statusTitle}>Link Expired</Text>
+          <Text style={styles.statusMessage}>This payment link has expired and is no longer valid.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (showSuccess) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.placeholder} />
+          <Text style={styles.headerTitle}>Payment Complete</Text>
+          <View style={styles.placeholder} />
+        </View>
+        
+        <View style={styles.successContentWrapper}>
+          <SuccessScreen />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Fixed Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <ChevronLeft size={24} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Pay with Link</Text>
+        <View style={styles.placeholder} />
+      </View>
+
       <KeyboardAvoidingView 
-        style={styles.container}
+        style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        {renderStatusBanner()}
-        {renderSimpleHeader()}
-        
+        {/* Scrollable Content */}
         <ScrollView 
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          style={styles.scrollContent} 
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         >
-          <View style={styles.contentContainer}>
-            {renderAmountPanel()}
-            {linkStatus === 'active' && (
-              <>
-                {renderPayerInfoCard()}
-                {renderPaymentMethodSelector()}
-                {renderSecurityBadges()}
-              </>
-            )}
-            {renderFooterLinks()}
+          {/* Payment Details Section */}
+          {paymentLink && (
+            <View style={styles.paymentDetailsSection}>
+              <Text style={styles.sectionTitle}>Payment Details</Text>
+              <View style={styles.paymentDetailsCard}>
+                <View style={styles.amountContainer}>
+                  <Banknote size={24} color={colors.primary} />
+                  <View style={styles.amountInfo}>
+                    <Text style={styles.amountText}>
+                      {paymentLink.currency}{paymentLink.amount.toLocaleString()}
+                    </Text>
+                    <Text style={styles.recipientText}>to {paymentLink.recipientName}</Text>
+                  </View>
+                </View>
+                {paymentLink.note && (
+                  <View style={styles.noteContainer}>
+                    <Text style={styles.noteLabel}>Note:</Text>
+                    <Text style={styles.noteText}>{paymentLink.note}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* Payer Information Section */}
+          <View style={styles.payerInfoSection}>
+            <Text style={styles.sectionTitle}>Your Information</Text>
+            
+            <View style={[
+              styles.inputContainer,
+              nameFieldFocused && styles.inputContainerFocused
+            ]}>
+              <Text style={styles.inputLabel}>Full Name</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter your full name"
+                value={payerName}
+                onChangeText={setPayerName}
+                onFocus={() => setNameFieldFocused(true)}
+                onBlur={() => setNameFieldFocused(false)}
+                placeholderTextColor="#ccc"
+              />
+            </View>
+
+            <View style={[
+              styles.inputContainer,
+              emailFieldFocused && styles.inputContainerFocused
+            ]}>
+              <Text style={styles.inputLabel}>Email Address</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter your email"
+                value={payerEmail}
+                onChangeText={setPayerEmail}
+                onFocus={() => setEmailFieldFocused(true)}
+                onBlur={() => setEmailFieldFocused(false)}
+                placeholderTextColor="#ccc"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
           </View>
+
+          {/* Tip Section (if allowed) */}
+          {paymentLink?.allowTips && (
+            <View style={styles.tipSection}>
+              <Text style={styles.sectionTitle}>Add Tip (Optional)</Text>
+              <View style={[
+                styles.inputContainer,
+                tipFieldFocused && styles.inputContainerFocused
+              ]}>
+                <Text style={styles.inputLabel}>Tip Amount (Max: ₦{paymentLink.maxTip})</Text>
+                <View style={styles.tipInputContainer}>
+                  <Text style={styles.currencySymbol}>₦</Text>
+                  <TextInput
+                    style={styles.tipInput}
+                    placeholder="0"
+                    value={tipAmount}
+                    onChangeText={setTipAmount}
+                    onFocus={() => setTipFieldFocused(true)}
+                    onBlur={() => setTipFieldFocused(false)}
+                    keyboardType="numeric"
+                    placeholderTextColor="#ccc"
+                  />
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Payment Methods */}
+          <View style={styles.methodsSection}>
+            <Text style={styles.sectionTitle}>Select Payment Method</Text>
+            {paymentMethods.map((method) => (
+              <TouchableOpacity
+                key={method.id}
+                style={[
+                  styles.methodCard,
+                  selectedMethod?.id === method.id && styles.selectedMethodCard,
+                ]}
+                onPress={() => handleMethodSelect(method)}
+              >
+                <View style={styles.methodIcon}>
+                  <method.icon size={24} color={selectedMethod?.id === method.id ? colors.primary : colors.secondaryText} />
+                </View>
+                <View style={styles.methodInfo}>
+                  <Text style={styles.methodName}>{method.name}</Text>
+                  <Text style={styles.methodDescription}>{method.description}</Text>
+                </View>
+                {selectedMethod?.id === method.id && (
+                  <CheckCircle size={20} color={colors.primary} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Payment Summary */}
+          {paymentLink && (
+            <View style={styles.summarySection}>
+              <Text style={styles.sectionTitle}>Payment Summary</Text>
+              <View style={styles.summaryCard}>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Amount</Text>
+                  <Text style={styles.summaryValue}>₦{paymentLink.amount.toLocaleString()}</Text>
+                </View>
+                {tipAmount && parseFloat(tipAmount) > 0 && (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Tip</Text>
+                    <Text style={styles.summaryValue}>₦{parseFloat(tipAmount).toLocaleString()}</Text>
+                  </View>
+                )}
+                <View style={[styles.summaryRow, styles.totalRow]}>
+                  <Text style={styles.totalLabel}>Total</Text>
+                  <Text style={styles.totalValue}>₦{getTotalAmount().toLocaleString()}</Text>
+                </View>
+              </View>
+            </View>
+          )}
         </ScrollView>
-      </KeyboardAvoidingView>
-      
-      {renderPinModal()}
-      {renderResultOverlay()}
-      
-      {/* Loading Overlay */}
-      <LoadingOverlay
-        visible={isPaymentProcessing}
-        type={loadingState}
-        message={loadingMessage}
-      />
 
-      {/* Simple Tip Amount Loading */}
-      {tipAmountLoading && (
-        <View style={styles.tipAmountLoadingOverlay}>
-          <View style={styles.tipAmountLoadingContainer}>
-            <LoadingSpinner size={40} color={colors.primary} />
-          </View>
+        {/* Fixed Pay Button */}
+        <View style={[styles.buttonContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+          <TouchableOpacity
+            style={[
+              styles.payButton,
+              (!payerName || !payerEmail || !selectedMethod || loading) && styles.disabledButton,
+            ]}
+            onPress={handlePayment}
+            disabled={!payerName || !payerEmail || !selectedMethod || loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.payButtonText}>
+                Pay ₦{getTotalAmount().toLocaleString()}
+              </Text>
+            )}
+          </TouchableOpacity>
         </View>
-      )}
-
-      {/* Page Loading Overlay */}
-      <PageLoadingOverlay visible={isPageLoading} />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -689,403 +470,288 @@ const PayWithLinkScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF0F5',
+    backgroundColor: colors.background,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  statusBanner: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-  },
-  successBanner: {
-    backgroundColor: '#10B981',
-  },
-  errorBanner: {
-    backgroundColor: '#EA3B52',
-  },
-  statusText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    flex: 1,
-  },
-  receiptButton: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 8,
-  },
-  receiptButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  simpleHeader: {
-    backgroundColor: '#FFF0F5', // Match app background
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.lg,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-    ...shadows.small,
-  },
-  headerContent: {
-    alignItems: 'center',
+    padding: 8,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
     textAlign: 'center',
-    marginBottom: spacing.xs,
+    marginRight: 40, // Offset for back button
   },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
+  placeholder: {
+    width: 40,
   },
-  scrollView: {
+  keyboardAvoidingView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: spacing.xl,
+    flex: 1,
+    paddingHorizontal: 16,
   },
-  contentContainer: {
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-    maxWidth: maxWidth,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  amountPanel: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: spacing.xl,
-    marginTop: spacing.lg,
-    width: '100%',
-    ...shadows.medium,
-    alignItems: 'center',
-  },
-  amountLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: spacing.xs,
-  },
-  amountValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#06402B',
-    marginBottom: spacing.sm,
-  },
-  paymentNote: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: spacing.lg,
-  },
-  tipSection: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  tipLabel: {
-    fontSize: 14,
-    color: '#374151',
-    marginBottom: spacing.sm,
-  },
-  tipSlider: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  tipOption: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
-  },
-  tipOptionSelected: {
-    backgroundColor: '#06402B',
-    borderColor: '#06402B',
-  },
-  tipOptionText: {
-    fontSize: 12,
-    color: '#374151',
-    fontWeight: '500',
-  },
-  tipOptionTextSelected: {
-    color: '#FFFFFF',
-  },
-  totalAmount: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#06402B',
-  },
-  payerInfoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: spacing.xl,
-    marginTop: spacing.lg,
-    width: '100%',
-    ...shadows.medium,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: spacing.lg,
-  },
-  paymentMethodSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: spacing.lg,
-    textAlign: 'center',
-  },
-  methodGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  inputGroup: {
-    marginBottom: spacing.lg,
-  },
-  inputLabel: {
-    fontSize: 14,
-    color: '#374151',
-    marginBottom: spacing.xs,
-    fontWeight: '500',
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontSize: 16,
-    backgroundColor: '#FFFFFF',
-    minHeight: 48,
-  },
-  paymentMethodCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: spacing.lg,
-    marginTop: spacing.lg,
-    width: '100%',
-    ...shadows.medium,
-  },
-  savedMethodsSection: {
-    marginBottom: spacing.lg,
-  },
-  paymentOptionsSection: {
-    // No additional styling needed
+  paymentDetailsSection: {
+    marginVertical: 24,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
-    marginBottom: spacing.md,
+    color: colors.text,
+    marginBottom: 12,
   },
-  methodOptionCompact: {
-    width: '30%', // Three per row for better spacing
-    alignItems: 'center',
-    padding: spacing.lg,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
-    minHeight: 100,
-    justifyContent: 'center',
+  paymentDetailsCard: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 16,
   },
-  methodOptionSelected: {
-    backgroundColor: '#06402B',
-    borderColor: '#06402B',
-  },
-  methodOptionDisabled: {
-    opacity: 0.5,
-  },
-  methodNameCompact: {
-    fontSize: 14, // Increased from 12
-    fontWeight: '600',
-    color: '#111827',
-    marginTop: spacing.sm, // Increased margin
-    textAlign: 'center',
-  },
-  methodNameSelected: {
-    color: '#FFFFFF',
-  },
-  methodNameDisabled: {
-    color: '#9CA3AF',
-  },
-  methodDescriptionCompact: {
-    fontSize: 11, // Increased from 10
-    color: '#6B7280',
-    marginTop: 4, // Increased margin
-    textAlign: 'center',
-  },
-  methodDescriptionSelected: {
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  methodDescriptionDisabled: {
-    color: '#9CA3AF',
-  },
-  securityBadges: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.lg,
-    marginTop: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  badge: {
+  amountContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    marginBottom: 12,
   },
-  badgeText: {
-    fontSize: 12,
-    color: '#06402B',
-    fontWeight: '500',
+  amountInfo: {
+    marginLeft: 12,
+    flex: 1,
   },
-  footerLinks: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: spacing.xl,
-    paddingTop: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    width: '100%',
-  },
-  footerLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  footerLinkText: {
-    fontSize: 12,
-    color: '#06402B',
-    fontWeight: '500',
-  },
-  // Result Overlay Styles
-  resultOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  resultContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: spacing.xxl,
-    margin: spacing.xl,
-    maxWidth: 320,
-    width: '90%',
-    alignItems: 'center',
-  },
-  resultContent: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  resultIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xl,
-  },
-  resultTitle: {
+  amountText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: spacing.sm,
+    color: colors.text,
+  },
+  recipientText: {
+    fontSize: 14,
+    color: colors.secondaryText,
+    marginTop: 4,
+  },
+  noteContainer: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  noteLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  noteText: {
+    fontSize: 14,
+    color: colors.secondaryText,
+  },
+  payerInfoSection: {
+    marginBottom: 24,
+  },
+  inputContainer: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  inputContainerFocused: {
+    borderColor: colors.primary,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  textInput: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  tipSection: {
+    marginBottom: 24,
+  },
+  tipInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  currencySymbol: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginRight: 8,
+  },
+  tipInput: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.text,
+  },
+  methodsSection: {
+    marginBottom: 24,
+  },
+  methodCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  selectedMethodCard: {
+    borderColor: colors.primary,
+  },
+  methodIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  methodInfo: {
+    flex: 1,
+  },
+  methodName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  methodDescription: {
+    fontSize: 14,
+    color: colors.secondaryText,
+  },
+  summarySection: {
+    marginBottom: 24,
+  },
+  summaryCard: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 16,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: colors.secondaryText,
+  },
+  summaryValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  totalRow: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginBottom: 0,
+  },
+  totalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  totalValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  buttonContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  payButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  payButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
+  },
+  statusContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  statusTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginTop: 24,
+    marginBottom: 16,
     textAlign: 'center',
   },
-  resultSubtitle: {
+  statusMessage: {
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.secondaryText,
     textAlign: 'center',
-    marginBottom: spacing.xl,
     lineHeight: 24,
   },
-  resultButtons: {
-    width: '100%',
-    gap: spacing.md,
+  successContentWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  successIcon: {
+    marginBottom: 24,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  successMessage: {
+    fontSize: 16,
+    color: colors.secondaryText,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  successRecipient: {
+    fontSize: 14,
+    color: colors.primary,
+    textAlign: 'center',
+    marginBottom: 32,
   },
   doneButton: {
-    backgroundColor: '#06402B',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
     borderRadius: 12,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
   },
   doneButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  resultReceiptButton: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-  },
-  resultReceiptButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#06402B',
-  },
-  retryButton: {
-    backgroundColor: '#EA3B52',
-    borderRadius: 12,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    alignItems: 'center',
-  },
-  retryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  tipAmountLoadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
-  },
-  tipAmountLoadingContainer: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.large,
-    padding: spacing.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.medium,
+    color: colors.white,
   },
 });
 

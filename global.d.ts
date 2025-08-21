@@ -187,3 +187,22 @@ declare module '*.svg' {
   const value: any;
   export default value;
 }
+
+// Expo modules
+declare module 'expo-haptics' {
+  export const ImpactFeedbackStyle: {
+    Light: string;
+    Medium: string;
+    Heavy: string;
+  };
+  
+  export const NotificationFeedbackType: {
+    Success: string;
+    Warning: string;
+    Error: string;
+  };
+  
+  export function impactAsync(style?: string): Promise<void>;
+  export function notificationAsync(type?: string): Promise<void>;
+  export function selectionAsync(): Promise<void>;
+}

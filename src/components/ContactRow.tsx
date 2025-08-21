@@ -40,8 +40,8 @@ const ContactRow: React.FC<ContactRowProps> = ({ item }) => {
         {
           text: 'Send Money',
           onPress: () => {
-            // TODO: Update to use SendScreen modal
-            alert('Send money feature will be available soon');
+            // Navigate to SendScreen with contact
+            (navigation as any).navigate('Send', { contact: item });
           },
         },
         {

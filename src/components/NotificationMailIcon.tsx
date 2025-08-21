@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import HomeNotificationIcon from './icons/HomeNotificationIcon';
-// @ts-ignore
 import * as Haptics from 'expo-haptics';
 import { colors } from '../theme';
 

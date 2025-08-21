@@ -2,870 +2,699 @@ import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
+  TextInput,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
-  TextInput,
-  Modal,
+  StyleSheet,
   Alert,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  RefreshControl,
   Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ChevronLeft,
-  ChevronDown,
-  Check,
-  CheckCircle,
   Zap,
+  CheckCircle,
+  Users,
 } from 'lucide-react-native';
-import { RootStackParamList } from '../types';
-import { colors, spacing, shadows, borderRadius, iconSizes } from '../theme';
-import PinEntryModal from '../components/PinEntryModal';
-import LoadingOverlay from '../components/LoadingOverlay';
-import PageLoadingOverlay from '../components/PageLoadingOverlay';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { useLoading } from '../hooks/useLoading';
-import { usePageLoading } from '../hooks/usePageLoading';
-import { billNotificationService } from '../services/billNotifications';
-import { useToast } from '../components/ToastProvider';
-
-type ElectricityBillScreenNavigationProp = StackNavigationProp<RootStackParamList>;
+import { colors } from '../theme';
 
 interface ElectricityProvider {
   id: string;
   name: string;
-  color: string;
   logo: string;
+  color: string;
+  type: 'prepaid' | 'postpaid';
 }
 
-interface QuickAmount {
-  value: number;
-  label: string;
-  popular?: boolean;
+interface Contact {
+  id: string;
+  name: string;
+  meterNumber: string;
+  provider?: string;
+  type?: 'prepaid' | 'postpaid';
 }
 
 const ElectricityBillScreen: React.FC = () => {
-  const navigation = useNavigation<ElectricityBillScreenNavigationProp>();
-
-  // Electricity providers
-  const electricityProviders: ElectricityProvider[] = [
-    {
-      id: 'eko',
-      name: 'Eko Electricity (EKEDC)',
-      color: '#FF6B35',
-      logo: 'EKO',
-    },
-    {
-      id: 'ikeja',
-      name: 'Ikeja Electric (IE)',
-      color: '#1E90FF',
-      logo: 'IE',
-    },
-    {
-      id: 'abuja',
-      name: 'Abuja Electricity (AEDC)',
-      color: '#32CD32',
-      logo: 'AEDC',
-    },
-    {
-      id: 'kano',
-      name: 'Kano Electricity (KEDCO)',
-      color: '#FFD700',
-      logo: 'KEDCO',
-    },
-    {
-      id: 'portharcourt',
-      name: 'Port Harcourt Electric (PHED)',
-      color: '#8A2BE2',
-      logo: 'PHED',
-    },
-  ];
-
-  // Quick amounts for electricity bills
-  const quickAmounts: QuickAmount[] = [
-    { value: 1000, label: '₦1,000' },
-    { value: 2000, label: '₦2,000' },
-    { value: 5000, label: '₦5,000', popular: true },
-    { value: 10000, label: '₦10,000', popular: true },
-    { value: 15000, label: '₦15,000' },
-    { value: 20000, label: '₦20,000' },
-  ];
-
-  // State management
-  const [selectedProvider, setSelectedProvider] = useState<ElectricityProvider | null>(null);
-  const [showProviderModal, setShowProviderModal] = useState(false);
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  
+  const [refreshing, setRefreshing] = useState(false);
   const [meterNumber, setMeterNumber] = useState('');
-  const [customerName, setCustomerName] = useState('');
   const [amount, setAmount] = useState('');
-  const [selectedQuickAmount, setSelectedQuickAmount] = useState<number | null>(null);
-  const [showPinModal, setShowPinModal] = useState(false);
+  const [customerName, setCustomerName] = useState('');
+  const [selectedProvider, setSelectedProvider] = useState<ElectricityProvider | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [showContacts, setShowContacts] = useState(false);
+  const [spinningButton, setSpinningButton] = useState<string | null>(null);
   
-  // Loading state management
-  const { isLoading, loadingState, loadingMessage, setConfirming, setError, stopLoading } = useLoading();
+  const spinValue = useRef(new Animated.Value(0)).current;
 
-  // Page loading state management
-  const { isPageLoading } = usePageLoading({ duration: 800 });
-  
-  // Animation state for success feedback  
-  const animationValue = useRef(new Animated.Value(0)).current;
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    // Reset form or reload data
+    setMeterNumber('');
+    setAmount('');
+    setCustomerName('');
+    setSelectedProvider(null);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  }, []);
 
-  // Toast hook
-  const { showToast } = useToast();
+  const providers: ElectricityProvider[] = [
+    { id: 'aedc', name: 'AEDC', logo: '⚡', color: '#FFB84D', type: 'prepaid' },
+    { id: 'eko', name: 'Eko Electric', logo: '🔌', color: '#00A651', type: 'prepaid' },
+    { id: 'ikeja', name: 'Ikeja Electric', logo: '💡', color: '#E31E24', type: 'prepaid' },
+    { id: 'ibadan', name: 'IBEDC', logo: '⚡', color: '#4169E1', type: 'prepaid' },
+    { id: 'kano', name: 'KEDCO', logo: '🔆', color: '#FF6B35', type: 'prepaid' },
+    { id: 'port', name: 'PHED', logo: '⚡', color: '#32CD32', type: 'prepaid' },
+  ];
 
-  // Validation functions
-  const validateMeterNumber = (number: string): boolean => {
-    // Meter numbers are typically 11 digits
-    const cleanNumber = number.replace(/\s/g, '');
-    return cleanNumber.length === 11 && /^\d+$/.test(cleanNumber);
-  };
+  const quickAmounts = ['1000', '2000', '3000', '5000', '10000', '15000', '20000', '25000', '30000', '50000'];
 
-  const validateForm = (): boolean => {
-    if (!selectedProvider) {
-      Alert.alert('Error', 'Please select an electricity provider');
-      return false;
-    }
-    if (!meterNumber.trim()) {
-      Alert.alert('Error', 'Please enter your meter number');
-      return false;
-    }
-    if (!validateMeterNumber(meterNumber)) {
-      Alert.alert('Error', 'Please enter a valid 11-digit meter number');
-      return false;
-    }
-    if (!amount || parseFloat(amount) <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
-      return false;
-    }
-    if (parseFloat(amount) < 500) {
-      Alert.alert('Error', 'Minimum electricity bill payment is ₦500');
-      return false;
-    }
-    if (parseFloat(amount) > 100000) {
-      Alert.alert('Error', 'Maximum electricity bill payment is ₦100,000');
-      return false;
-    }
-    return true;
-  };
+  // Mock recent contacts for demo
+  const recentContacts: Contact[] = [
+    { id: '1', name: 'Home Meter', meterNumber: '12345678901', provider: 'Eko Electric', type: 'prepaid' },
+    { id: '2', name: 'Office Building', meterNumber: '98765432109', provider: 'Ikeja Electric', type: 'prepaid' },
+    { id: '3', name: 'Shop Meter', meterNumber: '55556666777', provider: 'AEDC', type: 'prepaid' },
+  ];
 
-  // Format meter number as user types
-  const formatMeterNumber = (text: string): string => {
-    const cleaned = text.replace(/\D/g, '');
-    const truncated = cleaned.slice(0, 11);
-    
-    // Format as XXXXX XXXXXX
-    if (truncated.length >= 6) {
-      return truncated.replace(/(\d{5})(\d{0,6})/, '$1 $2').trim();
-    }
-    return truncated;
-  };
-
-  // Handle meter number input with verification
   const handleMeterNumberChange = async (text: string) => {
-    const formatted = formatMeterNumber(text);
-    setMeterNumber(formatted);
+    // Remove any non-digit characters
+    const cleaned = text.replace(/\D/g, '');
     
-    // Auto-verify when meter number is complete
-    if (formatted.replace(/\s/g, '').length === 11) {
-      setIsVerifying(true);
+    // Limit to 11 digits (typical meter number length)
+    if (cleaned.length <= 11) {
+      setMeterNumber(cleaned);
+      setCustomerName(''); // Reset customer name when meter number changes
       
-      // Simulate verification
-      await new Promise<void>(resolve => setTimeout(resolve, 300));
+      // Auto-validate when number is complete (10+ digits)
+      if (cleaned.length >= 10 && selectedProvider) {
+        await validateMeterNumber(cleaned);
+      }
+    }
+  };
+
+  const validateMeterNumber = async (meter: string) => {
+    if (!selectedProvider || meter.length < 10) return;
+    
+    try {
+      setIsValidating(true);
+      
+      // Mock API call to validate meter number
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Mock customer name based on meter number
-      const mockNames = ['John Doe', 'Jane Smith', 'Mike Johnson', 'Sarah Wilson', 'David Brown'];
-      const randomName = mockNames[Math.floor(Math.random() * mockNames.length)];
-      setCustomerName(randomName);
+      const mockNames = [
+        'John Doe',
+        'Jane Smith',
+        'Michael Johnson',
+        'Sarah Williams',
+        'David Brown',
+        'Mary Wilson',
+        'Robert Davis'
+      ];
       
-      setIsVerifying(false);
-    } else {
-      setCustomerName('');
+      const name = mockNames[Math.floor(Math.random() * mockNames.length)];
+      setCustomerName(name);
+      
+    } catch {
+      Alert.alert('Error', 'Failed to validate meter number');
+    } finally {
+      setIsValidating(false);
     }
   };
 
-  // Handle quick amount selection
-  const handleQuickAmountPress = (quickAmount: QuickAmount) => {
-    setAmount(quickAmount.value.toString());
-    setSelectedQuickAmount(quickAmount.value);
+  const selectContact = (contact: Contact) => {
+    setMeterNumber(contact.meterNumber);
+    const provider = providers.find(p => p.name === contact.provider);
+    if (provider) {
+      setSelectedProvider(provider);
+      validateMeterNumber(contact.meterNumber);
+    }
+    setShowContacts(false);
   };
 
-  // Handle custom amount input
-  const handleAmountChange = (text: string) => {
-    setAmount(text);
-    setSelectedQuickAmount(null); // Clear quick amount selection
+  const selectProvider = (provider: ElectricityProvider) => {
+    setSelectedProvider(provider);
+    setCustomerName(''); // Reset customer name
+    
+    // Re-validate if we have a meter number
+    if (meterNumber.length >= 10) {
+      validateMeterNumber(meterNumber);
+    }
   };
 
-  // Handle continue button press
-  const handleContinue = () => {
-    if (!validateForm() || showPinModal) return;
-    setShowPinModal(true);
+  const selectQuickAmount = (quickAmount: string) => {
+    setSpinningButton(quickAmount);
+    
+    // Reset and start spin animation
+    spinValue.setValue(0);
+    Animated.timing(spinValue, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start(() => {
+      setSpinningButton(null);
+    });
+    
+    setAmount(quickAmount);
   };
 
-  // Handle PIN verification and transaction processing
-  const handlePinVerified = async (enteredPin: string) => {
-    setShowPinModal(false);
+  const handlePayment = async () => {
+    if (!meterNumber || !amount || !selectedProvider || !customerName) {
+      Alert.alert('Error', 'Please fill in all required fields and validate meter number');
+      return;
+    }
 
-    const transactionId = `electricity_${Date.now()}`;
-    const transactionAmount = parseFloat(amount);
+    if (meterNumber.length < 10) {
+      Alert.alert('Error', 'Please enter a valid meter number');
+      return;
+    }
+
+    const amountNum = parseInt(amount);
+    if (isNaN(amountNum) || amountNum < 100) {
+      Alert.alert('Error', 'Minimum electricity payment is ₦100');
+      return;
+    }
 
     try {
-      // Start confirming phase directly (skip loading)
-      setConfirming('Confirming electricity bill payment...');
+      setIsLoading(true);
       
-      // Send pending notification
-      showToast('warning', 'Processing electricity bill payment...', 2000);
+      // Mock API call
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      await billNotificationService.sendBillPaymentPendingNotification({
-        transactionId,
-        billType: 'electricity',
-        provider: selectedProvider?.name || 'Provider',
-        amount: transactionAmount,
-        accountNumber: meterNumber,
-      });
-
-      // Mock transaction processing
-      await new Promise<void>(resolve => setTimeout(resolve, 2000));
-      
-      // Send success notification
-      await billNotificationService.sendBillPaymentSuccessNotification({
-        transactionId,
-        billType: 'electricity',
-        provider: selectedProvider?.name || 'Provider',
-        amount: transactionAmount,
-        accountNumber: meterNumber,
-      });
-
-      // End loading before success animation
-      stopLoading();
-
-      // Show success toast
-      showToast('success', 'Electricity bill payment successful!');
-
-      // Show animated success feedback
+      setIsLoading(false);
       setShowSuccess(true);
-      animationValue.setValue(0);
-      Animated.spring(animationValue, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8,
-      }).start();
-
-      // Auto dismiss after 2 seconds
+      
+      // Auto-dismiss success after 3 seconds
       setTimeout(() => {
         setShowSuccess(false);
-        navigation.navigate('MainTabs');
-      }, 2000);
-    } catch (error) {
-      console.error('Transaction failed:', error);
+        navigation.goBack();
+      }, 3000);
       
-      setError('Electricity bill payment failed');
-      
-      await billNotificationService.sendBillPaymentFailedNotification({
-        transactionId,
-        billType: 'electricity',
-        provider: selectedProvider?.name || 'Provider',
-        amount: transactionAmount,
-        accountNumber: meterNumber,
-      }, 'Network error occurred');
-
-      showToast('error', 'Electricity bill payment failed. Please try again.');
-      Alert.alert('❌ Transaction Failed', 'Please try again later.');
+    } catch {
+      setIsLoading(false);
+      Alert.alert('Error', 'Failed to process payment. Please try again.');
     }
   };
 
-  // Provider selection component
-  const ProviderSelector: React.FC = () => (
-    <TouchableOpacity
-      style={[
-        styles.providerSelector,
-        selectedProvider && { borderColor: selectedProvider.color }
-      ]}
-      onPress={() => setShowProviderModal(true)}
-    >
-      <View style={styles.providerSelectorContent}>
-        {selectedProvider ? (
-          <>
-            <View style={[styles.providerLogo, { backgroundColor: selectedProvider.color }]}>
-              <Text style={styles.providerLogoText}>{selectedProvider.logo}</Text>
-            </View>
-            <Text style={styles.providerSelectorText}>{selectedProvider.name}</Text>
-          </>
-        ) : (
-          <Text style={styles.providerSelectorPlaceholder}>Select electricity provider</Text>
-        )}
-      </View>
-      <ChevronDown size={iconSizes.md} color={colors.secondaryText} />
-    </TouchableOpacity>
-  );
+  const isFormValid = meterNumber.length >= 10 && amount && selectedProvider && customerName;
 
-  // Provider modal component
-  const ProviderModal: React.FC = () => (
-    <Modal
-      visible={showProviderModal}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={() => setShowProviderModal(false)}
-    >
-      <SafeAreaView style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <TouchableOpacity onPress={() => setShowProviderModal(false)}>
-            <Text style={styles.modalCancelText}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={styles.modalTitle}>Select Provider</Text>
-          <View style={styles.modalSpacer} />
+  if (showSuccess) {
+    return (
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.successContainer}>
+          <CheckCircle size={80} color={colors.success} />
+          <Text style={styles.successTitle}>Payment Successful!</Text>
+          <Text style={styles.successMessage}>
+            ₦{amount} electricity payment has been processed for
+          </Text>
+          <Text style={styles.successCustomer}>{customerName}</Text>
+          <Text style={styles.successProvider}>via {selectedProvider?.name}</Text>
+          <Text style={styles.successMeter}>Meter: {meterNumber}</Text>
         </View>
-        
-        <ScrollView style={styles.modalContent}>
-          {electricityProviders.map((provider) => (
-            <TouchableOpacity
-              key={provider.id}
-              style={styles.providerOption}
-              onPress={() => {
-                setSelectedProvider(provider);
-                setShowProviderModal(false);
-              }}
-            >
-              <View style={styles.providerOptionContent}>
-                <View style={[styles.providerLogo, { backgroundColor: provider.color }]}>
-                  <Text style={styles.providerLogoText}>{provider.logo}</Text>
-                </View>
-                <Text style={styles.providerOptionText}>{provider.name}</Text>
-              </View>
-              {selectedProvider?.id === provider.id && (
-                <Check size={iconSizes.md} color={colors.success} />
-              )}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
       </SafeAreaView>
-    </Modal>
-  );
-
-  // Quick amount button component
-  const QuickAmountButton: React.FC<{ quickAmount: QuickAmount }> = ({ quickAmount }) => (
-    <TouchableOpacity
-      style={[
-        styles.quickAmountButton,
-        selectedQuickAmount === quickAmount.value && styles.quickAmountButtonSelected,
-        quickAmount.popular && styles.quickAmountButtonPopular
-      ]}
-      onPress={() => handleQuickAmountPress(quickAmount)}
-    >
-      {quickAmount.popular && (
-        <View style={styles.popularBadge}>
-          <Text style={styles.popularBadgeText}>POPULAR</Text>
-        </View>
-      )}
-      <Text
-        style={[
-          styles.quickAmountText,
-          selectedQuickAmount === quickAmount.value && styles.quickAmountTextSelected
-        ]}
-      >
-        {quickAmount.label}
-      </Text>
-    </TouchableOpacity>
-  );
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ChevronLeft size={24} color="#000d10" />
-        </TouchableOpacity>
-        <View style={styles.headerPlaceholder} />
-        <Text style={styles.headerTitle}>Electricity</Text>
-        <View style={styles.headerPlaceholder} />
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Electricity Provider Selection */}
-        <View style={styles.section}>
-          <ProviderSelector />
+      <KeyboardAvoidingView 
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <ChevronLeft size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Electricity Bill</Text>
+          <View style={styles.placeholder} />
         </View>
 
-        {/* Meter Number Input */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Meter Number</Text>
-          <View style={styles.meterInputContainer}>
-            <Zap size={iconSizes.md} color={colors.secondaryText} />
-            <TextInput
-              style={styles.meterInput}
-              placeholder="12345 678901"
-              value={meterNumber}
-              onChangeText={handleMeterNumberChange}
-              keyboardType="numeric"
-              maxLength={12} // For formatted number: XXXXX XXXXXX
-            />
-            {isVerifying && (
-              <View style={styles.verifyingIndicator}>
-                <LoadingSpinner size={20} color={colors.primary} />
+        <ScrollView 
+          style={styles.content} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {/* Electricity Provider Selection */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Select Provider</Text>
+            <View style={styles.providersGrid}>
+              {providers.map((provider) => (
+                <TouchableOpacity
+                  key={provider.id}
+                  style={[
+                    styles.providerCard,
+                    selectedProvider?.id === provider.id && styles.providerCardSelected
+                  ]}
+                  onPress={() => selectProvider(provider)}
+                >
+                  <Text style={styles.providerEmoji}>{provider.logo}</Text>
+                  <Text style={styles.providerName}>{provider.name}</Text>
+                  <Text style={styles.providerType}>{provider.type}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Meter Number Input */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Meter Number</Text>
+            <View style={styles.meterInputContainer}>
+              <View style={styles.meterInputWrapper}>
+                <Zap size={20} color={colors.secondaryText} style={styles.meterIcon} />
+                <TextInput
+                  style={styles.meterInput}
+                  value={meterNumber}
+                  onChangeText={handleMeterNumberChange}
+                  placeholder="Enter meter number"
+                  keyboardType="numeric"
+                  maxLength={11}
+                />
+                <TouchableOpacity 
+                  style={styles.contactsButton}
+                  onPress={() => setShowContacts(!showContacts)}
+                >
+                  <Users size={20} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+              
+              {isValidating && (
+                <View style={styles.validatingContainer}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={styles.validatingText}>Validating meter number...</Text>
+                </View>
+              )}
+              
+              {customerName && !isValidating && (
+                <View style={styles.customerDetected}>
+                  <CheckCircle size={16} color={colors.success} />
+                  <Text style={styles.customerName}>Customer: {customerName}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Recent Contacts */}
+            {showContacts && (
+              <View style={styles.contactsList}>
+                <Text style={styles.contactsTitle}>Recent Bills</Text>
+                {recentContacts.map(contact => (
+                  <TouchableOpacity
+                    key={contact.id}
+                    style={styles.contactItem}
+                    onPress={() => selectContact(contact)}
+                  >
+                    <View style={styles.contactInfo}>
+                      <Text style={styles.contactName}>{contact.name}</Text>
+                      <Text style={styles.contactMeter}>{contact.meterNumber}</Text>
+                    </View>
+                    <View style={styles.contactDetails}>
+                      {contact.provider && (
+                        <Text style={styles.contactProvider}>{contact.provider}</Text>
+                      )}
+                      {contact.type && (
+                        <Text style={styles.contactType}>{contact.type}</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
               </View>
             )}
           </View>
-          {customerName && (
-            <View style={styles.customerInfo}>
-              <Text style={styles.customerLabel}>Customer Name:</Text>
-              <Text style={styles.customerName}>{customerName}</Text>
-            </View>
-          )}
-        </View>
 
-        {/* Quick Amount Buttons */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Amount</Text>
-          <View style={styles.quickAmountsGrid}>
-            {quickAmounts.map((quickAmount) => (
-              <QuickAmountButton key={quickAmount.value} quickAmount={quickAmount} />
-            ))}
-          </View>
-        </View>
-
-        {/* Custom Amount Input */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Or Enter Amount</Text>
-          <View style={styles.amountInputContainer}>
-            <Text style={styles.currencySymbol}>₦</Text>
+          {/* Amount Input */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Amount</Text>
             <TextInput
               style={styles.amountInput}
-              placeholder="0.00"
               value={amount}
-              onChangeText={handleAmountChange}
+              onChangeText={setAmount}
+              placeholder="Enter amount"
               keyboardType="numeric"
             />
-          </View>
-          <Text style={styles.amountHint}>Minimum: ₦500 • Maximum: ₦100,000</Text>
-        </View>
 
-        {/* Information Section */}
-        <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>Transaction Details</Text>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoBullet}>•</Text>
-            <Text style={styles.infoText}>Payment will be processed instantly</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoBullet}>•</Text>
-            <Text style={styles.infoText}>Units will be credited to your meter</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoBullet}>•</Text>
-            <Text style={styles.infoText}>No additional charges apply</Text>
-          </View>
-        </View>
-      </ScrollView>
+            {/* Quick Amount Buttons */}
+            <View style={styles.quickAmountsContainer}>
+              <Text style={styles.quickAmountsTitle}>Quick amounts</Text>
+              <View style={styles.quickAmounts}>
+                {quickAmounts.map((quickAmount) => {
+                  const isSpinning = spinningButton === quickAmount;
+                  const spin = spinValue.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0deg', '360deg'],
+                  });
 
-      {/* Continue Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[
-            styles.continueButton,
-            (!selectedProvider || !meterNumber || !amount || isLoading || showPinModal) && styles.continueButtonDisabled
-          ]}
-          onPress={handleContinue}
-          disabled={!selectedProvider || !meterNumber || !amount || isLoading || showPinModal}
-        >
-          <Text style={styles.continueButtonText}>
-            {isLoading ? 'Processing...' : 'Continue'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Modals */}
-      <ProviderModal />
-      
-      {/* PIN Entry Modal */}
-      <PinEntryModal
-        visible={showPinModal}
-        onClose={() => setShowPinModal(false)}
-        onPinEntered={handlePinVerified}
-        title="Enter PIN to Confirm"
-        subtitle={`Pay ₦${parseFloat(amount || '0').toLocaleString()} electricity bill for ${meterNumber} (${selectedProvider?.name})`}
-        allowBiometric={true}
-      />
-
-      {/* Success Animation Overlay */}
-      {showSuccess && (
-        <View style={styles.successOverlay}>
-          <Animated.View
-            style={[
-              styles.successContainer,
-              {
-                opacity: animationValue.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.7, 1],
-                }),
-                transform: [
-                  {
-                    scale: animationValue.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.9, 1],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <View style={styles.successIcon}>
-              <CheckCircle size={60} color={colors.white} />
+                  return (
+                    <TouchableOpacity
+                      key={quickAmount}
+                      style={[
+                        styles.quickAmountButton,
+                        amount === quickAmount && styles.quickAmountButtonSelected
+                      ]}
+                      onPress={() => selectQuickAmount(quickAmount)}
+                    >
+                      <Animated.View
+                        style={[
+                          { transform: [{ rotate: isSpinning ? spin : '0deg' }] }
+                        ]}
+                      >
+                        <Text style={[
+                          styles.quickAmountText,
+                          amount === quickAmount && styles.quickAmountTextSelected
+                        ]}>
+                          ₦{quickAmount}
+                        </Text>
+                      </Animated.View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
-            <Text style={styles.successTitle}>Payment Successful!</Text>
-            <Text style={styles.successSubtitle}>
-              ₦{parseFloat(amount || '0').toLocaleString()} electricity bill paid for {meterNumber}
-            </Text>
-          </Animated.View>
-        </View>
-      )}
-      
-      {/* Loading Overlay */}
-      <LoadingOverlay
-        visible={isLoading}
-        type={loadingState}
-        message={loadingMessage}
-      />
+          </View>
 
-      {/* Page Loading Overlay */}
-      <PageLoadingOverlay visible={isPageLoading} />    </SafeAreaView>
+          <View style={styles.bottomPadding} />
+        </ScrollView>
+
+        {/* Pay Button */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.payButton, !isFormValid && styles.payButtonDisabled]}
+            onPress={handlePayment}
+            disabled={!isFormValid || isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <Text style={styles.payButtonText}>
+                Pay Electricity Bill {amount && `(₦${amount})`}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF0F5',
+    backgroundColor: colors.background,
   },
-  header: {
-    backgroundColor: '#FFF0F5',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    paddingTop: spacing.xl,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerPlaceholder: {
+  keyboardContainer: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFF0F5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000d10',
-    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  placeholder: {
+    width: 40,
+    height: 40,
   },
   content: {
     flex: 1,
-    padding: spacing.lg,
+    paddingHorizontal: 20,
   },
   section: {
-    marginBottom: spacing.xl,
+    marginTop: 24,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing.sm,
+    marginBottom: 12,
   },
-  providerSelector: {
+  providersGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  providerCard: {
+    width: '31%',
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 12,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
     borderWidth: 1,
-    borderColor: colors.borderBills,
-    ...shadows.billsCard,
-    elevation: 2,
+    borderColor: colors.border,
+    marginBottom: 8,
   },
-  providerSelectorContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  providerCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryTransparent,
   },
-  providerLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
+  providerEmoji: {
+    fontSize: 24,
+    marginBottom: 4,
   },
-  providerLogoText: {
+  providerName: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: colors.white,
-  },
-  providerSelectorText: {
-    fontSize: 16,
-    color: colors.text,
     fontWeight: '500',
-    flex: 1,
+    color: colors.text,
+    textAlign: 'center',
   },
-  providerSelectorPlaceholder: {
-    fontSize: 16,
+  providerType: {
+    fontSize: 10,
     color: colors.secondaryText,
+    marginTop: 2,
   },
   meterInputContainer: {
+    marginBottom: 12,
+  },
+  meterInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 56,
     borderWidth: 1,
-    borderColor: colors.borderBills,
-    paddingHorizontal: spacing.lg,
-    ...shadows.billsCard,
-    elevation: 2,
+    borderColor: colors.border,
+  },
+  meterIcon: {
+    marginRight: 12,
   },
   meterInput: {
     flex: 1,
-    padding: spacing.lg,
     fontSize: 16,
     color: colors.text,
-    marginLeft: spacing.sm,
   },
-  verifyingIndicator: {
-    padding: spacing.sm,
+  contactsButton: {
+    padding: 4,
   },
-  customerInfo: {
+  validatingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.sm,
-    padding: spacing.sm,
-    backgroundColor: colors.successTransparent,
-    borderRadius: borderRadius.small,
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: colors.primaryTransparent,
+    borderRadius: 8,
   },
-  customerLabel: {
+  validatingText: {
     fontSize: 14,
-    color: colors.secondaryText,
-    marginRight: spacing.sm,
+    color: colors.primary,
+    marginLeft: 8,
+  },
+  customerDetected: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: colors.successTransparent,
+    borderRadius: 8,
   },
   customerName: {
     fontSize: 14,
-    fontWeight: '600',
     color: colors.success,
+    fontWeight: '500',
+    marginLeft: 8,
   },
-  quickAmountsGrid: {
+  contactsList: {
+    marginTop: 12,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  contactsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  contactInfo: {
+    flex: 1,
+  },
+  contactName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  contactMeter: {
+    fontSize: 12,
+    color: colors.secondaryText,
+    marginTop: 2,
+  },
+  contactDetails: {
+    alignItems: 'flex-end',
+  },
+  contactProvider: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  contactType: {
+    fontSize: 10,
+    color: colors.secondaryText,
+    marginTop: 2,
+  },
+  amountInput: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 56,
+    fontSize: 16,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  quickAmountsContainer: {
+    marginTop: 16,
+  },
+  quickAmountsTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.secondaryText,
+    marginBottom: 8,
+  },
+  quickAmounts: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
   quickAmountButton: {
-    width: '30%',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
+    width: '18%',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    backgroundColor: colors.card,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.borderBills,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
+    borderColor: colors.border,
     alignItems: 'center',
-    ...shadows.billsCard,
-    elevation: 2,
-    position: 'relative',
+    marginBottom: 8,
   },
   quickAmountButtonSelected: {
+    backgroundColor: colors.primary,
     borderColor: colors.primary,
-    backgroundColor: colors.primaryTransparent,
-  },
-  quickAmountButtonPopular: {
-    borderColor: colors.success,
-  },
-  popularBadge: {
-    position: 'absolute',
-    top: -8,
-    right: -5,
-    backgroundColor: colors.success,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: borderRadius.small,
-  },
-  popularBadgeText: {
-    fontSize: 8,
-    fontWeight: '700',
-    color: colors.white,
   },
   quickAmountText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  quickAmountTextSelected: {
-    color: colors.primary,
-  },
-  amountInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    borderWidth: 1,
-    borderColor: colors.borderBills,
-    paddingHorizontal: spacing.lg,
-    ...shadows.billsCard,
-    elevation: 2,
-  },
-  currencySymbol: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginRight: spacing.sm,
-  },
-  amountInput: {
-    flex: 1,
-    padding: spacing.lg,
-    fontSize: 16,
-    color: colors.text,
-  },
-  amountHint: {
     fontSize: 14,
-    color: colors.secondaryText,
-    marginTop: spacing.xs,
-  },
-  infoSection: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    padding: spacing.lg,
-    ...shadows.small,
-  },
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: spacing.sm,
-  },
-  infoBullet: {
-    fontSize: 16,
-    color: colors.secondaryText,
-    marginRight: spacing.sm,
-    marginTop: 2,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.secondaryText,
-    lineHeight: 20,
-  },
-  footer: {
-    padding: spacing.lg,
-    backgroundColor: colors.background,
-  },
-  continueButton: {
-    backgroundColor: colors.primaryBills,
-    borderRadius: borderRadius.medium,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.billsCard,
-    elevation: 2,
-  },
-  continueButtonDisabled: {
-    backgroundColor: colors.disabled,
-    opacity: 0.6,
-  },
-  continueButtonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // Modal Styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalCancelText: {
-    fontSize: 16,
-    color: colors.primary,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  modalSpacer: {
-    width: 60,
-  },
-  modalContent: {
-    flex: 1,
-    padding: spacing.lg,
-  },
-  providerOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    marginBottom: spacing.sm,
-    ...shadows.small,
-  },
-  providerOptionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  providerOptionText: {
-    fontSize: 16,
     color: colors.text,
     fontWeight: '500',
-    flex: 1,
   },
-  successOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
+  quickAmountTextSelected: {
+    color: colors.white,
+  },
+  bottomPadding: {
+    height: 100,
+  },
+  footer: {
+    padding: 20,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  payButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    height: 56,
     alignItems: 'center',
-    zIndex: 1000,
+    justifyContent: 'center',
+  },
+  payButtonDisabled: {
+    backgroundColor: colors.border,
+  },
+  payButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
   },
   successContainer: {
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.large,
-    padding: spacing.xl,
-    marginHorizontal: spacing.xl,
-  },
-  successIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#A8E4A0',
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.lg,
+    paddingHorizontal: 20,
   },
   successTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
+    color: colors.success,
+    marginTop: 24,
+    textAlign: 'center',
+  },
+  successMessage: {
+    fontSize: 16,
     color: colors.text,
     textAlign: 'center',
-    marginBottom: spacing.sm,
+    marginTop: 12,
+    lineHeight: 24,
   },
-  successSubtitle: {
+  successCustomer: {
     fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 4,
+  },
+  successProvider: {
+    fontSize: 14,
     color: colors.secondaryText,
-    textAlign: 'center',
-    lineHeight: 22,
+    marginTop: 8,
+  },
+  successMeter: {
+    fontSize: 14,
+    color: colors.secondaryText,
+    marginTop: 4,
   },
 });
 

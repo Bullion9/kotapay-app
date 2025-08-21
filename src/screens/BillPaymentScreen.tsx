@@ -1,43 +1,31 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
+  TextInput,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
-  TextInput,
+  StyleSheet,
   Alert,
-  Animated,
-  Modal,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  RefreshControl,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ChevronLeft,
-  ArrowLeft,
-  Search,
   CreditCard,
   CheckCircle,
   Users,
-  QrCode,
 } from 'lucide-react-native';
-import { RootStackParamList } from '../types';
-import { colors, spacing, shadows, borderRadius, iconSizes } from '../theme';
-import { ProviderGridSkeleton, BouquetListSkeleton } from '../components/LoadingSkeleton';
-import { billNotificationService } from '../services/billNotifications';
-import { useToast } from '../components/ToastProvider';
-import LoadingOverlay from '../components/LoadingOverlay';
-import LoadingIcon from '../components/icons/LoadingIcon';
-import { useLoading } from '../hooks/useLoading';
-import PinEntryModal from '../components/PinEntryModal';
-
-type BillPaymentScreenNavigationProp = StackNavigationProp<RootStackParamList>;
-type BillPaymentScreenRouteProp = RouteProp<RootStackParamList, 'BillPayment'>;
+import { colors } from '../theme';
 
 interface Provider {
   id: string;
   name: string;
+  logo: string;
   isAvailable: boolean;
 }
 
@@ -49,830 +37,423 @@ interface Package {
   validity?: string;
 }
 
-interface PaymentForm {
-  provider: Provider | null;
-  package: Package | null;
-  accountNumber: string;
-  amount: string;
-  customAmount: boolean;
-}
-
 interface Contact {
   id: string;
   name: string;
-  phone: string;
+  accountNumber: string;
   provider?: string;
 }
 
+type BillPaymentParams = {
+  billType?: string;
+};
+
 const BillPaymentScreen: React.FC = () => {
-  const navigation = useNavigation<BillPaymentScreenNavigationProp>();
-  const route = useRoute<BillPaymentScreenRouteProp>();
+  const navigation = useNavigation();
+  const route = useRoute<{ params?: BillPaymentParams }>();
+  const insets = useSafeAreaInsets();
   
-  const { category, title } = route.params;
+  // Get bill type from route params or default to 'general'
+  const billType = route.params?.billType || 'general';
   
-  const [currentStep, setCurrentStep] = useState<'provider' | 'package' | 'details' | 'review'>('provider');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [providersLoading, setProvidersLoading] = useState(true);
-  const [packagesLoading, setPackagesLoading] = useState(false);
-  const [inputFocused, setInputFocused] = useState(false);
-  
-  // Payment loading state management
-  const {
-    isLoading: isPaymentLoading,
-    loadingState,
-    loadingMessage,
-    setConfirming,
-    setError,
-    stopLoading,
-  } = useLoading();
-  
-  const [paymentForm, setPaymentForm] = useState<PaymentForm>({
-    provider: null,
-    package: null,
-    accountNumber: '',
-    amount: '',
-    customAmount: false,
-  });
-
-  // Toast hook
-  const { showToast } = useToast();
-
-  // PIN Modal state
-  const [showPinModal, setShowPinModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [accountNumber, setAccountNumber] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
+  const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
+  const [customAmount, setCustomAmount] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showContacts, setShowContacts] = useState(false);
 
-  // Animation values
-  const successScale = useRef(new Animated.Value(0)).current;
-  const successOpacity = useRef(new Animated.Value(0)).current;
-  
-  // Timeout tracking for cleanup
-  const timeoutRefs = useRef<NodeJS.Timeout[]>([]);
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    // Reset form or reload data
+    setAccountNumber('');
+    setCustomerName('');
+    setSelectedProvider(null);
+    setSelectedPackage(null);
+    setCustomAmount('');
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  }, []);
 
-  // Animation functions (defined early to avoid dependency issues)
-  const resetAnimations = useCallback(() => {
-    successScale.setValue(0);
-    successOpacity.setValue(0);
-    setShowSuccess(false);
+  // Mock providers based on bill type
+  const getProviders = (type: string): Provider[] => {
+    const providerMap = {
+      water: [
+        { id: 'lagoswater', name: 'Lagos Water Corp', logo: '💧', isAvailable: true },
+        { id: 'abujawater', name: 'FCT Water Board', logo: '🚰', isAvailable: true },
+        { id: 'ibadanwater', name: 'Oyo State Water', logo: '💧', isAvailable: true },
+      ],
+      internet: [
+        { id: 'mtn_internet', name: 'MTN Internet', logo: '🌐', isAvailable: true },
+        { id: 'airtel_internet', name: 'Airtel Internet', logo: '📶', isAvailable: true },
+        { id: 'swift', name: 'Swift Networks', logo: '⚡', isAvailable: true },
+        { id: 'spectranet', name: 'Spectranet', logo: '📡', isAvailable: true },
+      ],
+      general: [
+        { id: 'government', name: 'Government Services', logo: '🏛️', isAvailable: true },
+        { id: 'insurance', name: 'Insurance Companies', logo: '🛡️', isAvailable: true },
+        { id: 'waste', name: 'Waste Management', logo: '🗑️', isAvailable: true },
+        { id: 'security', name: 'Security Services', logo: '🔒', isAvailable: true },
+      ],
+    };
     
-    // Clear any pending timeouts
-    timeoutRefs.current.forEach(timeout => clearTimeout(timeout));
-    timeoutRefs.current = [];
-  }, [successScale, successOpacity]);
+    return providerMap[type as keyof typeof providerMap] || providerMap.general;
+  };
 
-  // State for providers and packages
-  const [providers, setProviders] = useState<Provider[]>([]);
-  const [packages, setPackages] = useState<Package[]>([]);
-  const [showContactModal, setShowContactModal] = useState(false);
+  // Mock packages based on provider
+  const getPackages = (providerId: string): Package[] => {
+    const packageMap = {
+      lagoswater: [
+        { id: '1', name: 'Basic Plan', amount: 2000, description: 'Monthly water bill', validity: '30 days' },
+        { id: '2', name: 'Family Plan', amount: 3500, description: 'Family water usage', validity: '30 days' },
+        { id: '3', name: 'Commercial Plan', amount: 7500, description: 'Business water bill', validity: '30 days' },
+      ],
+      mtn_internet: [
+        { id: '1', name: '10GB Plan', amount: 2000, description: '10GB monthly internet', validity: '30 days' },
+        { id: '2', name: '25GB Plan', amount: 4500, description: '25GB monthly internet', validity: '30 days' },
+        { id: '3', name: '50GB Plan', amount: 8000, description: '50GB monthly internet', validity: '30 days' },
+      ],
+      government: [
+        { id: '1', name: 'Driver\'s License', amount: 6350, description: 'License renewal fee' },
+        { id: '2', name: 'Vehicle Registration', amount: 13350, description: 'Vehicle papers' },
+        { id: '3', name: 'Tax Payment', amount: 0, description: 'Custom amount', validity: 'Varies' },
+      ],
+    };
+    
+    return packageMap[providerId as keyof typeof packageMap] || [
+      { id: '1', name: 'Standard Payment', amount: 0, description: 'Custom amount payment' },
+    ];
+  };
 
-  // Mock contact data for data/internet plans
-  const mockContacts: Contact[] = [
-    { id: '1', name: 'John Doe', phone: '08012345678', provider: 'mtn' },
-    { id: '2', name: 'Jane Smith', phone: '08123456789', provider: 'mtn' },
-    { id: '3', name: 'Mike Johnson', phone: '07098765432', provider: 'glo' },
-    { id: '4', name: 'Sarah Wilson', phone: '08034567890', provider: 'airtel' },
-    { id: '5', name: 'David Brown', phone: '09012345678', provider: '9mobile' },
+  const providers = getProviders(billType);
+
+  // Mock recent contacts
+  const recentContacts: Contact[] = [
+    { id: '1', name: 'Home Account', accountNumber: '1234567890', provider: providers[0]?.name },
+    { id: '2', name: 'Office Account', accountNumber: '9876543210', provider: providers[1]?.name },
+    { id: '3', name: 'Personal Service', accountNumber: '5555666677', provider: providers[2]?.name },
   ];
 
-  // Auto-detect provider based on phone number
-  const detectProviderFromPhone = (phone: string): string | null => {
-    const cleaned = phone.replace(/\D/g, '');
-    if (cleaned.length < 4) return null;
-
-    const prefix = cleaned.slice(0, 4);
+  const handleAccountNumberChange = async (text: string) => {
+    const cleaned = text.replace(/\D/g, '');
     
-    // MTN prefixes
-    if (['0803', '0806', '0813', '0816', '0903', '0906', '0913', '0916'].some(p => prefix.startsWith(p))) {
-      return 'mtn-data';
-    }
-    
-    // GLO prefixes
-    if (['0805', '0807', '0815', '0811', '0905', '0915'].some(p => prefix.startsWith(p))) {
-      return 'glo-data';
-    }
-    
-    // Airtel prefixes
-    if (['0802', '0808', '0812', '0701', '0902', '0907', '0912'].some(p => prefix.startsWith(p))) {
-      return 'airtel-data';
-    }
-    
-    return null;
-  };
-
-  // Handle contact selection for internet/data
-  const handleContactSelect = (contact: Contact) => {
-    setPaymentForm(prev => ({ ...prev, accountNumber: contact.phone }));
-    
-    // Auto-detect provider from phone number
-    const detectedProviderId = detectProviderFromPhone(contact.phone);
-    if (detectedProviderId && category === 'internet') {
-      const detectedProvider = providers.find(p => p.id === detectedProviderId);
-      if (detectedProvider) {
-        setPaymentForm(prev => ({ ...prev, provider: detectedProvider }));
+    if (cleaned.length <= 15) {
+      setAccountNumber(cleaned);
+      setCustomerName('');
+      
+      if (cleaned.length >= 8 && selectedProvider) {
+        await validateAccount(cleaned);
       }
     }
-    
-    setShowContactModal(false);
   };
 
-  const handleQRScan = () => {
-    navigation.navigate('QRScanner');
-  };
-
-  // Cleanup function to reset states
-  const resetPaymentStates = useCallback(() => {
-    setLoading(false);
-    setShowSuccess(false);
-    setIsSubmitting(false);
-    setShowPinModal(false);
-    resetAnimations();
-  }, [resetAnimations]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      resetPaymentStates();
-    };
-  }, [resetPaymentStates]);
-
-  // Handle QR scan results for meter/account numbers
-  useEffect(() => {
-    if (route.params?.scannedData) {
-      const scannedData = route.params.scannedData;
-      
-      // Try to extract account/meter number from QR data
-      try {
-        const qrData = JSON.parse(scannedData);
-        
-        if (qrData.accountNumber || qrData.meterNumber) {
-          const accountNumber = qrData.accountNumber || qrData.meterNumber;
-          setPaymentForm(prev => ({ ...prev, accountNumber }));
-          Alert.alert('QR Code Scanned', `Account number set: ${accountNumber}`);
-        } else if (qrData.billData) {
-          // Handle structured bill data
-          const { accountNumber, amount } = qrData.billData;
-          setPaymentForm(prev => ({ 
-            ...prev, 
-            accountNumber,
-            amount: amount?.toString() || prev.amount 
-          }));
-          Alert.alert('Bill Data Scanned', `Account: ${accountNumber}`);
-        }
-        
-      } catch {
-        // If not JSON, treat as plain text (maybe just an account number)
-        const cleanedData = scannedData.trim();
-        if (cleanedData.length > 0) {
-          setPaymentForm(prev => ({ ...prev, accountNumber: cleanedData }));
-          Alert.alert('QR Code Scanned', `Account number set: ${cleanedData}`);
-        }
-      }
-      
-      // Clear the scanned data from route params
-      navigation.setParams({ scannedData: undefined });
-    }
-  }, [route.params?.scannedData, navigation]);
-
-  const loadProviders = useCallback(() => {
-    setProvidersLoading(true);
-    
-    // Simulate API call delay
-    setTimeout(() => {
-      // Mock providers based on category
-      const mockProviders: Record<string, Provider[]> = {
-        electricity: [
-          { id: 'ekedc', name: 'Eko Electricity Distribution Company', isAvailable: true },
-          { id: 'ikedc', name: 'Ikeja Electric', isAvailable: true },
-          { id: 'kedco', name: 'Kano Electricity Distribution Company', isAvailable: true },
-          { id: 'phed', name: 'Port Harcourt Electricity Distribution', isAvailable: true },
-        ],
-        airtime: [
-          { id: 'mtn', name: 'MTN Nigeria', isAvailable: true },
-          { id: 'glo', name: 'Globacom Limited', isAvailable: true },
-          { id: 'airtel', name: 'Airtel Nigeria', isAvailable: true },
-          { id: '9mobile', name: '9mobile', isAvailable: true },
-        ],
-        internet: [
-          { id: 'mtn-data', name: 'MTN Data', isAvailable: true },
-          { id: 'glo-data', name: 'Glo Data', isAvailable: true },
-          { id: 'airtel-data', name: 'Airtel Data', isAvailable: true },
-          { id: 'smile', name: 'Smile Communications', isAvailable: true },
-        ],
-        betting: [
-          { id: 'bet9ja', name: 'Bet9ja', isAvailable: true },
-          { id: 'sportybet', name: 'SportyBet', isAvailable: true },
-          { id: 'betking', name: 'BetKing', isAvailable: true },
-          { id: 'nairabet', name: 'NairaBet', isAvailable: true },
-          { id: '1xbet', name: '1xBet', isAvailable: true },
-          { id: 'betway', name: 'Betway', isAvailable: true },
-        ],
-        water: [
-          { id: 'lagoswater', name: 'Lagos Water Corporation', isAvailable: true },
-          { id: 'abujawater', name: 'FCT Water Board', isAvailable: true },
-          { id: 'kadwater', name: 'Kaduna State Water Board', isAvailable: true },
-        ],
-        cable: [
-          { id: 'dstv', name: 'DStv', isAvailable: true },
-          { id: 'gotv', name: 'GOtv', isAvailable: true },
-          { id: 'startimes', name: 'StarTimes', isAvailable: true },
-        ],
-      };
-      
-      setProviders(mockProviders[category] || []);
-      setProvidersLoading(false);
-    }, 1500); // 1.5 second delay to show skeleton
-  }, [category]);
-
-  useEffect(() => {
-    loadProviders();
-  }, [loadProviders]);
-
-  const loadPackages = (providerId: string) => {
-    setPackagesLoading(true);
-    
-    // Simulate API call delay
-    setTimeout(() => {
-      // Mock packages based on provider and category
-      const mockPackages: Record<string, Package[]> = {
-        mtn: [
-          { id: 'mtn-100', name: '₦100 Airtime', amount: 100, description: 'Basic airtime top-up' },
-          { id: 'mtn-200', name: '₦200 Airtime', amount: 200, description: 'Standard airtime top-up' },
-          { id: 'mtn-500', name: '₦500 Airtime', amount: 500, description: 'Premium airtime top-up' },
-          { id: 'mtn-custom', name: 'Custom Amount', amount: 0, description: 'Enter your preferred amount' },
-        ],
-        'mtn-data': [
-          { id: 'mtn-1gb', name: '1GB Data', amount: 350, description: '1GB - Valid for 30 days', validity: '30 days' },
-          { id: 'mtn-2gb', name: '2GB Data', amount: 700, description: '2GB - Valid for 30 days', validity: '30 days' },
-          { id: 'mtn-5gb', name: '5GB Data', amount: 1500, description: '5GB - Valid for 30 days', validity: '30 days' },
-          { id: 'mtn-10gb', name: '10GB Data', amount: 3000, description: '10GB - Valid for 30 days', validity: '30 days' },
-        ],
-        ekedc: [
-          { id: 'ekedc-custom', name: 'Custom Amount', amount: 0, description: 'Enter the amount to pay' },
-        ],
-        bet9ja: [
-          { id: 'bet9ja-500', name: '₦500 Funding', amount: 500, description: 'Fund your Bet9ja account' },
-          { id: 'bet9ja-1000', name: '₦1,000 Funding', amount: 1000, description: 'Fund your Bet9ja account' },
-          { id: 'bet9ja-2000', name: '₦2,000 Funding', amount: 2000, description: 'Fund your Bet9ja account' },
-          { id: 'bet9ja-5000', name: '₦5,000 Funding', amount: 5000, description: 'Fund your Bet9ja account' },
-          { id: 'bet9ja-custom', name: 'Custom Amount', amount: 0, description: 'Enter your preferred amount' },
-        ],
-        sportybet: [
-          { id: 'sportybet-500', name: '₦500 Funding', amount: 500, description: 'Fund your SportyBet account' },
-          { id: 'sportybet-1000', name: '₦1,000 Funding', amount: 1000, description: 'Fund your SportyBet account' },
-          { id: 'sportybet-2000', name: '₦2,000 Funding', amount: 2000, description: 'Fund your SportyBet account' },
-          { id: 'sportybet-5000', name: '₦5,000 Funding', amount: 5000, description: 'Fund your SportyBet account' },
-          { id: 'sportybet-custom', name: 'Custom Amount', amount: 0, description: 'Enter your preferred amount' },
-        ],
-        betking: [
-          { id: 'betking-500', name: '₦500 Funding', amount: 500, description: 'Fund your BetKing account' },
-          { id: 'betking-1000', name: '₦1,000 Funding', amount: 1000, description: 'Fund your BetKing account' },
-          { id: 'betking-2000', name: '₦2,000 Funding', amount: 2000, description: 'Fund your BetKing account' },
-          { id: 'betking-5000', name: '₦5,000 Funding', amount: 5000, description: 'Fund your BetKing account' },
-          { id: 'betking-custom', name: 'Custom Amount', amount: 0, description: 'Enter your preferred amount' },
-        ],
-        dstv: [
-          { id: 'dstv-compact', name: 'DStv Compact', amount: 9000, description: 'Monthly subscription', validity: '30 days' },
-          { id: 'dstv-premium', name: 'DStv Premium', amount: 21000, description: 'Monthly subscription', validity: '30 days' },
-          { id: 'dstv-family', name: 'DStv Family', amount: 4000, description: 'Monthly subscription', validity: '30 days' },
-        ],
-      };
-      
-      setPackages(mockPackages[providerId] || []);
-      setPackagesLoading(false);
-    }, 1000); // 1 second delay to show skeleton
-  };
-
-  const filteredProviders = providers.filter(provider =>
-    provider.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleProviderSelect = (provider: Provider) => {
-    setPaymentForm(prev => ({ ...prev, provider }));
-    setCurrentStep('package');
-    loadPackages(provider.id);
-  };
-
-  const handlePackageSelect = (pkg: Package) => {
-    setPaymentForm(prev => ({ ...prev, package: pkg }));
-    setCurrentStep('details');
-  };
-
-  // Animation functions
-  const showSuccessAnimation = useCallback(() => {
-    setShowSuccess(true);
-    successScale.setValue(0);
-    successOpacity.setValue(0);
-    
-    // Use the same animation as SendMoneyScreen
-    Animated.spring(successScale, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 8,
-    }).start();
-    
-    Animated.timing(successOpacity, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [successScale, successOpacity]);
-
-  // PIN verification handler
-  const handlePinVerified = async (pin: string) => {
-    console.log('PIN verified:', pin);
-    if (loading || isSubmitting) return; // Prevent double execution
-    
-    setIsSubmitting(true);
-    
-    // Hide PIN modal after a short delay to show processing
-    const timeout = setTimeout(() => {
-      setShowPinModal(false);
-      proceedWithPayment();
-    }, 1500);
-    timeoutRefs.current.push(timeout);
-  };
-
-  // Modified payment handler to show PIN modal
-  const handlePayment = async () => {
-    if (!validateForm() || isPaymentLoading || isSubmitting) return; // Prevent double execution
-    setShowPinModal(true);
-  };
-
-  // Actual payment processing
-  const proceedWithPayment = async () => {
-    if (!validateForm() || isPaymentLoading) return; // Prevent double execution
-    
-    const transactionId = `bill_${Date.now()}`;
-    const billAmount = paymentForm.customAmount ? parseFloat(paymentForm.amount) : paymentForm.package?.amount || 0;
+  const validateAccount = async (account: string) => {
+    if (!selectedProvider || account.length < 8) return;
     
     try {
-      // Start confirming phase directly (skip loading)
-      setConfirming('Confirming transaction...');
+      setIsValidating(true);
       
-      // Send pending notification
-      await billNotificationService.sendBillPaymentPendingNotification({
-        transactionId,
-        billType: category as any,
-        provider: paymentForm.provider?.name || 'Provider',
-        amount: billAmount,
-        accountNumber: paymentForm.accountNumber,
-      });
-
-      // Mock API call
-      await new Promise<void>(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Send success notification
-      await billNotificationService.sendBillPaymentSuccessNotification({
-        transactionId,
-        billType: category as any,
-        provider: paymentForm.provider?.name || 'Provider',
-        amount: billAmount,
-        accountNumber: paymentForm.accountNumber,
-      });
-
-      // Stop loading before success animation
-      stopLoading();
-
-      // After loading is complete, start success animation
-      showSuccessAnimation();
+      const mockNames = [
+        'John Doe',
+        'Jane Smith',
+        'Michael Johnson',
+        'Sarah Williams',
+        'David Brown'
+      ];
       
-      // Auto dismiss after 2 seconds like other screens
-      const timeout = setTimeout(() => {
-        setIsSubmitting(false);
-        resetAnimations();
+      const name = mockNames[Math.floor(Math.random() * mockNames.length)];
+      setCustomerName(name);
+      
+    } catch {
+      Alert.alert('Error', 'Failed to validate account number');
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const selectContact = (contact: Contact) => {
+    setAccountNumber(contact.accountNumber);
+    const provider = providers.find(p => p.name === contact.provider);
+    if (provider) {
+      setSelectedProvider(provider);
+      setSelectedPackage(null);
+      validateAccount(contact.accountNumber);
+    }
+    setShowContacts(false);
+  };
+
+  const selectProvider = (provider: Provider) => {
+    setSelectedProvider(provider);
+    setSelectedPackage(null);
+    setCustomerName('');
+    
+    if (accountNumber.length >= 8) {
+      validateAccount(accountNumber);
+    }
+  };
+
+  const handlePayment = async () => {
+    if (!accountNumber || !selectedProvider) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    const amount = selectedPackage?.amount || parseInt(customAmount);
+    if (!amount || amount < 100) {
+      Alert.alert('Error', 'Please select a package or enter a valid amount (minimum ₦100)');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      setIsLoading(false);
+      setShowSuccess(true);
+      
+      setTimeout(() => {
+        setShowSuccess(false);
         navigation.goBack();
-      }, 2000);
-      timeoutRefs.current.push(timeout);
-    } catch (error) {
-      console.error('Payment failed:', error);
+      }, 3000);
       
-      // Stop loading and show error
-      setError('Bill payment failed');
-      setIsSubmitting(false);
-      setShowSuccess(false);
-      resetAnimations();
-      
-      // Send failure notification
-      await billNotificationService.sendBillPaymentFailedNotification({
-        transactionId,
-        billType: category as any,
-        provider: paymentForm.provider?.name || 'Provider',
-        amount: billAmount,
-        accountNumber: paymentForm.accountNumber,
-      }, 'Network error occurred');
-
-      // Show error toast
-      showToast('error', 'Bill payment failed. Please try again.');
-      
-      Alert.alert('❌ Payment Failed', 'Please try again later.');
+    } catch {
+      setIsLoading(false);
+      Alert.alert('Error', 'Failed to process payment. Please try again.');
     }
   };
 
-  const validateForm = (): boolean => {
-    if (!paymentForm.provider) {
-      Alert.alert('Error', 'Please select a provider');
-      return false;
+  const isFormValid = accountNumber.length >= 8 && selectedProvider && 
+    (selectedPackage || customAmount);
+
+  const getScreenTitle = () => {
+    switch (billType) {
+      case 'water': return 'Water Bills';
+      case 'internet': return 'Internet Bills';
+      case 'general': return 'Bill Payment';
+      default: return 'Bill Payment';
     }
-    
-    if (!paymentForm.package) {
-      Alert.alert('Error', 'Please select a package');
-      return false;
-    }
-    
-    if (!paymentForm.accountNumber.trim()) {
-      const fieldName = category === 'electricity' ? 'meter number' : 
-                       category === 'betting' ? 'account ID/username' :
-                       category === 'cable' ? 'smart card number' :
-                       category === 'water' ? 'account number' :
-                       'phone number';
-      Alert.alert('Error', `Please enter your ${fieldName}`);
-      return false;
-    }
-    
-    if (paymentForm.customAmount && (!paymentForm.amount || parseFloat(paymentForm.amount) <= 0)) {
-      Alert.alert('Error', 'Please enter a valid amount');
-      return false;
-    }
-    
-    return true;
   };
 
-  const renderProviderStep = () => (
-    <View style={styles.stepContainer}>
-      
-      <View style={styles.searchContainer}>
-        <Search size={iconSizes.sm} color={colors.secondaryText} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search providers..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholderTextColor={colors.placeholder}
-        />
-      </View>
-      
-      <ScrollView style={styles.providersList}>
-        {providersLoading ? (
-          <ProviderGridSkeleton />
-        ) : (
-          filteredProviders.map((provider) => (
-            <TouchableOpacity
-              key={provider.id}
-              style={styles.providerItem}
-              onPress={() => handleProviderSelect(provider)}
-            >
-              <View style={styles.providerInfo}>
-                <Text style={styles.providerName}>{provider.name}</Text>
-                <Text style={styles.providerStatus}>
-                  {provider.isAvailable ? 'Available' : 'Coming Soon'}
-                </Text>
-              </View>
-              <ArrowLeft size={iconSizes.sm} color={colors.secondaryText} style={{ transform: [{ rotate: '180deg' }] }} />
-            </TouchableOpacity>
-          ))
-        )}
-      </ScrollView>
-    </View>
-  );
-
-  const renderPackageStep = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Select Package</Text>
-      <Text style={styles.stepSubtitle}>Provider: {paymentForm.provider?.name}</Text>
-      
-      <ScrollView style={styles.packagesList}>
-        {packagesLoading ? (
-          <BouquetListSkeleton />
-        ) : (
-          packages.map((pkg) => (
-          <TouchableOpacity
-            key={pkg.id}
-            style={styles.packageItem}
-            onPress={() => handlePackageSelect(pkg)}
-          >
-            <View style={styles.packageInfo}>
-              <Text style={styles.packageName}>{pkg.name}</Text>
-              <Text style={styles.packageDescription}>{pkg.description}</Text>
-              {pkg.validity && (
-                <Text style={styles.packageValidity}>Valid for {pkg.validity}</Text>
-              )}
-            </View>
-            {pkg.amount > 0 && (
-              <Text style={styles.packageAmount}>₦{pkg.amount.toLocaleString()}</Text>
-            )}
-          </TouchableOpacity>
-          ))
-        )}
-      </ScrollView>
-    </View>
-  );
-
-  const renderDetailsStep = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Payment Details</Text>
-      
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>
-          {category === 'electricity' ? 'Meter Number' : 
-           category === 'betting' ? 'Account ID/Username' :
-           category === 'cable' ? 'Smart Card Number' :
-           category === 'water' ? 'Account Number' :
-           'Phone Number'}
-        </Text>
-        {category === 'internet' ? (
-          <View style={styles.phoneInputContainer}>
-            <TextInput
-              style={[
-                styles.phoneInput,
-                inputFocused && styles.inputFocused
-              ]}
-              placeholder="Enter phone number"
-              value={paymentForm.accountNumber}
-              onChangeText={(text) => setPaymentForm(prev => ({ ...prev, accountNumber: text }))}
-              onFocus={() => setInputFocused(true)}
-              onBlur={() => setInputFocused(false)}
-              keyboardType="phone-pad"
-              placeholderTextColor={colors.placeholder}
-            />
-            <TouchableOpacity
-              style={styles.contactButton}
-              onPress={() => setShowContactModal(true)}
-            >
-              <Users size={iconSizes.md} color={colors.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.qrButton}
-              onPress={handleQRScan}
-            >
-              <QrCode size={iconSizes.md} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.phoneInputContainer}>
-            <TextInput
-              style={[
-                styles.phoneInput,
-                inputFocused && styles.inputFocused
-              ]}
-              placeholder={
-                category === 'electricity' ? 'Enter meter number' : 
-                category === 'betting' ? 'Enter your account ID/username' :
-                category === 'cable' ? 'Enter smart card number' :
-                category === 'water' ? 'Enter account number' :
-                'Enter phone number'
-              }
-              value={paymentForm.accountNumber}
-              onChangeText={(text) => setPaymentForm(prev => ({ ...prev, accountNumber: text }))}
-              onFocus={() => setInputFocused(true)}
-              onBlur={() => setInputFocused(false)}
-              keyboardType={category === 'electricity' || category === 'cable' || category === 'water' ? 'default' : 'phone-pad'}
-              placeholderTextColor={colors.placeholder}
-            />
-            {(category === 'electricity' || category === 'cable' || category === 'water') && (
-              <TouchableOpacity
-                style={styles.qrButton}
-                onPress={handleQRScan}
-              >
-                <QrCode size={iconSizes.md} color={colors.primary} />
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-      </View>
-      
-      {paymentForm.customAmount && (
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Amount</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter amount"
-            value={paymentForm.amount}
-            onChangeText={(text) => setPaymentForm(prev => ({ ...prev, amount: text }))}
-            keyboardType="numeric"
-            placeholderTextColor={colors.placeholder}
-          />
-        </View>
-      )}
-      
-      <TouchableOpacity
-        style={styles.continueButton}
-        onPress={() => setCurrentStep('review')}
-      >
-        <Text style={styles.continueButtonText}>Continue to Review</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderReviewStep = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Review Payment</Text>
-      
-      <View style={styles.reviewCard}>
-        <View style={styles.reviewItem}>
-          <Text style={styles.reviewLabel}>Provider</Text>
-          <Text style={styles.reviewValue}>{paymentForm.provider?.name}</Text>
-        </View>
-        
-        <View style={styles.reviewItem}>
-          <Text style={styles.reviewLabel}>Package</Text>
-          <Text style={styles.reviewValue}>{paymentForm.package?.name}</Text>
-        </View>
-        
-        <View style={styles.reviewItem}>
-          <Text style={styles.reviewLabel}>
-            {category === 'electricity' ? 'Meter Number' : 
-             category === 'betting' ? 'Account ID' :
-             category === 'cable' ? 'Smart Card Number' :
-             category === 'water' ? 'Account Number' :
-             'Phone Number'}
+  if (showSuccess) {
+    const amount = selectedPackage?.amount || parseInt(customAmount);
+    
+    return (
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.successContainer}>
+          <CheckCircle size={80} color={colors.success} />
+          <Text style={styles.successTitle}>Payment Successful!</Text>
+          <Text style={styles.successMessage}>
+            ₦{amount} payment has been processed
           </Text>
-          <Text style={styles.reviewValue}>{paymentForm.accountNumber}</Text>
+          {customerName && (
+            <Text style={styles.successCustomer}>for {customerName}</Text>
+          )}
+          <Text style={styles.successProvider}>via {selectedProvider?.name}</Text>
+          <Text style={styles.successAccount}>Account: {accountNumber}</Text>
         </View>
-        
-        <View style={styles.reviewItem}>
-          <Text style={styles.reviewLabel}>Amount</Text>
-          <Text style={styles.reviewAmount}>₦{parseFloat(paymentForm.amount || '0').toLocaleString()}</Text>
-        </View>
-      </View>
-      
-      <TouchableOpacity
-        style={[styles.payButton, (isPaymentLoading || isSubmitting) && styles.payButtonDisabled]}
-        onPress={handlePayment}
-        disabled={isPaymentLoading || isSubmitting}
-      >
-        {(isPaymentLoading || isSubmitting) ? (
-          <LoadingIcon size={24} strokeWidth={3} />
-        ) : (
-          <>
-            <CreditCard size={iconSizes.sm} color={colors.white} />
-            <Text style={styles.payButtonText}>Pay Now</Text>
-          </>
-        )}
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderCurrentStep = () => {
-    switch (currentStep) {
-      case 'provider':
-        return renderProviderStep();
-      case 'package':
-        return renderPackageStep();
-      case 'details':
-        return renderDetailsStep();
-      case 'review':
-        return renderReviewStep();
-      default:
-        return renderProviderStep();
-    }
-  };
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => {
-            if (currentStep === 'provider') {
-              navigation.goBack();
-            } else {
-              // Go back to previous step
-              const steps = ['provider', 'package', 'details', 'review'];
-              const currentIndex = steps.indexOf(currentStep);
-              if (currentIndex > 0) {
-                setCurrentStep(steps[currentIndex - 1] as typeof currentStep);
-              }
-            }
-          }}
-        >
-          <ChevronLeft size={24} color="#000d10" />
-        </TouchableOpacity>
-        
-        <View style={styles.headerPlaceholder} />
-        <Text style={styles.headerTitle}>{title}</Text>
-        <View style={styles.headerPlaceholder} />
-      </View>
-
-      {/* Progress Indicator */}
-      <View style={styles.progressContainer}>
-        {['provider', 'package', 'details', 'review'].map((step, index) => (
-          <View
-            key={step}
-            style={[
-              styles.progressStep,
-              step === currentStep && styles.progressStepActive,
-              ['provider', 'package', 'details', 'review'].indexOf(currentStep) > index && styles.progressStepCompleted,
-            ]}
-          />
-        ))}
-      </View>
-
-      {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {renderCurrentStep()}
-      </ScrollView>
-
-      {/* Success Animation */}
-      {showSuccess && (
-        <View style={styles.processingOverlay}>
-          <Animated.View
-            style={[
-              styles.successContainer,
-              {
-                opacity: successOpacity.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.7, 1],
-                }),
-                transform: [
-                  {
-                    scale: successScale.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.9, 1],
-                    }),
-                  },
-                ],
-              },
-            ]}
+      <KeyboardAvoidingView 
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
           >
-            <CheckCircle size={60} color={colors.success} />
-            <Text style={styles.successText}>Payment Successful!</Text>
-          </Animated.View>
+            <ChevronLeft size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{getScreenTitle()}</Text>
+          <View style={styles.placeholder} />
         </View>
-      )}
 
-      {/* PIN Entry Modal */}
-      <PinEntryModal
-        key={`pin-modal-${showPinModal ? Date.now() : 'closed'}`}
-        visible={showPinModal}
-        onClose={() => {
-          setShowPinModal(false);
-          setIsSubmitting(false);
-          resetAnimations();
-        }}
-        onPinEntered={handlePinVerified}
-        title="Enter your PIN"
-        subtitle="Authorize this bill payment"
-        allowBiometric={true}
-      />
-
-      {/* Contact Selection Modal for Internet Data */}
-      {category === 'internet' && (
-        <Modal
-          visible={showContactModal}
-          animationType="slide"
-          presentationStyle="pageSheet"
-          onRequestClose={() => setShowContactModal(false)}
+        <ScrollView 
+          style={styles.content} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         >
-          <SafeAreaView style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Contact</Text>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setShowContactModal(false)}
-              >
-                <Text style={styles.modalCloseText}>Cancel</Text>
-              </TouchableOpacity>
+          {/* Provider Selection */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Select Provider</Text>
+            <View style={styles.providersGrid}>
+              {providers.map((provider) => (
+                <TouchableOpacity
+                  key={provider.id}
+                  style={[
+                    styles.providerCard,
+                    selectedProvider?.id === provider.id && styles.providerCardSelected,
+                    !provider.isAvailable && styles.providerCardDisabled
+                  ]}
+                  onPress={() => provider.isAvailable && selectProvider(provider)}
+                  disabled={!provider.isAvailable}
+                >
+                  <Text style={styles.providerEmoji}>{provider.logo}</Text>
+                  <Text style={[
+                    styles.providerName,
+                    !provider.isAvailable && styles.providerNameDisabled
+                  ]}>
+                    {provider.name}
+                  </Text>
+                  {!provider.isAvailable && (
+                    <Text style={styles.comingSoon}>Coming Soon</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
             </View>
-            
-            <ScrollView style={styles.contactList}>
-              {mockContacts.map((contact) => {
-                const detectedProviderId = detectProviderFromPhone(contact.phone);
-                const detectedProvider = detectedProviderId 
-                  ? providers.find(p => p.id === detectedProviderId)
-                  : null;
-                
-                return (
+          </View>
+
+          {/* Account Number Input */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Account/Reference Number</Text>
+            <View style={styles.accountInputContainer}>
+              <View style={styles.accountInputWrapper}>
+                <CreditCard size={20} color={colors.secondaryText} style={styles.accountIcon} />
+                <TextInput
+                  style={styles.accountInput}
+                  value={accountNumber}
+                  onChangeText={handleAccountNumberChange}
+                  placeholder="Enter account number"
+                  keyboardType="numeric"
+                  maxLength={15}
+                />
+                <TouchableOpacity 
+                  style={styles.contactsButton}
+                  onPress={() => setShowContacts(!showContacts)}
+                >
+                  <Users size={20} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+              
+              {isValidating && (
+                <View style={styles.validatingContainer}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={styles.validatingText}>Validating account...</Text>
+                </View>
+              )}
+              
+              {customerName && !isValidating && (
+                <View style={styles.customerDetected}>
+                  <CheckCircle size={16} color={colors.success} />
+                  <Text style={styles.customerName}>Account: {customerName}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Recent Contacts */}
+            {showContacts && (
+              <View style={styles.contactsList}>
+                <Text style={styles.contactsTitle}>Recent Accounts</Text>
+                {recentContacts.map(contact => (
                   <TouchableOpacity
                     key={contact.id}
                     style={styles.contactItem}
-                    onPress={() => handleContactSelect(contact)}
+                    onPress={() => selectContact(contact)}
                   >
                     <View style={styles.contactInfo}>
                       <Text style={styles.contactName}>{contact.name}</Text>
-                      <Text style={styles.contactPhone}>{contact.phone}</Text>
+                      <Text style={styles.contactAccount}>{contact.accountNumber}</Text>
                     </View>
-                    {detectedProvider && (
-                      <View style={styles.providerBadge}>
-                        <Text style={styles.providerBadgeText}>{detectedProvider.name}</Text>
-                      </View>
+                    {contact.provider && (
+                      <Text style={styles.contactProvider}>{contact.provider}</Text>
                     )}
                   </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </SafeAreaView>
-        </Modal>
-      )}
+                ))}
+              </View>
+            )}
+          </View>
 
-      {/* Loading Overlay */}
-      <LoadingOverlay
-        visible={isPaymentLoading}
-        type={loadingState}
-        message={loadingMessage}
-      />
+          {/* Package Selection */}
+          {selectedProvider && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Select Package</Text>
+              <View style={styles.packagesContainer}>
+                {getPackages(selectedProvider.id).map((pkg) => (
+                  <TouchableOpacity
+                    key={pkg.id}
+                    style={[
+                      styles.packageCard,
+                      selectedPackage?.id === pkg.id && styles.packageCardSelected
+                    ]}
+                    onPress={() => {
+                      setSelectedPackage(pkg);
+                      if (pkg.amount === 0) {
+                        setCustomAmount('');
+                      } else {
+                        setCustomAmount('');
+                      }
+                    }}
+                  >
+                    <View style={styles.packageInfo}>
+                      <Text style={styles.packageName}>{pkg.name}</Text>
+                      <Text style={styles.packageDescription}>{pkg.description}</Text>
+                      {pkg.validity && (
+                        <Text style={styles.packageValidity}>Valid for {pkg.validity}</Text>
+                      )}
+                    </View>
+                    <View style={styles.packagePricing}>
+                      {pkg.amount > 0 ? (
+                        <Text style={styles.packagePrice}>₦{pkg.amount}</Text>
+                      ) : (
+                        <Text style={styles.customAmountLabel}>Custom</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Custom Amount Input */}
+              {selectedPackage?.amount === 0 && (
+                <View style={styles.customAmountContainer}>
+                  <Text style={styles.customAmountTitle}>Enter Amount</Text>
+                  <TextInput
+                    style={styles.customAmountInput}
+                    value={customAmount}
+                    onChangeText={setCustomAmount}
+                    placeholder="Enter custom amount"
+                    keyboardType="numeric"
+                  />
+                </View>
+              )}
+            </View>
+          )}
+
+          <View style={styles.bottomPadding} />
+        </ScrollView>
+
+        {/* Pay Button */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.payButton, !isFormValid && styles.payButtonDisabled]}
+            onPress={handlePayment}
+            disabled={!isFormValid || isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <Text style={styles.payButtonText}>
+                Pay Bill {(selectedPackage?.amount || customAmount) && 
+                  `(₦${selectedPackage?.amount || customAmount})`}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -882,120 +463,193 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  keyboardContainer: {
+    flex: 1,
+  },
   header: {
-    backgroundColor: '#FFF0F5',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    paddingTop: spacing.xl,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFF0F5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
   },
   backButton: {
-    padding: 8,
-  },
-  headerPlaceholder: {
-    flex: 1,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000d10',
-    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
   },
-  progressContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-  },
-  progressStep: {
-    flex: 1,
-    height: 4,
-    backgroundColor: colors.disabled,
-    marginHorizontal: 2,
-    borderRadius: 2,
-  },
-  progressStepActive: {
-    backgroundColor: colors.seaGreen,
-  },
-  progressStepCompleted: {
-    backgroundColor: colors.success,
+  placeholder: {
+    width: 40,
+    height: 40,
   },
   content: {
     flex: 1,
-    padding: spacing.md,
+    paddingHorizontal: 20,
   },
-  stepContainer: {
-    flex: 1,
+  section: {
+    marginTop: 24,
   },
-  stepTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  stepSubtitle: {
-    fontSize: 16,
-    color: colors.secondaryText,
-    marginBottom: spacing.lg,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.lg,
-    ...shadows.small,
-    elevation: 2,
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    paddingLeft: spacing.sm,
-    fontSize: 16,
-    color: colors.text,
-  },
-  providersList: {
-    flex: 1,
-  },
-  providerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    ...shadows.billsCard,
-    elevation: 2,
-  },
-  providerInfo: {
-    flex: 1,
-  },
-  providerName: {
+  sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing.xs,
+    marginBottom: 12,
   },
-  providerStatus: {
+  providersGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  providerCard: {
+    width: '48%',
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  providerCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryTransparent,
+  },
+  providerCardDisabled: {
+    opacity: 0.5,
+  },
+  providerEmoji: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  providerName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  providerNameDisabled: {
+    color: colors.secondaryText,
+  },
+  comingSoon: {
+    fontSize: 10,
+    color: colors.secondaryText,
+    marginTop: 4,
+  },
+  accountInputContainer: {
+    marginBottom: 12,
+  },
+  accountInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 56,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  accountIcon: {
+    marginRight: 12,
+  },
+  accountInput: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.text,
+  },
+  contactsButton: {
+    padding: 4,
+  },
+  validatingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: colors.primaryTransparent,
+    borderRadius: 8,
+  },
+  validatingText: {
+    fontSize: 14,
+    color: colors.primary,
+    marginLeft: 8,
+  },
+  customerDetected: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: colors.successTransparent,
+    borderRadius: 8,
+  },
+  customerName: {
     fontSize: 14,
     color: colors.success,
+    fontWeight: '500',
+    marginLeft: 8,
   },
-  packagesList: {
-    flex: 1,
+  contactsList: {
+    marginTop: 12,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  packageItem: {
+  contactsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  contactItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    ...shadows.billsCard,
-    elevation: 2,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  contactInfo: {
+    flex: 1,
+  },
+  contactName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  contactAccount: {
+    fontSize: 12,
+    color: colors.secondaryText,
+    marginTop: 2,
+  },
+  contactProvider: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  packagesContainer: {
+    gap: 12,
+  },
+  packageCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  packageCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryTransparent,
   },
   packageInfo: {
     flex: 1,
@@ -1004,221 +658,108 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing.xs,
+    marginBottom: 4,
   },
   packageDescription: {
     fontSize: 14,
-    color: colors.secondaryText,
-    marginBottom: spacing.xs,
-  },
-  packageValidity: {
-    fontSize: 12,
-    color: colors.success,
-  },
-  packageAmount: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.primaryBills,
-  },
-  formGroup: {
-    marginBottom: spacing.lg,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  input: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    borderWidth: 1,
-    borderColor: colors.borderBills,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: 16,
-    color: colors.text,
-    ...shadows.billsCard,
-    elevation: 2,
-  },
-  inputFocused: {
-    borderColor: colors.borderFocusBills,
-  },
-  continueButton: {
-    backgroundColor: colors.primaryBills,
-    borderRadius: borderRadius.medium,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-    marginTop: spacing.xl,
-  },
-  continueButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.white,
-  },
-  reviewCard: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-    ...shadows.billsCard,
-    elevation: 2,
-  },
-  reviewItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  reviewLabel: {
-    fontSize: 16,
-    color: colors.secondaryText,
-  },
-  reviewValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    textAlign: 'right',
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  reviewAmount: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.primaryBills,
-  },
-  payButton: {
-    backgroundColor: colors.seaGreen,
-    borderRadius: borderRadius.medium,
-    paddingVertical: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  payButtonDisabled: {
-    backgroundColor: colors.disabled,
-  },
-  payButtonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.white,
-  },
-  processingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  successContainer: {
-    position: 'absolute',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.large,
-    padding: spacing.xl,
-    marginHorizontal: spacing.xl,
-  },
-  successText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.success,
-    textAlign: 'center',
-    marginTop: spacing.md,
-  },
-  phoneInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.borderBills,
-    borderRadius: borderRadius.small,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  phoneInput: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.text,
-    paddingVertical: spacing.xs,
-  },
-  contactButton: {
-    padding: 8,
-    marginLeft: spacing.sm,
-  },
-  qrButton: {
-    padding: 8,
-    marginLeft: spacing.sm,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderBills,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  modalCloseButton: {
-    padding: spacing.sm,
-  },
-  modalCloseText: {
-    fontSize: 16,
-    color: colors.primary,
-    fontWeight: '500',
-  },
-  contactList: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-  },
-  contactItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderBills,
-  },
-  contactInfo: {
-    flex: 1,
-  },
-  contactName: {
-    fontSize: 16,
-    fontWeight: '500',
     color: colors.text,
     marginBottom: 4,
   },
-  contactPhone: {
-    fontSize: 14,
+  packageValidity: {
+    fontSize: 12,
     color: colors.secondaryText,
   },
-  providerBadge: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: borderRadius.small,
-    marginLeft: spacing.md,
+  packagePricing: {
+    alignItems: 'flex-end',
   },
-  providerBadgeText: {
-    fontSize: 12,
+  packagePrice: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  customAmountLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  customAmountContainer: {
+    marginTop: 16,
+  },
+  customAmountTitle: {
+    fontSize: 14,
     fontWeight: '500',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  customAmountInput: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 56,
+    fontSize: 16,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  bottomPadding: {
+    height: 100,
+  },
+  footer: {
+    padding: 20,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  payButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payButtonDisabled: {
+    backgroundColor: colors.border,
+  },
+  payButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.white,
+  },
+  successContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.success,
+    marginTop: 24,
+    textAlign: 'center',
+  },
+  successMessage: {
+    fontSize: 16,
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: 12,
+    lineHeight: 24,
+  },
+  successCustomer: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 4,
+  },
+  successProvider: {
+    fontSize: 14,
+    color: colors.secondaryText,
+    marginTop: 8,
+  },
+  successAccount: {
+    fontSize: 14,
+    color: colors.secondaryText,
+    marginTop: 4,
   },
 });
 

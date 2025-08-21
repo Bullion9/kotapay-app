@@ -57,6 +57,9 @@ import {
   TopUpScreen,
   BettingScreen,
   AirtimeTopUpScreen,
+  DataTopUpScreen,
+  CableTVScreen,
+  ElectricityBillScreen,
   PayWithLinkScreen,
   ReceiptScreen,
   SecuritySettingsScreen,
@@ -464,8 +467,43 @@ export default function AppNavigator() {
           }}
         />
         <Stack.Screen 
+          name="BettingScreen" 
+          component={BettingScreen}
+          options={{ 
+            headerShown: false // We handle header in the component
+          }}
+        />
+        <Stack.Screen 
           name="AirtimeTopUp" 
           component={AirtimeTopUpScreen}
+          options={{ 
+            headerShown: false // We handle header in the component
+          }}
+        />
+        <Stack.Screen 
+          name="AirtimeTopUpScreen" 
+          component={AirtimeTopUpScreen}
+          options={{ 
+            headerShown: false // We handle header in the component
+          }}
+        />
+        <Stack.Screen 
+          name="DataTopUpScreen" 
+          component={DataTopUpScreen}
+          options={{ 
+            headerShown: false // We handle header in the component
+          }}
+        />
+        <Stack.Screen 
+          name="CableTVScreen" 
+          component={CableTVScreen}
+          options={{ 
+            headerShown: false // We handle header in the component
+          }}
+        />
+        <Stack.Screen 
+          name="ElectricityBillScreen" 
+          component={ElectricityBillScreen}
           options={{ 
             headerShown: false // We handle header in the component
           }}

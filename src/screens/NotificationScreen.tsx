@@ -17,7 +17,6 @@ import {
   Check,
   Trash2,
 } from 'lucide-react-native';
-// @ts-ignore
 import * as Haptics from 'expo-haptics';
 import { colors, spacing, borderRadius, iconSizes, globalStyles } from '../theme';
 

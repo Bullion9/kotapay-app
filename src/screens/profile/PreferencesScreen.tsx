@@ -21,7 +21,6 @@ import {
   Phone,
   ChevronRight,
 } from 'lucide-react-native';
-// @ts-ignore
 import * as Haptics from 'expo-haptics';
 
 const PreferencesScreen: React.FC = () => {

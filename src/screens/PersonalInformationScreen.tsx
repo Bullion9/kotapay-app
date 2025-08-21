@@ -28,7 +28,6 @@ import {
   ChevronLeft,
   Camera,
 } from 'lucide-react-native';
-// @ts-ignore
 import * as Haptics from 'expo-haptics';
 import { theme } from '../theme';
 import { useProfileImage } from '../contexts/ProfileImageContext';

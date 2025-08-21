@@ -312,7 +312,7 @@ class AppwriteService {
     );
   }
 
-  subscribeToDocument(collectionId: string, documentId: string, callback: (payload: any) => void) {
+  subscribeToDocument(collectionId: string, documentId: string, callback: (payload: unknown) => void) {
     return client.subscribe(
       `databases.${APPWRITE_CONFIG.databaseId}.collections.${collectionId}.documents.${documentId}`,
       callback

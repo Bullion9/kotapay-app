@@ -108,7 +108,12 @@ export type RootStackParamList = {
   CashOut: undefined;
   TopUp: undefined;
   Betting: undefined;
+  BettingScreen: undefined;
   AirtimeTopUp: undefined;
+  AirtimeTopUpScreen: undefined;
+  DataTopUpScreen: undefined;
+  CableTVScreen: undefined;
+  ElectricityBillScreen: undefined;
   CreateVirtualCardScreen: undefined;
   VirtualCardDetailScreen: { cardId: string };
   TopUpVirtualCardScreen: { cardId: string };

@@ -21,7 +21,6 @@ import {
   View,
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
-// @ts-ignore
 import * as Haptics from 'expo-haptics';
 
 const SecurityScreen: React.FC = () => {

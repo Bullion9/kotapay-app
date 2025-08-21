@@ -44,9 +44,8 @@ const ContactDetailScreen: React.FC = () => {
   };
 
   const handleSendMoney = () => {
-    // TODO: Update to use SendScreen modal
-    // (navigation as any).navigate('SendMoney', { contact });
-    Alert.alert('Send Money', 'Send money feature will be available soon');
+    // Navigate to SendScreen with contact
+    (navigation as any).navigate('Send', { contact });
   };
 
   const handleRequestMoney = () => {

@@ -1,540 +1,390 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
+  TextInput,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
-  TextInput,
-  Modal,
+  StyleSheet,
   Alert,
-  Animated,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ChevronLeft,
-  ChevronDown,
-  Check,
+  Tv,
   CheckCircle,
-  CreditCard,
+  Users,
 } from 'lucide-react-native';
-import { RootStackParamList } from '../types';
-import { colors, spacing, shadows, borderRadius, iconSizes } from '../theme';
-import PinEntryModal from '../components/PinEntryModal';
-import LoadingOverlay from '../components/LoadingOverlay';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { useLoading } from '../hooks/useLoading';
-import { billNotificationService } from '../services/billNotifications';
-import { useToast } from '../components/ToastProvider';
-
-type CableTVScreenNavigationProp = StackNavigationProp<RootStackParamList>;
+import { colors } from '../theme';
 
 interface CableProvider {
   id: string;
   name: string;
-  color: string;
   logo: string;
+  color: string;
 }
 
 interface CablePlan {
   id: string;
   name: string;
-  amount: number;
+  price: number;
   duration: string;
-  features: string[];
-  popular?: boolean;
+  channels: string;
+}
+
+interface Contact {
+  id: string;
+  name: string;
+  smartCardNumber: string;
+  provider?: string;
 }
 
 const CableTVScreen: React.FC = () => {
-  const navigation = useNavigation<CableTVScreenNavigationProp>();
-
-  // Cable TV providers
-  const cableProviders: CableProvider[] = [
-    {
-      id: 'dstv',
-      name: 'DSTV',
-      color: '#FFD700',
-      logo: 'DStv',
-    },
-    {
-      id: 'gotv',
-      name: 'GOtv',
-      color: '#FF6B35',
-      logo: 'GOtv',
-    },
-    {
-      id: 'startimes',
-      name: 'Startimes',
-      color: '#1E90FF',
-      logo: 'Star',
-    },
-  ];
-
-  // Cable TV plans
-  const cablePlans: CablePlan[] = [
-    {
-      id: '1',
-      name: 'DStv Padi',
-      amount: 2950,
-      duration: '1 month',
-      features: ['Local channels', 'Sports', 'Movies'],
-    },
-    {
-      id: '2',
-      name: 'DStv Yanga',
-      amount: 4200,
-      duration: '1 month',
-      features: ['Local channels', 'Sports', 'Movies', 'Kids channels'],
-      popular: true,
-    },
-    {
-      id: '3',
-      name: 'DStv Confam',
-      amount: 7400,
-      duration: '1 month',
-      features: ['All Yanga channels', 'Premium sports', 'International news'],
-    },
-    {
-      id: '4',
-      name: 'GOtv Smallie',
-      amount: 1500,
-      duration: '1 month',
-      features: ['Local channels', 'Basic entertainment'],
-    },
-    {
-      id: '5',
-      name: 'GOtv Jinja',
-      amount: 2700,
-      duration: '1 month',
-      features: ['Extended local channels', 'Sports', 'Movies'],
-    },
-    {
-      id: '6',
-      name: 'Startimes Basic',
-      amount: 1200,
-      duration: '1 month',
-      features: ['Local channels', 'News', 'Educational'],
-    },
-  ];
-
-  // State management
-  const [selectedProvider, setSelectedProvider] = useState<CableProvider | null>(null);
-  const [showProviderModal, setShowProviderModal] = useState(false);
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  
+  const [refreshing, setRefreshing] = useState(false);
   const [smartCardNumber, setSmartCardNumber] = useState('');
   const [customerName, setCustomerName] = useState('');
+  const [selectedProvider, setSelectedProvider] = useState<CableProvider | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<CablePlan | null>(null);
-  const [showPinModal, setShowPinModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  
-  // Loading state management
-  const { isLoading, loadingState, loadingMessage, setConfirming, setError, stopLoading } = useLoading();
-  
-  // Animation state for success feedback  
-  const animationValue = useRef(new Animated.Value(0)).current;
+  const [showContacts, setShowContacts] = useState(false);
 
-  // Toast hook
-  const { showToast } = useToast();
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    // Reset form or reload data
+    setSmartCardNumber('');
+    setCustomerName('');
+    setSelectedProvider(null);
+    setSelectedPlan(null);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  }, []);
 
-  // Validation functions
-  const validateSmartCardNumber = (number: string): boolean => {
-    // Smart card numbers are typically 10-12 digits
-    const cleanNumber = number.replace(/\s/g, '');
-    return cleanNumber.length >= 10 && cleanNumber.length <= 12 && /^\d+$/.test(cleanNumber);
+  const providers: CableProvider[] = [
+    { id: 'dstv', name: 'DStv', logo: '📺', color: '#FFD700' },
+    { id: 'gotv', name: 'GOtv', logo: '📡', color: '#00A651' },
+    { id: 'startimes', name: 'StarTimes', logo: '⭐', color: '#E31E24' },
+    { id: 'showmax', name: 'Showmax', logo: '🎬', color: '#FF6B35' },
+  ];
+
+  // Mock recent contacts for demo
+  const recentContacts: Contact[] = [
+    { id: '1', name: 'Home Subscription', smartCardNumber: '1234567890', provider: 'DStv' },
+    { id: '2', name: 'Office Cable', smartCardNumber: '9876543210', provider: 'GOtv' },
+    { id: '3', name: 'Family Plan', smartCardNumber: '5555666677', provider: 'StarTimes' },
+  ];
+
+  // Mock cable plans
+  const getCablePlans = (providerId: string): CablePlan[] => {
+    const plans = {
+      dstv: [
+        { id: '1', name: 'DStv Access', price: 2150, duration: '1 month', channels: '90+ channels' },
+        { id: '2', name: 'DStv Family', price: 4000, duration: '1 month', channels: '120+ channels' },
+        { id: '3', name: 'DStv Compact', price: 7900, duration: '1 month', channels: '175+ channels' },
+        { id: '4', name: 'DStv Premium', price: 18400, duration: '1 month', channels: '220+ channels' },
+      ],
+      gotv: [
+        { id: '1', name: 'GOtv Lite', price: 410, duration: '1 month', channels: '15+ channels' },
+        { id: '2', name: 'GOtv Value', price: 1520, duration: '1 month', channels: '45+ channels' },
+        { id: '3', name: 'GOtv Plus', price: 2700, duration: '1 month', channels: '65+ channels' },
+        { id: '4', name: 'GOtv Max', price: 4850, duration: '1 month', channels: '95+ channels' },
+      ],
+      startimes: [
+        { id: '1', name: 'Nova Bouquet', price: 900, duration: '1 month', channels: '35+ channels' },
+        { id: '2', name: 'Basic Bouquet', price: 1700, duration: '1 month', channels: '50+ channels' },
+        { id: '3', name: 'Smart Bouquet', price: 2200, duration: '1 month', channels: '65+ channels' },
+        { id: '4', name: 'Classic Bouquet', price: 2500, duration: '1 month', channels: '75+ channels' },
+      ],
+      showmax: [
+        { id: '1', name: 'Mobile Plan', price: 1200, duration: '1 month', channels: 'Mobile only' },
+        { id: '2', name: 'Standard Plan', price: 2900, duration: '1 month', channels: 'All devices' },
+        { id: '3', name: 'Pro Plan', price: 4900, duration: '1 month', channels: 'HD + Sports' },
+      ],
+    };
+    
+    return plans[providerId as keyof typeof plans] || [];
   };
 
-  const validateForm = (): boolean => {
-    if (!selectedProvider) {
-      Alert.alert('Error', 'Please select a cable TV provider');
-      return false;
-    }
-    if (!smartCardNumber.trim()) {
-      Alert.alert('Error', 'Please enter your smart card number');
-      return false;
-    }
-    if (!validateSmartCardNumber(smartCardNumber)) {
-      Alert.alert('Error', 'Please enter a valid smart card number (10-12 digits)');
-      return false;
-    }
-    if (!selectedPlan) {
-      Alert.alert('Error', 'Please select a subscription plan');
-      return false;
-    }
-    return true;
-  };
-
-  // Format smart card number as user types
-  const formatSmartCardNumber = (text: string): string => {
+  const handleSmartCardChange = async (text: string) => {
+    // Remove any non-digit characters
     const cleaned = text.replace(/\D/g, '');
-    const truncated = cleaned.slice(0, 12);
     
-    // Format as XXXX XXXX XXXX
-    if (truncated.length >= 9) {
-      return truncated.replace(/(\d{4})(\d{4})(\d{0,4})/, '$1 $2 $3').trim();
-    } else if (truncated.length >= 5) {
-      return truncated.replace(/(\d{4})(\d{0,4})/, '$1 $2').trim();
-    }
-    return truncated;
-  };
-
-  // Handle smart card number input with verification
-  const handleSmartCardNumberChange = async (text: string) => {
-    const formatted = formatSmartCardNumber(text);
-    setSmartCardNumber(formatted);
-    
-    // Auto-verify when smart card number is complete
-    if (formatted.replace(/\s/g, '').length >= 10) {
-      setIsVerifying(true);
+    // Limit to 12 digits (typical smart card number length)
+    if (cleaned.length <= 12) {
+      setSmartCardNumber(cleaned);
+      setCustomerName(''); // Reset customer name when card number changes
       
-      // Simulate verification
-      await new Promise<void>(resolve => setTimeout(resolve, 300));
-      
-      // Mock customer name based on smart card number
-      const mockNames = ['John Doe', 'Jane Smith', 'Mike Johnson', 'Sarah Wilson', 'David Brown'];
-      const randomName = mockNames[Math.floor(Math.random() * mockNames.length)];
-      setCustomerName(randomName);
-      
-      setIsVerifying(false);
-    } else {
-      setCustomerName('');
+      // Auto-validate when number is complete (10+ digits)
+      if (cleaned.length >= 10) {
+        await validateSmartCard(cleaned);
+      }
     }
   };
 
-  // Handle cable plan selection
-  const handlePlanSelect = (plan: CablePlan) => {
-    setSelectedPlan(plan);
+  const validateSmartCard = async (cardNumber: string) => {
+    if (!selectedProvider || cardNumber.length < 10) return;
+    
+    try {
+      setIsValidating(true);
+      
+      // Mock API call to validate smart card
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Mock customer name based on card number
+      const mockNames = [
+        'John Doe',
+        'Jane Smith',
+        'Michael Johnson',
+        'Sarah Williams',
+        'David Brown'
+      ];
+      
+      const name = mockNames[Math.floor(Math.random() * mockNames.length)];
+      setCustomerName(name);
+      
+    } catch {
+      Alert.alert('Error', 'Failed to validate smart card number');
+    } finally {
+      setIsValidating(false);
+    }
   };
 
-  // Handle continue button press
-  const handleContinue = () => {
-    if (!validateForm() || showPinModal) return;
-    setShowPinModal(true);
+  const selectContact = (contact: Contact) => {
+    setSmartCardNumber(contact.smartCardNumber);
+    const provider = providers.find(p => p.name === contact.provider);
+    if (provider) {
+      setSelectedProvider(provider);
+      setSelectedPlan(null);
+      validateSmartCard(contact.smartCardNumber);
+    }
+    setShowContacts(false);
   };
 
-  // Handle PIN verification and transaction processing
-  const handlePinVerified = async (enteredPin: string) => {
-    setShowPinModal(false);
+  const selectProvider = (provider: CableProvider) => {
+    setSelectedProvider(provider);
+    setSelectedPlan(null); // Reset plan when provider changes
+    setCustomerName(''); // Reset customer name
+    
+    // Re-validate if we have a card number
+    if (smartCardNumber.length >= 10) {
+      validateSmartCard(smartCardNumber);
+    }
+  };
 
-    const transactionId = `cable_${Date.now()}`;
-    const transactionAmount = selectedPlan?.amount || 0;
+  const handleSubscription = async () => {
+    if (!smartCardNumber || !selectedProvider || !selectedPlan || !customerName) {
+      Alert.alert('Error', 'Please fill in all required fields and validate smart card');
+      return;
+    }
+
+    if (smartCardNumber.length < 10) {
+      Alert.alert('Error', 'Please enter a valid smart card number');
+      return;
+    }
 
     try {
-      // Start confirming phase directly (skip loading)
-      setConfirming('Confirming cable TV subscription...');
+      setIsLoading(true);
       
-      // Send pending notification
-      showToast('warning', 'Processing cable TV subscription...', 2000);
+      // Mock API call
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      await billNotificationService.sendBillPaymentPendingNotification({
-        transactionId,
-        billType: 'cable',
-        provider: selectedProvider?.name || 'Provider',
-        amount: transactionAmount,
-        accountNumber: smartCardNumber,
-      });
-
-      // Mock transaction processing
-      await new Promise<void>(resolve => setTimeout(resolve, 2000));
-      
-      // Send success notification
-      await billNotificationService.sendBillPaymentSuccessNotification({
-        transactionId,
-        billType: 'cable',
-        provider: selectedProvider?.name || 'Provider',
-        amount: transactionAmount,
-        accountNumber: smartCardNumber,
-      });
-
-      // End loading before success animation
-      stopLoading();
-
-      // Show success toast
-      showToast('success', 'Cable TV subscription successful!');
-
-      // Show animated success feedback
+      setIsLoading(false);
       setShowSuccess(true);
-      animationValue.setValue(0);
-      Animated.spring(animationValue, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8,
-      }).start();
-
-      // Auto dismiss after 2 seconds
+      
+      // Auto-dismiss success after 3 seconds
       setTimeout(() => {
         setShowSuccess(false);
-        navigation.navigate('MainTabs');
-      }, 2000);
-    } catch (error) {
-      console.error('Transaction failed:', error);
+        navigation.goBack();
+      }, 3000);
       
-      setError('Cable TV subscription failed');
-      
-      await billNotificationService.sendBillPaymentFailedNotification({
-        transactionId,
-        billType: 'cable',
-        provider: selectedProvider?.name || 'Provider',
-        amount: transactionAmount,
-        accountNumber: smartCardNumber,
-      }, 'Network error occurred');
-
-      showToast('error', 'Cable TV subscription failed. Please try again.');
-      Alert.alert('❌ Transaction Failed', 'Please try again later.');
+    } catch {
+      setIsLoading(false);
+      Alert.alert('Error', 'Failed to process subscription. Please try again.');
     }
   };
 
-  // Provider selection component
-  const ProviderSelector: React.FC = () => (
-    <TouchableOpacity
-      style={[
-        styles.providerSelector,
-        selectedProvider && { borderColor: selectedProvider.color }
-      ]}
-      onPress={() => setShowProviderModal(true)}
-    >
-      <View style={styles.providerSelectorContent}>
-        {selectedProvider ? (
-          <>
-            <View style={[styles.providerLogo, { backgroundColor: selectedProvider.color }]}>
-              <Text style={styles.providerLogoText}>{selectedProvider.logo}</Text>
-            </View>
-            <Text style={styles.providerSelectorText}>{selectedProvider.name}</Text>
-          </>
-        ) : (
-          <Text style={styles.providerSelectorPlaceholder}>Select cable TV provider</Text>
-        )}
-      </View>
-      <ChevronDown size={iconSizes.md} color={colors.secondaryText} />
-    </TouchableOpacity>
-  );
+  const isFormValid = smartCardNumber.length >= 10 && selectedProvider && selectedPlan && customerName;
 
-  // Provider modal component
-  const ProviderModal: React.FC = () => (
-    <Modal
-      visible={showProviderModal}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={() => setShowProviderModal(false)}
-    >
-      <SafeAreaView style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <TouchableOpacity onPress={() => setShowProviderModal(false)}>
-            <Text style={styles.modalCancelText}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={styles.modalTitle}>Select Provider</Text>
-          <View style={styles.modalSpacer} />
+  if (showSuccess) {
+    return (
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.successContainer}>
+          <CheckCircle size={80} color={colors.success} />
+          <Text style={styles.successTitle}>Subscription Successful!</Text>
+          <Text style={styles.successMessage}>
+            {selectedPlan?.name} subscription has been activated for
+          </Text>
+          <Text style={styles.successCustomer}>{customerName}</Text>
+          <Text style={styles.successProvider}>via {selectedProvider?.name}</Text>
+          <Text style={styles.successPrice}>Amount: ₦{selectedPlan?.price}</Text>
         </View>
-        
-        <ScrollView style={styles.modalContent}>
-          {cableProviders.map((provider) => (
-            <TouchableOpacity
-              key={provider.id}
-              style={styles.providerOption}
-              onPress={() => {
-                setSelectedProvider(provider);
-                setShowProviderModal(false);
-              }}
-            >
-              <View style={styles.providerOptionContent}>
-                <View style={[styles.providerLogo, { backgroundColor: provider.color }]}>
-                  <Text style={styles.providerLogoText}>{provider.logo}</Text>
-                </View>
-                <Text style={styles.providerOptionText}>{provider.name}</Text>
-              </View>
-              {selectedProvider?.id === provider.id && (
-                <Check size={iconSizes.md} color={colors.success} />
-              )}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
       </SafeAreaView>
-    </Modal>
-  );
-
-  // Cable plan card component
-  const PlanCard: React.FC<{ plan: CablePlan }> = ({ plan }) => (
-    <TouchableOpacity
-      style={[
-        styles.planCard,
-        selectedPlan?.id === plan.id && styles.planCardSelected,
-        plan.popular && styles.planCardPopular
-      ]}
-      onPress={() => handlePlanSelect(plan)}
-    >
-      {plan.popular && (
-        <View style={styles.popularBadge}>
-          <Text style={styles.popularBadgeText}>POPULAR</Text>
-        </View>
-      )}
-      <Text
-        style={[
-          styles.planName,
-          selectedPlan?.id === plan.id && styles.planNameSelected
-        ]}
-      >
-        {plan.name}
-      </Text>
-      <Text
-        style={[
-          styles.planAmount,
-          selectedPlan?.id === plan.id && styles.planAmountSelected
-        ]}
-      >
-        ₦{plan.amount.toLocaleString()}
-      </Text>
-      <Text style={styles.planDuration}>{plan.duration}</Text>
-      <View style={styles.planFeatures}>
-        {plan.features.map((feature, index) => (
-          <Text key={index} style={styles.planFeature}>• {feature}</Text>
-        ))}
-      </View>
-    </TouchableOpacity>
-  );
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ChevronLeft size={24} color="#000d10" />
-        </TouchableOpacity>
-        <View style={styles.headerPlaceholder} />
-        <Text style={styles.headerTitle}>Cable TV</Text>
-        <View style={styles.headerPlaceholder} />
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Cable TV Provider Selection */}
-        <View style={styles.section}>
-          <ProviderSelector />
+      <KeyboardAvoidingView 
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <ChevronLeft size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Cable TV</Text>
+          <View style={styles.placeholder} />
         </View>
 
-        {/* Smart Card Number Input */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Smart Card Number</Text>
-          <View style={styles.smartCardInputContainer}>
-            <CreditCard size={iconSizes.md} color={colors.secondaryText} />
-            <TextInput
-              style={styles.smartCardInput}
-              placeholder="1234 5678 9012"
-              value={smartCardNumber}
-              onChangeText={handleSmartCardNumberChange}
-              keyboardType="numeric"
-              maxLength={14} // For formatted number: XXXX XXXX XXXX
-            />
-            {isVerifying && (
-              <View style={styles.verifyingIndicator}>
-                <LoadingSpinner size={20} color={colors.primary} />
+        <ScrollView 
+          style={styles.content} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {/* Cable Provider Selection */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Select Provider</Text>
+            <View style={styles.providersGrid}>
+              {providers.map((provider) => (
+                <TouchableOpacity
+                  key={provider.id}
+                  style={[
+                    styles.providerCard,
+                    selectedProvider?.id === provider.id && styles.providerCardSelected
+                  ]}
+                  onPress={() => selectProvider(provider)}
+                >
+                  <Text style={styles.providerEmoji}>{provider.logo}</Text>
+                  <Text style={styles.providerName}>{provider.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Smart Card Number Input */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Smart Card Number</Text>
+            <View style={styles.cardInputContainer}>
+              <View style={styles.cardInputWrapper}>
+                <Tv size={20} color={colors.secondaryText} style={styles.cardIcon} />
+                <TextInput
+                  style={styles.cardInput}
+                  value={smartCardNumber}
+                  onChangeText={handleSmartCardChange}
+                  placeholder="Enter smart card number"
+                  keyboardType="numeric"
+                  maxLength={12}
+                />
+                <TouchableOpacity 
+                  style={styles.contactsButton}
+                  onPress={() => setShowContacts(!showContacts)}
+                >
+                  <Users size={20} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+              
+              {isValidating && (
+                <View style={styles.validatingContainer}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={styles.validatingText}>Validating smart card...</Text>
+                </View>
+              )}
+              
+              {customerName && !isValidating && (
+                <View style={styles.customerDetected}>
+                  <CheckCircle size={16} color={colors.success} />
+                  <Text style={styles.customerName}>Customer: {customerName}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Recent Contacts */}
+            {showContacts && (
+              <View style={styles.contactsList}>
+                <Text style={styles.contactsTitle}>Recent Subscriptions</Text>
+                {recentContacts.map(contact => (
+                  <TouchableOpacity
+                    key={contact.id}
+                    style={styles.contactItem}
+                    onPress={() => selectContact(contact)}
+                  >
+                    <View style={styles.contactInfo}>
+                      <Text style={styles.contactName}>{contact.name}</Text>
+                      <Text style={styles.contactCard}>{contact.smartCardNumber}</Text>
+                    </View>
+                    {contact.provider && (
+                      <Text style={styles.contactNetwork}>{contact.provider}</Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
               </View>
             )}
           </View>
-          {customerName && (
-            <View style={styles.customerInfo}>
-              <Text style={styles.customerLabel}>Customer Name:</Text>
-              <Text style={styles.customerName}>{customerName}</Text>
+
+          {/* Subscription Plans */}
+          {selectedProvider && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Select Plan</Text>
+              <View style={styles.plansContainer}>
+                {getCablePlans(selectedProvider.id).map((plan) => (
+                  <TouchableOpacity
+                    key={plan.id}
+                    style={[
+                      styles.planCard,
+                      selectedPlan?.id === plan.id && styles.planCardSelected
+                    ]}
+                    onPress={() => setSelectedPlan(plan)}
+                  >
+                    <View style={styles.planInfo}>
+                      <Text style={styles.planName}>{plan.name}</Text>
+                      <Text style={styles.planChannels}>{plan.channels}</Text>
+                      <Text style={styles.planDuration}>Valid for {plan.duration}</Text>
+                    </View>
+                    <View style={styles.planPricing}>
+                      <Text style={styles.planPrice}>₦{plan.price}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           )}
-        </View>
 
-        {/* Subscription Plans */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select Subscription Plan</Text>
-          <View style={styles.plansContainer}>
-            {cablePlans.map((plan) => (
-              <PlanCard key={plan.id} plan={plan} />
-            ))}
-          </View>
-        </View>
+          <View style={styles.bottomPadding} />
+        </ScrollView>
 
-        {/* Information Section */}
-        <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>Transaction Details</Text>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoBullet}>•</Text>
-            <Text style={styles.infoText}>Subscription will be activated instantly</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoBullet}>•</Text>
-            <Text style={styles.infoText}>Valid for the selected period</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoBullet}>•</Text>
-            <Text style={styles.infoText}>No additional charges apply</Text>
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* Continue Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[
-            styles.continueButton,
-            (!selectedProvider || !smartCardNumber || !selectedPlan || isLoading || showPinModal) && styles.continueButtonDisabled
-          ]}
-          onPress={handleContinue}
-          disabled={!selectedProvider || !smartCardNumber || !selectedPlan || isLoading || showPinModal}
-        >
-          <Text style={styles.continueButtonText}>
-            {isLoading ? 'Processing...' : 'Continue'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Modals */}
-      <ProviderModal />
-      
-      {/* PIN Entry Modal */}
-      <PinEntryModal
-        visible={showPinModal}
-        onClose={() => setShowPinModal(false)}
-        onPinEntered={handlePinVerified}
-        title="Enter PIN to Confirm"
-        subtitle={`Subscribe to ${selectedPlan?.name} for ${smartCardNumber} (${selectedProvider?.name}) - ₦${selectedPlan?.amount.toLocaleString()}`}
-        allowBiometric={true}
-      />
-
-      {/* Success Animation Overlay */}
-      {showSuccess && (
-        <View style={styles.successOverlay}>
-          <Animated.View
-            style={[
-              styles.successContainer,
-              {
-                opacity: animationValue.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.7, 1],
-                }),
-                transform: [
-                  {
-                    scale: animationValue.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.9, 1],
-                    }),
-                  },
-                ],
-              },
-            ]}
+        {/* Subscribe Button */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.subscribeButton, !isFormValid && styles.subscribeButtonDisabled]}
+            onPress={handleSubscription}
+            disabled={!isFormValid || isLoading}
           >
-            <View style={styles.successIcon}>
-              <CheckCircle size={60} color={colors.white} />
-            </View>
-            <Text style={styles.successTitle}>Subscription Successful!</Text>
-            <Text style={styles.successSubtitle}>
-              {selectedPlan?.name} activated for {smartCardNumber}
-            </Text>
-          </Animated.View>
+            {isLoading ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <Text style={styles.subscribeButtonText}>
+                Subscribe {selectedPlan && `(₦${selectedPlan.price})`}
+              </Text>
+            )}
+          </TouchableOpacity>
         </View>
-      )}
-      
-      {/* Loading Overlay */}
-      <LoadingOverlay 
-        visible={isLoading}
-        type={loadingState}
-        message={loadingMessage}
-      />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -542,321 +392,269 @@ const CableTVScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF0F5',
+    backgroundColor: colors.background,
   },
-  header: {
-    backgroundColor: '#FFF0F5',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    paddingTop: spacing.xl,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerPlaceholder: {
+  keyboardContainer: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFF0F5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000d10',
-    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  placeholder: {
+    width: 40,
+    height: 40,
   },
   content: {
     flex: 1,
-    padding: spacing.lg,
+    paddingHorizontal: 20,
   },
   section: {
-    marginBottom: spacing.xl,
+    marginTop: 24,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing.sm,
+    marginBottom: 12,
   },
-  providerSelector: {
+  providersGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  providerCard: {
+    width: '48%',
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
     borderWidth: 1,
-    borderColor: colors.borderBills,
-    ...shadows.billsCard,
-    elevation: 2,
+    borderColor: colors.border,
   },
-  providerSelectorContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  providerCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryTransparent,
   },
-  providerLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
+  providerEmoji: {
+    fontSize: 32,
+    marginBottom: 8,
   },
-  providerLogoText: {
+  providerName: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.white,
-  },
-  providerSelectorText: {
-    fontSize: 16,
-    color: colors.text,
     fontWeight: '500',
+    color: colors.text,
   },
-  providerSelectorPlaceholder: {
-    fontSize: 16,
-    color: colors.secondaryText,
+  cardInputContainer: {
+    marginBottom: 12,
   },
-  smartCardInputContainer: {
+  cardInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 56,
     borderWidth: 1,
-    borderColor: colors.borderBills,
-    paddingHorizontal: spacing.lg,
-    ...shadows.billsCard,
-    elevation: 2,
+    borderColor: colors.border,
   },
-  smartCardInput: {
+  cardIcon: {
+    marginRight: 12,
+  },
+  cardInput: {
     flex: 1,
-    padding: spacing.lg,
     fontSize: 16,
     color: colors.text,
-    marginLeft: spacing.sm,
   },
-  verifyingIndicator: {
-    padding: spacing.sm,
+  contactsButton: {
+    padding: 4,
   },
-  customerInfo: {
+  validatingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.sm,
-    padding: spacing.sm,
-    backgroundColor: colors.successTransparent,
-    borderRadius: borderRadius.small,
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: colors.primaryTransparent,
+    borderRadius: 8,
   },
-  customerLabel: {
+  validatingText: {
     fontSize: 14,
-    color: colors.secondaryText,
-    marginRight: spacing.sm,
+    color: colors.primary,
+    marginLeft: 8,
+  },
+  customerDetected: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: colors.successTransparent,
+    borderRadius: 8,
   },
   customerName: {
     fontSize: 14,
-    fontWeight: '600',
     color: colors.success,
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+  contactsList: {
+    marginTop: 12,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  contactsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  contactInfo: {
+    flex: 1,
+  },
+  contactName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  contactCard: {
+    fontSize: 12,
+    color: colors.secondaryText,
+    marginTop: 2,
+  },
+  contactNetwork: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
   },
   plansContainer: {
-    gap: spacing.md,
+    gap: 12,
   },
   planCard: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
     borderWidth: 1,
-    borderColor: colors.borderBills,
-    padding: spacing.lg,
-    ...shadows.billsCard,
-    elevation: 2,
-    position: 'relative',
+    borderColor: colors.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   planCardSelected: {
     borderColor: colors.primary,
     backgroundColor: colors.primaryTransparent,
   },
-  planCardPopular: {
-    borderColor: colors.success,
-  },
-  popularBadge: {
-    position: 'absolute',
-    top: -8,
-    right: spacing.md,
-    backgroundColor: colors.success,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.small,
-  },
-  popularBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.white,
+  planInfo: {
+    flex: 1,
   },
   planName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  planNameSelected: {
-    color: colors.primary,
-  },
-  planAmount: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing.xs,
+    marginBottom: 4,
   },
-  planAmountSelected: {
-    color: colors.primary,
+  planChannels: {
+    fontSize: 14,
+    color: colors.text,
+    marginBottom: 4,
   },
   planDuration: {
-    fontSize: 14,
-    color: colors.secondaryText,
-    marginBottom: spacing.sm,
-  },
-  planFeatures: {
-    gap: spacing.xs,
-  },
-  planFeature: {
     fontSize: 12,
     color: colors.secondaryText,
   },
-  infoSection: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    padding: spacing.lg,
-    ...shadows.small,
+  planPricing: {
+    alignItems: 'flex-end',
   },
-  infoTitle: {
+  planPrice: {
     fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: spacing.sm,
-  },
-  infoBullet: {
-    fontSize: 16,
-    color: colors.secondaryText,
-    marginRight: spacing.sm,
-    marginTop: 2,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.secondaryText,
-    lineHeight: 20,
-  },
-  footer: {
-    padding: spacing.lg,
-    backgroundColor: colors.background,
-  },
-  continueButton: {
-    backgroundColor: colors.primaryBills,
-    borderRadius: borderRadius.medium,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.billsCard,
-    elevation: 2,
-  },
-  continueButtonDisabled: {
-    backgroundColor: colors.disabled,
-    opacity: 0.6,
-  },
-  continueButtonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // Modal Styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalCancelText: {
-    fontSize: 16,
+    fontWeight: '700',
     color: colors.primary,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
+  bottomPadding: {
+    height: 100,
   },
-  modalSpacer: {
-    width: 60,
+  footer: {
+    padding: 20,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
-  modalContent: {
-    flex: 1,
-    padding: spacing.lg,
-  },
-  providerOption: {
-    flexDirection: 'row',
+  subscribeButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    height: 56,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    marginBottom: spacing.sm,
-    ...shadows.small,
-  },
-  providerOptionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  providerOptionText: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  successOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
+  },
+  subscribeButtonDisabled: {
+    backgroundColor: colors.border,
+  },
+  subscribeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
   },
   successContainer: {
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.large,
-    padding: spacing.xl,
-    marginHorizontal: spacing.xl,
-  },
-  successIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#A8E4A0',
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.lg,
+    paddingHorizontal: 20,
   },
   successTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
+    color: colors.success,
+    marginTop: 24,
+    textAlign: 'center',
+  },
+  successMessage: {
+    fontSize: 16,
     color: colors.text,
     textAlign: 'center',
-    marginBottom: spacing.sm,
+    marginTop: 12,
+    lineHeight: 24,
   },
-  successSubtitle: {
+  successCustomer: {
     fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 4,
+  },
+  successProvider: {
+    fontSize: 14,
     color: colors.secondaryText,
-    textAlign: 'center',
-    lineHeight: 22,
+    marginTop: 8,
+  },
+  successPrice: {
+    fontSize: 14,
+    color: colors.secondaryText,
+    marginTop: 4,
   },
 });
 

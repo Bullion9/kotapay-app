@@ -1,37 +1,28 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
+  TextInput,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
-  TextInput,
-  Modal,
+  StyleSheet,
   Alert,
-  Animated,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Image,
-  ImageSourcePropType,
+  RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ChevronLeft,
-  ChevronDown,
   Phone,
-  Check,
   CheckCircle,
   Users,
+  Wifi,
 } from 'lucide-react-native';
-import { RootStackParamList } from '../types';
-import { colors, spacing, shadows, borderRadius, iconSizes } from '../theme';
-import PinEntryModal from '../components/PinEntryModal';
-import LoadingOverlay from '../components/LoadingOverlay';
-import PageLoadingOverlay from '../components/PageLoadingOverlay';
-import { useLoading } from '../hooks/useLoading';
-import { usePageLoading } from '../hooks/usePageLoading';
-import { billNotificationService } from '../services/billNotifications';
-import { useToast } from '../components/ToastProvider';
+import { colors } from '../theme';
 
 // Import network provider logos
 const mtnLogo = require('../../logo/MTN.png');
@@ -39,565 +30,356 @@ const gloLogo = require('../../logo/Glo.png');
 const airtelLogo = require('../../logo/Airtel.png');
 const nineMobileLogo = require('../../logo/9mobile.png');
 
-type DataTopUpScreenNavigationProp = StackNavigationProp<RootStackParamList>;
-
 interface DataProvider {
   id: string;
   name: string;
   color: string;
-  logo: ImageSourcePropType;
+  logo: any;
 }
 
 interface DataPlan {
   id: string;
-  value: string;
-  amount: number;
+  name: string;
+  size: string;
+  price: number;
   validity: string;
-  bonus?: string;
 }
 
 interface Contact {
   id: string;
   name: string;
-  phone: string;
-  provider?: string;
+  phoneNumber: string;
+  network?: string;
 }
 
 const DataTopUpScreen: React.FC = () => {
-  const navigation = useNavigation<DataTopUpScreenNavigationProp>();
-
-  // Provider list
-  const providerList: DataProvider[] = [
-    {
-      id: 'mtn',
-      name: 'MTN',
-      color: '#FFCC00',
-      logo: mtnLogo,
-    },
-    {
-      id: 'glo',
-      name: 'GLO',
-      color: '#00B04F',
-      logo: gloLogo,
-    },
-    {
-      id: 'airtel',
-      name: 'AIRTEL',
-      color: '#FF0000',
-      logo: airtelLogo,
-    },
-    {
-      id: '9mobile',
-      name: '9MOBILE',
-      color: '#00AA44',
-      logo: nineMobileLogo,
-    },
-  ];
-
-  // Data plans
-  const dataPlans: DataPlan[] = [
-    { id: '1', value: '100MB', amount: 100, validity: '1 day' },
-    { id: '2', value: '350MB', amount: 200, validity: '2 days' },
-    { id: '3', value: '1GB', amount: 500, validity: '30 days', bonus: 'Most Popular!' },
-    { id: '4', value: '2GB', amount: 1000, validity: '30 days', bonus: 'Best Value!' },
-    { id: '5', value: '5GB', amount: 2000, validity: '30 days' },
-    { id: '6', value: '10GB', amount: 3500, validity: '30 days' },
-  ];
-
-  // State management
-  const [selectedProvider, setSelectedProvider] = useState<DataProvider | null>(null);
-  const [showProviderModal, setShowProviderModal] = useState(false);
+  const navigation = useNavigation();
+  
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [selectedProvider, setSelectedProvider] = useState<DataProvider | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<DataPlan | null>(null);
-  const [showPinModal, setShowPinModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [showContactModal, setShowContactModal] = useState(false);
-  
-  // Loading state management
-  const { isLoading, loadingState, loadingMessage, setConfirming, setError, stopLoading } = useLoading();
+  const [showContacts, setShowContacts] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Page loading state management
-  const { isPageLoading } = usePageLoading({ duration: 800 });
-  
-  // Animation state for success feedback  
-  const animationValue = useRef(new Animated.Value(0)).current;
-
-  // Mock contact data
-  const mockContacts: Contact[] = [
-    { id: '1', name: 'John Doe', phone: '08012345678', provider: 'mtn' },
-    { id: '2', name: 'Jane Smith', phone: '08123456789', provider: 'mtn' },
-    { id: '3', name: 'Mike Johnson', phone: '07098765432', provider: 'glo' },
-    { id: '4', name: 'Sarah Wilson', phone: '08034567890', provider: 'airtel' },
-    { id: '5', name: 'David Brown', phone: '09012345678', provider: '9mobile' },
+  const providers: DataProvider[] = [
+    { id: 'mtn', name: 'MTN', color: '#FFCC00', logo: mtnLogo },
+    { id: 'glo', name: 'Glo', color: '#008E00', logo: gloLogo },
+    { id: 'airtel', name: 'Airtel', color: '#FF0000', logo: airtelLogo },
+    { id: '9mobile', name: '9mobile', color: '#00B04F', logo: nineMobileLogo },
   ];
 
-  // Toast hook
-  const { showToast } = useToast();
+  // Mock recent contacts for demo
+  const recentContacts: Contact[] = [
+    { id: '1', name: 'John Doe', phoneNumber: '08012345678', network: 'MTN' },
+    { id: '2', name: 'Jane Smith', phoneNumber: '08098765432', network: 'Glo' },
+    { id: '3', name: 'Mike Johnson', phoneNumber: '08087654321', network: 'Airtel' },
+  ];
 
-  // Validation functions
-  const validatePhoneNumber = (phone: string): boolean => {
-    const phoneRegex = /^(\+234|234|0)?[789][01]\d{8}$/;
-    return phoneRegex.test(phone.replace(/\s/g, ''));
+  // Mock data plans
+  const getDataPlans = (providerId: string): DataPlan[] => {
+    const plans = {
+      mtn: [
+        { id: '1', name: 'MTN 1GB', size: '1GB', price: 300, validity: '30 days' },
+        { id: '2', name: 'MTN 2GB', size: '2GB', price: 500, validity: '30 days' },
+        { id: '3', name: 'MTN 5GB', size: '5GB', price: 1200, validity: '30 days' },
+        { id: '4', name: 'MTN 10GB', size: '10GB', price: 2000, validity: '30 days' },
+      ],
+      glo: [
+        { id: '1', name: 'Glo 1GB', size: '1GB', price: 350, validity: '30 days' },
+        { id: '2', name: 'Glo 2GB', size: '2GB', price: 600, validity: '30 days' },
+        { id: '3', name: 'Glo 5GB', size: '5GB', price: 1300, validity: '30 days' },
+        { id: '4', name: 'Glo 10GB', size: '10GB', price: 2200, validity: '30 days' },
+      ],
+      airtel: [
+        { id: '1', name: 'Airtel 1GB', size: '1GB', price: 320, validity: '30 days' },
+        { id: '2', name: 'Airtel 2GB', size: '2GB', price: 550, validity: '30 days' },
+        { id: '3', name: 'Airtel 5GB', size: '5GB', price: 1250, validity: '30 days' },
+        { id: '4', name: 'Airtel 10GB', size: '10GB', price: 2100, validity: '30 days' },
+      ],
+      '9mobile': [
+        { id: '1', name: '9mobile 1GB', size: '1GB', price: 340, validity: '30 days' },
+        { id: '2', name: '9mobile 2GB', size: '2GB', price: 580, validity: '30 days' },
+        { id: '3', name: '9mobile 5GB', size: '5GB', price: 1280, validity: '30 days' },
+        { id: '4', name: '9mobile 10GB', size: '10GB', price: 2150, validity: '30 days' },
+      ],
+    };
+    
+    return plans[providerId as keyof typeof plans] || [];
   };
 
-  const validateForm = (): boolean => {
-    if (!selectedProvider) {
-      Alert.alert('Error', 'Please select a network provider');
-      return false;
-    }
-    if (!phoneNumber.trim()) {
-      Alert.alert('Error', 'Please enter a phone number');
-      return false;
-    }
-    if (!validatePhoneNumber(phoneNumber)) {
-      Alert.alert('Error', 'Please enter a valid Nigerian phone number');
-      return false;
-    }
-    if (!selectedPlan) {
-      Alert.alert('Error', 'Please select a data plan');
-      return false;
-    }
-    return true;
-  };
+  const detectNetwork = (phone: string): DataProvider | null => {
+    if (!phone) return null;
+    
+    const mtnPrefixes = ['0803', '0806', '0703', '0706', '0813', '0816', '0810', '0814', '0903', '0906', '0913', '0916'];
+    const gloPrefixes = ['0805', '0807', '0705', '0815', '0811', '0905', '0915'];
+    const airtelPrefixes = ['0802', '0808', '0708', '0812', '0701', '0902', '0907', '0901', '0912'];
+    const nineMobilePrefixes = ['0809', '0818', '0817', '0909', '0908'];
 
-  // Format phone number as user types
-  const formatPhoneNumber = (text: string): string => {
-    const cleaned = text.replace(/\D/g, '');
-    const truncated = cleaned.slice(0, 11);
+    const prefix = phone.substring(0, 4);
     
-    if (truncated.length >= 7) {
-      return truncated.replace(/(\d{3})(\d{3})(\d{0,5})/, '$1 $2 $3').trim();
-    } else if (truncated.length >= 4) {
-      return truncated.replace(/(\d{3})(\d{0,3})/, '$1 $2').trim();
-    }
-    return truncated;
-  };
-
-  // Auto-detect provider based on phone number
-  const detectProvider = (phone: string): DataProvider | null => {
-    const cleaned = phone.replace(/\D/g, '');
-    if (cleaned.length < 4) return null;
-
-    const prefix = cleaned.slice(0, 4);
-    
-    if (['0803', '0806', '0813', '0816', '0903', '0906', '0913', '0916'].some(p => prefix.startsWith(p))) {
-      return providerList.find(p => p.id === 'mtn') || null;
-    }
-    
-    if (['0805', '0807', '0815', '0811', '0905', '0915'].some(p => prefix.startsWith(p))) {
-      return providerList.find(p => p.id === 'glo') || null;
-    }
-    
-    if (['0802', '0808', '0812', '0701', '0902', '0907', '0912'].some(p => prefix.startsWith(p))) {
-      return providerList.find(p => p.id === 'airtel') || null;
-    }
-    
-    if (['0809', '0817', '0818', '0909', '0908'].some(p => prefix.startsWith(p))) {
-      return providerList.find(p => p.id === '9mobile') || null;
-    }
+    if (mtnPrefixes.includes(prefix)) return providers[0];
+    if (gloPrefixes.includes(prefix)) return providers[1];
+    if (airtelPrefixes.includes(prefix)) return providers[2];
+    if (nineMobilePrefixes.includes(prefix)) return providers[3];
     
     return null;
   };
 
-  // Handle contact selection
-  const handleContactSelect = (contact: Contact) => {
-    setPhoneNumber(contact.phone);
-    
-    const detectedProvider = detectProvider(contact.phone);
-    if (detectedProvider) {
-      setSelectedProvider(detectedProvider);
-    }
-    
-    setShowContactModal(false);
-  };
-
-  // Handle phone number input
   const handlePhoneNumberChange = (text: string) => {
-    const formatted = formatPhoneNumber(text);
-    setPhoneNumber(formatted);
+    // Remove any non-digit characters
+    const cleaned = text.replace(/\D/g, '');
     
-    if (formatted.replace(/\D/g, '').length >= 4) {
-      const detectedProvider = detectProvider(formatted);
-      if (detectedProvider && !selectedProvider) {
-        setSelectedProvider(detectedProvider);
+    // Limit to 11 digits
+    if (cleaned.length <= 11) {
+      setPhoneNumber(cleaned);
+      
+      // Auto-detect network when phone number is complete
+      if (cleaned.length >= 4) {
+        const network = detectNetwork(cleaned);
+        if (network) {
+          setSelectedProvider(network);
+          setSelectedPlan(null); // Reset plan when provider changes
+        }
       }
     }
   };
 
-  // Handle data plan selection
-  const handlePlanSelect = (plan: DataPlan) => {
-    setSelectedPlan(plan);
+  const formatPhoneNumber = (phone: string) => {
+    if (phone.length <= 4) return phone;
+    if (phone.length <= 7) return `${phone.slice(0, 4)} ${phone.slice(4)}`;
+    return `${phone.slice(0, 4)} ${phone.slice(4, 7)} ${phone.slice(7)}`;
   };
 
-  // Handle continue button press
-  const handleContinue = () => {
-    if (!validateForm() || showPinModal) return;
-    setShowPinModal(true);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    // Simulate refresh delay
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
   };
 
-  // Handle PIN verification and transaction processing
-  const handlePinVerified = async (enteredPin: string) => {
-    setShowPinModal(false);
+  const selectContact = (contact: Contact) => {
+    setPhoneNumber(contact.phoneNumber);
+    const network = detectNetwork(contact.phoneNumber);
+    if (network) {
+      setSelectedProvider(network);
+      setSelectedPlan(null);
+    }
+    setShowContacts(false);
+  };
 
-    const transactionId = `data_${Date.now()}`;
-    const transactionAmount = selectedPlan?.amount || 0;
+  const selectProvider = (provider: DataProvider) => {
+    setSelectedProvider(provider);
+    setSelectedPlan(null); // Reset plan when provider changes
+  };
+
+  const handlePurchase = async () => {
+    if (!phoneNumber || !selectedProvider || !selectedPlan) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    if (phoneNumber.length !== 11) {
+      Alert.alert('Error', 'Please enter a valid 11-digit phone number');
+      return;
+    }
 
     try {
-      // Start confirming phase directly (skip loading)
-      setConfirming('Confirming data purchase...');
+      setIsLoading(true);
       
-      // Send pending notification
-      showToast('warning', 'Processing data purchase...', 2000);
+      // Mock API call
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      await billNotificationService.sendBillPaymentPendingNotification({
-        transactionId,
-        billType: 'data',
-        provider: selectedProvider?.name || 'Provider',
-        amount: transactionAmount,
-        accountNumber: phoneNumber,
-      });
-
-      // Mock transaction processing
-      await new Promise<void>(resolve => setTimeout(resolve, 2000));
-      
-      // Send success notification
-      await billNotificationService.sendBillPaymentSuccessNotification({
-        transactionId,
-        billType: 'data',
-        provider: selectedProvider?.name || 'Provider',
-        amount: transactionAmount,
-        accountNumber: phoneNumber,
-      });
-
-      // End loading before success animation
-      stopLoading();
-
-      // Show success toast
-      showToast('success', 'Data purchase successful!');
-
-      // Show animated success feedback
+      setIsLoading(false);
       setShowSuccess(true);
-      animationValue.setValue(0);
-      Animated.spring(animationValue, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8,
-      }).start();
-
-      // Auto dismiss after 2 seconds
+      
+      // Auto-dismiss success after 3 seconds
       setTimeout(() => {
         setShowSuccess(false);
-        navigation.navigate('MainTabs');
-      }, 2000);
-    } catch (error) {
-      console.error('Transaction failed:', error);
+        navigation.goBack();
+      }, 3000);
       
-      setError('Data purchase failed');
-      
-      await billNotificationService.sendBillPaymentFailedNotification({
-        transactionId,
-        billType: 'data',
-        provider: selectedProvider?.name || 'Provider',
-        amount: transactionAmount,
-        accountNumber: phoneNumber,
-      }, 'Network error occurred');
-
-      showToast('error', 'Data purchase failed. Please try again.');
-      Alert.alert('❌ Transaction Failed', 'Please try again later.');
+    } catch {
+      setIsLoading(false);
+      Alert.alert('Error', 'Failed to purchase data. Please try again.');
     }
   };
 
-  // Provider selection component
-  const ProviderSelector: React.FC = () => (
-    <TouchableOpacity
-      style={[
-        styles.providerSelector,
-        selectedProvider && { borderColor: selectedProvider.color }
-      ]}
-      onPress={() => setShowProviderModal(true)}
-    >
-      <View style={styles.providerSelectorContent}>
-        {selectedProvider ? (
-          <>
-            <View style={styles.providerLogo}>
-              <Image 
-                source={selectedProvider.logo} 
-                style={styles.providerLogoImage}
-                defaultSource={require('../../assets/images/icon.png')}
-              />
-            </View>
-            <Text style={styles.providerSelectorText}>{selectedProvider.name}</Text>
-          </>
-        ) : (
-          <Text style={styles.providerSelectorPlaceholder}>Select network provider</Text>
-        )}
-      </View>
-      <ChevronDown size={iconSizes.md} color={colors.secondaryText} />
-    </TouchableOpacity>
-  );
+  const isFormValid = phoneNumber.length === 11 && selectedProvider && selectedPlan;
 
-  // Provider modal component
-  const ProviderModal: React.FC = () => (
-    <Modal
-      visible={showProviderModal}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={() => setShowProviderModal(false)}
-    >
-      <SafeAreaView style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <TouchableOpacity onPress={() => setShowProviderModal(false)}>
-            <Text style={styles.modalCancelText}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={styles.modalTitle}>Select Network</Text>
-          <View style={styles.modalSpacer} />
+  if (showSuccess) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.successContainer}>
+          <CheckCircle size={80} color={colors.success} />
+          <Text style={styles.successTitle}>Data Purchase Successful!</Text>
+          <Text style={styles.successMessage}>
+            {selectedPlan?.size} data bundle has been sent to {formatPhoneNumber(phoneNumber)}
+          </Text>
+          <Text style={styles.successNetwork}>via {selectedProvider?.name}</Text>
+          <Text style={styles.successPrice}>Amount: ₦{selectedPlan?.price}</Text>
         </View>
-        
-        <ScrollView style={styles.modalContent}>
-          {providerList.map((provider) => (
-            <TouchableOpacity
-              key={provider.id}
-              style={styles.providerOption}
-              onPress={() => {
-                setSelectedProvider(provider);
-                setShowProviderModal(false);
-              }}
-            >
-              <View style={styles.providerOptionContent}>
-                <View style={styles.providerLogo}>
-                  <Image 
-                    source={provider.logo} 
-                    style={styles.providerLogoImage}
-                    defaultSource={require('../../assets/images/icon.png')}
-                  />
-                </View>
-                <Text style={styles.providerOptionText}>{provider.name}</Text>
-              </View>
-              {selectedProvider?.id === provider.id && (
-                <Check size={iconSizes.md} color={colors.success} />
-              )}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
       </SafeAreaView>
-    </Modal>
-  );
-
-  // Data plan button component
-  const PlanButton: React.FC<{ plan: DataPlan }> = ({ plan }) => (
-    <TouchableOpacity
-      style={[
-        styles.planButton,
-        selectedPlan?.id === plan.id && styles.planButtonSelected
-      ]}
-      onPress={() => handlePlanSelect(plan)}
-    >
-      <Text
-        style={[
-          styles.planValue,
-          selectedPlan?.id === plan.id && styles.planValueSelected
-        ]}
-      >
-        {plan.value}
-      </Text>
-      <Text
-        style={[
-          styles.planAmount,
-          selectedPlan?.id === plan.id && styles.planAmountSelected
-        ]}
-      >
-        ₦{plan.amount.toLocaleString()}
-      </Text>
-      <Text style={styles.planValidity}>{plan.validity}</Text>
-      {plan.bonus && (
-        <Text style={styles.planBonus}>{plan.bonus}</Text>
-      )}
-    </TouchableOpacity>
-  );
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ChevronLeft size={24} color="#000d10" />
-        </TouchableOpacity>
-        <View style={styles.headerPlaceholder} />
-        <Text style={styles.headerTitle}>Data</Text>
-        <View style={styles.headerPlaceholder} />
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Network Provider Selection */}
-        <View style={styles.section}>
-          <ProviderSelector />
-        </View>
-
-        {/* Phone Number Input */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Phone Number</Text>
-          <View style={styles.phoneInputContainer}>
-            <Phone size={iconSizes.md} color={colors.secondaryText} />
-            <TextInput
-              style={styles.phoneInput}
-              placeholder="080 1234 5678"
-              value={phoneNumber}
-              onChangeText={handlePhoneNumberChange}
-              keyboardType="phone-pad"
-              maxLength={13}
-            />
-            <TouchableOpacity
-              style={styles.contactButton}
-              onPress={() => setShowContactModal(true)}
-            >
-              <Users size={iconSizes.md} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Data Plans */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select Data Plan</Text>
-          <View style={styles.plansGrid}>
-            {dataPlans.map((plan) => (
-              <PlanButton key={plan.id} plan={plan} />
-            ))}
-          </View>
-        </View>
-
-        {/* Information Section */}
-        <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>Transaction Details</Text>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoBullet}>•</Text>
-            <Text style={styles.infoText}>Data will be credited instantly</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoBullet}>•</Text>
-            <Text style={styles.infoText}>Valid for the specified period</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoBullet}>•</Text>
-            <Text style={styles.infoText}>No additional charges apply</Text>
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* Continue Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[
-            styles.continueButton,
-            (!selectedProvider || !phoneNumber || !selectedPlan || isLoading || showPinModal) && styles.continueButtonDisabled
-          ]}
-          onPress={handleContinue}
-          disabled={!selectedProvider || !phoneNumber || !selectedPlan || isLoading || showPinModal}
-        >
-          <Text style={styles.continueButtonText}>
-            {isLoading ? 'Processing...' : 'Continue'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Modals */}
-      <ProviderModal />
-      
-      {/* PIN Entry Modal */}
-      <PinEntryModal
-        visible={showPinModal}
-        onClose={() => setShowPinModal(false)}
-        onPinEntered={handlePinVerified}
-        title="Enter PIN to Confirm"
-        subtitle={`Buy ${selectedPlan?.value} data for ${phoneNumber} (${selectedProvider?.name}) - ₦${selectedPlan?.amount.toLocaleString()}`}
-        allowBiometric={true}
-      />
-
-      {/* Contact Selection Modal */}
-      <Modal
-        visible={showContactModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowContactModal(false)}
+      <KeyboardAvoidingView 
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Contact</Text>
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={() => setShowContactModal(false)}
-            >
-              <Text style={styles.modalCloseText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView style={styles.contactList}>
-            {mockContacts.map((contact) => {
-              const detectedProvider = detectProvider(contact.phone);
-              return (
-                <TouchableOpacity
-                  key={contact.id}
-                  style={styles.contactItem}
-                  onPress={() => handleContactSelect(contact)}
-                >
-                  <View style={styles.contactInfo}>
-                    <Text style={styles.contactName}>{contact.name}</Text>
-                    <Text style={styles.contactPhone}>{contact.phone}</Text>
-                  </View>
-                  {detectedProvider && (
-                    <View style={[styles.providerBadge, { backgroundColor: detectedProvider.color }]}>
-                      <Text style={styles.providerBadgeText}>{detectedProvider.name}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
-
-      {/* Success Animation Overlay */}
-      {showSuccess && (
-        <View style={styles.successOverlay}>
-          <Animated.View
-            style={[
-              styles.successContainer,
-              {
-                opacity: animationValue.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.7, 1],
-                }),
-                transform: [
-                  {
-                    scale: animationValue.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.9, 1],
-                    }),
-                  },
-                ],
-              },
-            ]}
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
           >
-            <View style={styles.successIcon}>
-              <CheckCircle size={60} color={colors.white} />
-            </View>
-            <Text style={styles.successTitle}>Data Purchase Successful!</Text>
-            <Text style={styles.successSubtitle}>
-              {selectedPlan?.value} data sent to {phoneNumber}
-            </Text>
-          </Animated.View>
+            <ChevronLeft size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Buy Data</Text>
+          <View style={styles.placeholder} />
         </View>
-      )}
-      
-      {/* Loading Overlay */}
-      <LoadingOverlay
-        visible={isLoading}
-        type={loadingState}
-        message={loadingMessage}
-      />
 
-      {/* Page Loading Overlay */}
-      <PageLoadingOverlay visible={isPageLoading} />
+        <ScrollView 
+          style={styles.content} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {/* Phone Number Input */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Phone Number</Text>
+            <View style={styles.phoneInputContainer}>
+              <View style={styles.phoneInputWrapper}>
+                <Phone size={20} color={colors.secondaryText} style={styles.phoneIcon} />
+                <TextInput
+                  style={styles.phoneInput}
+                  value={formatPhoneNumber(phoneNumber)}
+                  onChangeText={handlePhoneNumberChange}
+                  placeholder="Enter phone number"
+                  keyboardType="numeric"
+                  maxLength={13} // Formatted length
+                />
+                <TouchableOpacity 
+                  style={styles.contactsButton}
+                  onPress={() => setShowContacts(!showContacts)}
+                >
+                  <Users size={20} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Network Detection */}
+            {selectedProvider && (
+              <View style={styles.networkDetected}>
+                <Image source={selectedProvider.logo} style={styles.networkLogo} />
+                <Text style={styles.networkName}>{selectedProvider.name} detected</Text>
+              </View>
+            )}
+
+            {/* Recent Contacts */}
+            {showContacts && (
+              <View style={styles.contactsList}>
+                <Text style={styles.contactsTitle}>Recent Contacts</Text>
+                {recentContacts.map(contact => (
+                  <TouchableOpacity
+                    key={contact.id}
+                    style={styles.contactItem}
+                    onPress={() => selectContact(contact)}
+                  >
+                    <View style={styles.contactInfo}>
+                      <Text style={styles.contactName}>{contact.name}</Text>
+                      <Text style={styles.contactPhone}>{contact.phoneNumber}</Text>
+                    </View>
+                    {contact.network && (
+                      <Text style={styles.contactNetwork}>{contact.network}</Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Network Provider Selection */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Network Provider</Text>
+            <View style={styles.providersGrid}>
+              {providers.map((provider) => (
+                <TouchableOpacity
+                  key={provider.id}
+                  style={[
+                    styles.providerCard,
+                    selectedProvider?.id === provider.id && styles.providerCardSelected
+                  ]}
+                  onPress={() => selectProvider(provider)}
+                >
+                  <Image source={provider.logo} style={styles.providerLogo} />
+                  <Text style={styles.providerName}>{provider.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Data Plans */}
+          {selectedProvider && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Select Data Plan</Text>
+              <View style={styles.plansContainer}>
+                {getDataPlans(selectedProvider.id).map((plan) => (
+                  <TouchableOpacity
+                    key={plan.id}
+                    style={[
+                      styles.planCard,
+                      selectedPlan?.id === plan.id && styles.planCardSelected
+                    ]}
+                    onPress={() => setSelectedPlan(plan)}
+                  >
+                    <View style={styles.planInfo}>
+                      <View style={styles.planHeader}>
+                        <Wifi size={20} color={colors.primary} />
+                        <Text style={styles.planSize}>{plan.size}</Text>
+                      </View>
+                      <Text style={styles.planName}>{plan.name}</Text>
+                      <Text style={styles.planValidity}>Valid for {plan.validity}</Text>
+                    </View>
+                    <View style={styles.planPricing}>
+                      <Text style={styles.planPrice}>₦{plan.price}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          <View style={styles.bottomPadding} />
+        </ScrollView>
+
+        {/* Purchase Button */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.purchaseButton, !isFormValid && styles.purchaseButtonDisabled]}
+            onPress={handlePurchase}
+            disabled={!isFormValid || isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <>
+                <Text style={styles.purchaseButtonText}>
+                  Purchase Data {selectedPlan && `(₦${selectedPlan.price})`}
+                </Text>
+                <View style={styles.discountBadge}>
+                  <Text style={styles.discountText}>2% OFF</Text>
+                </View>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -605,341 +387,279 @@ const DataTopUpScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF0F5',
+    backgroundColor: colors.background,
   },
-  header: {
-    backgroundColor: '#FFF0F5',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    paddingTop: spacing.xl,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerPlaceholder: {
+  keyboardContainer: {
     flex: 1,
   },
+    header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFF0F5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000d10',
-    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  placeholder: {
+    width: 40,
+    height: 40,
   },
   content: {
     flex: 1,
-    padding: spacing.lg,
+    paddingHorizontal: 20,
   },
   section: {
-    marginBottom: spacing.xl,
+    marginTop: 24,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  providerSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    borderWidth: 1,
-    borderColor: colors.borderBills,
-    ...shadows.billsCard,
-    elevation: 2,
-  },
-  providerSelectorContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  providerLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  providerLogoImage: {
-    width: 36,
-    height: 36,
-    resizeMode: 'contain',
-  },
-  providerSelectorText: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  providerSelectorPlaceholder: {
-    fontSize: 16,
-    color: colors.secondaryText,
+    marginBottom: 12,
   },
   phoneInputContainer: {
+    marginBottom: 12,
+  },
+  phoneInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 56,
     borderWidth: 1,
-    borderColor: colors.borderBills,
-    paddingHorizontal: spacing.lg,
-    ...shadows.billsCard,
-    elevation: 2,
+    borderColor: colors.border,
+  },
+  phoneIcon: {
+    marginRight: 12,
   },
   phoneInput: {
     flex: 1,
-    padding: spacing.lg,
     fontSize: 16,
     color: colors.text,
-    marginLeft: spacing.sm,
   },
-  contactButton: {
-    padding: 8,
-    marginLeft: spacing.sm,
+  contactsButton: {
+    padding: 4,
   },
-  plansGrid: {
+  networkDetected: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  planButton: {
-    width: '48%',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    borderWidth: 1,
-    borderColor: colors.borderBills,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
     alignItems: 'center',
-    ...shadows.billsCard,
-    elevation: 2,
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: colors.successTransparent,
+    borderRadius: 8,
   },
-  planButtonSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryTransparent,
+  networkLogo: {
+    width: 24,
+    height: 24,
+    marginRight: 8,
   },
-  planValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  planValueSelected: {
-    color: colors.primary,
-  },
-  planAmount: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  planAmountSelected: {
-    color: colors.primary,
-  },
-  planValidity: {
-    fontSize: 12,
-    color: colors.secondaryText,
-    marginBottom: spacing.xs,
-  },
-  planBonus: {
-    fontSize: 10,
+  networkName: {
+    fontSize: 14,
     color: colors.success,
     fontWeight: '500',
-    textAlign: 'center',
   },
-  infoSection: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    padding: spacing.lg,
-    ...shadows.small,
+  contactsList: {
+    marginTop: 12,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: spacing.sm,
-  },
-  infoBullet: {
-    fontSize: 16,
-    color: colors.secondaryText,
-    marginRight: spacing.sm,
-    marginTop: 2,
-  },
-  infoText: {
-    flex: 1,
+  contactsTitle: {
     fontSize: 14,
-    color: colors.secondaryText,
-    lineHeight: 20,
-  },
-  footer: {
-    padding: spacing.lg,
-    backgroundColor: colors.background,
-  },
-  continueButton: {
-    backgroundColor: colors.primaryBills,
-    borderRadius: borderRadius.medium,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.billsCard,
-    elevation: 2,
-  },
-  continueButtonDisabled: {
-    backgroundColor: colors.disabled,
-    opacity: 0.6,
-  },
-  continueButtonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // Modal Styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalCancelText: {
-    fontSize: 16,
-    color: colors.primary,
-  },
-  modalTitle: {
-    fontSize: 18,
     fontWeight: '600',
     color: colors.text,
-  },
-  modalSpacer: {
-    width: 60,
-  },
-  modalContent: {
-    flex: 1,
-    padding: spacing.lg,
-  },
-  providerOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    marginBottom: spacing.sm,
-    ...shadows.small,
-  },
-  providerOptionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  providerOptionText: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  successOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  successContainer: {
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.large,
-    padding: spacing.xl,
-    marginHorizontal: spacing.xl,
-  },
-  successIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#A8E4A0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
-  },
-  successTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  successSubtitle: {
-    fontSize: 16,
-    color: colors.secondaryText,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  modalCloseButton: {
-    padding: spacing.sm,
-  },
-  modalCloseText: {
-    fontSize: 16,
-    color: colors.primary,
-    fontWeight: '500',
-  },
-  contactList: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
+    marginBottom: 12,
   },
   contactItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderBills,
+    borderBottomColor: colors.border,
   },
   contactInfo: {
     flex: 1,
   },
   contactName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
+    color: colors.text,
+  },
+  contactPhone: {
+    fontSize: 12,
+    color: colors.secondaryText,
+    marginTop: 2,
+  },
+  contactNetwork: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  providersGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  providerCard: {
+    width: '48%',
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  providerCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryTransparent,
+  },
+  providerLogo: {
+    width: 40,
+    height: 40,
+    marginBottom: 8,
+  },
+  providerName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  plansContainer: {
+    gap: 12,
+  },
+  planCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  planCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryTransparent,
+  },
+  planInfo: {
+    flex: 1,
+  },
+  planHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  planSize: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginLeft: 8,
+  },
+  planName: {
+    fontSize: 14,
     color: colors.text,
     marginBottom: 4,
   },
-  contactPhone: {
-    fontSize: 14,
+  planValidity: {
+    fontSize: 12,
     color: colors.secondaryText,
   },
-  providerBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  planPricing: {
+    alignItems: 'flex-end',
+  },
+  planPrice: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  bottomPadding: {
+    height: 100,
+  },
+  footer: {
+    padding: 20,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  purchaseButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: spacing.md,
   },
-  providerBadgeText: {
-    fontSize: 14,
-    fontWeight: 'bold',
+  purchaseButtonDisabled: {
+    backgroundColor: colors.border,
+  },
+  purchaseButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.white,
+  },
+  successContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.success,
+    marginTop: 24,
+    textAlign: 'center',
+  },
+  successMessage: {
+    fontSize: 16,
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: 12,
+    lineHeight: 24,
+  },
+  successNetwork: {
+    fontSize: 14,
+    color: colors.secondaryText,
+    marginTop: 8,
+  },
+  successPrice: {
+    fontSize: 14,
+    color: colors.secondaryText,
+    marginTop: 4,
+  },
+  discountBadge: {
+    position: 'absolute',
+    top: -8,
+    right: 12,
+    backgroundColor: '#FF4757',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+  },
+  discountText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
 });
 

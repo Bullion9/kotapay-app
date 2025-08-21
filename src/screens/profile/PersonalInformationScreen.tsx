@@ -21,7 +21,6 @@ import {
   UserCheck,
   Edit3,
 } from 'lucide-react-native';
-// @ts-ignore
 import * as Haptics from 'expo-haptics';
 
 interface EditableRow {

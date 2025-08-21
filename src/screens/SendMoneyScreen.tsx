@@ -1,781 +1,417 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
   TextInput,
+  TouchableOpacity,
   ScrollView,
+  StyleSheet,
   Alert,
-  Animated,
+  ActivityIndicator,
+  RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  QrCode,
-  Users,
-  Check,
-  X,
-  Clock,
-  ChevronRight,
-  UserPlus,
   ChevronLeft,
+  Users,
+  QrCode,
+  UserPlus,
+  CheckCircle,
 } from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows, typography, iconSizes, globalStyles } from '../theme';
-import { EyeIcon } from '../components/icons';
 import PinEntryModal from '../components/PinEntryModal';
-import LoadingOverlay from '../components/LoadingOverlay';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { useLoading } from '../hooks/useLoading';
-import { notificationService } from '../services/notifications';
+import { colors } from '../theme';
 
 interface Contact {
   id: string;
   name: string;
   phone: string;
-  email?: string;
-  avatar?: string;
   isRegistered: boolean;
 }
 
-interface SendMoneyScreenProps {
-  navigation: any;
-  route: any;
+interface SendMethod {
+  id: string;
+  name: string;
+  description: string;
+  icon: any;
 }
 
-type Step = 'amount' | 'contact' | 'confirm' | 'result';
-type TransactionStatus = 'success' | 'failed' | 'pending';
-
-const SendMoneyScreen: React.FC<SendMoneyScreenProps> = ({ navigation, route }) => {
-  const [currentStep, setCurrentStep] = useState<Step>('amount');
+const SendMoneyScreen: React.FC = () => {
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  
+  // State
   const [amount, setAmount] = useState('');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  const [showPinModal, setShowPinModal] = useState(false);
-  const [transactionStatus, setTransactionStatus] = useState<TransactionStatus>('pending');
+  const [selectedMethod, setSelectedMethod] = useState<SendMethod | null>(null);
   const [description, setDescription] = useState('');
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [notificationSent, setNotificationSent] = useState(false);
-  const [showManualEntry, setShowManualEntry] = useState(false);
-  const [manualName, setManualName] = useState('');
-  const [manualPhone, setManualPhone] = useState('');
-  const [manualEmail, setManualEmail] = useState('');
-  
-  // Loading state management
-  const {
-    isLoading,
-    loadingState,
-    loadingMessage,
-    startLoading,
-    setProcessing,
-    setConfirming,
-    stopLoading,
-  } = useLoading({
-    defaultMessage: 'Processing transaction...',
-    successDuration: 2000,
-  });
-  const [showBalance, setShowBalance] = useState(false);
-  const [quickAmountLoading, setQuickAmountLoading] = useState(false);
-  const [isAmountFocused, setIsAmountFocused] = useState(false);
-  const [isDescriptionFocused, setIsDescriptionFocused] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [amountFocused, setAmountFocused] = useState(false);
+  const [descriptionFocused, setDescriptionFocused] = useState(false);
 
-  // Mock user balance (same as TopUpScreen)
+  // Mock user balance
   const userBalance = 450000;
 
-  const animationValue = useRef(new Animated.Value(0)).current;
+  // Mock recent contacts
+  const recentContacts: Contact[] = [
+    { id: '1', name: 'John Doe', phone: '+234801234567', isRegistered: true },
+    { id: '2', name: 'Jane Smith', phone: '+234802345678', isRegistered: true },
+    { id: '3', name: 'Mike Johnson', phone: '+234803456789', isRegistered: false },
+  ];
 
-  // Handle QR scan results
-  useEffect(() => {
-    if (route.params?.scannedData) {
-      const scannedData = route.params.scannedData;
-      
-      // Parse QR data and set contact/amount
-      try {
-        const qrData = JSON.parse(scannedData);
-        
-        if (qrData.userId) {
-          // Create a contact from scanned user data
-          const scannedContact: Contact = {
-            id: qrData.userId,
-            name: qrData.name || 'Unknown User',
-            phone: qrData.phone || 'Unknown',
-            email: qrData.email,
-            isRegistered: true,
-          };
-          setSelectedContact(scannedContact);
-        }
-        
-        if (qrData.amount) {
-          setAmount(qrData.amount.toString());
-        }
-        
-        // Move to contact step if we got user data, or stay on amount step
-        if (qrData.userId && currentStep === 'contact') {
-          setCurrentStep('confirm');
-        } else if (qrData.userId) {
-          setCurrentStep('contact');
-        }
-        
-      } catch (error) {
-        // If not JSON, treat as plain text (maybe a phone number)
-        console.log('QR scan result:', scannedData);
-        console.error('Error parsing QR data:', error);
-        Alert.alert('QR Code Scanned', `Scanned: ${scannedData}`);
-      }
-      
-      // Clear the scanned data from route params
-      navigation.setParams({ scannedData: undefined });
-    }
-  }, [route.params?.scannedData, currentStep, navigation]);
-
-  // Reset transaction state
-  const resetTransactionState = () => {
-    setShowSuccess(false);
-    setNotificationSent(false);
-    setTransactionStatus('pending');
-    animationValue.setValue(0);
-  };
-
-  const handleQRScan = () => {
-    navigation.navigate('QRScanner');
-  };
-
-  const handleManualEntry = () => {
-    setShowManualEntry(true);
-  };
-
-  const handleManualContactAdd = () => {
-    if (!manualName.trim() || !manualPhone.trim()) {
-      Alert.alert('Error', 'Please enter at least name and phone number');
-      return;
-    }
-
-    const newContact: Contact = {
-      id: Date.now().toString(),
-      name: manualName.trim(),
-      phone: manualPhone.trim(),
-      email: manualEmail.trim() || undefined,
-      isRegistered: false,
-    };
-
-    setSelectedContact(newContact);
-    setShowManualEntry(false);
-    // Clear manual entry fields
-    setManualName('');
-    setManualPhone('');
-    setManualEmail('');
-  };
-
-  const handleCancelManualEntry = () => {
-    setShowManualEntry(false);
-    setManualName('');
-    setManualPhone('');
-    setManualEmail('');
-  };
-
-  // Mock contacts data
-  const contacts: Contact[] = [
+  // Send methods
+  const sendMethods: SendMethod[] = [
     {
-      id: '1',
-      name: 'John Doe',
-      phone: '+1234567890',
-      email: 'john@example.com',
-      isRegistered: true,
+      id: 'contact',
+      name: 'To Contact',
+      description: 'Send to someone in your contacts',
+      icon: Users,
     },
     {
-      id: '2',
-      name: 'Jane Smith',
-      phone: '+1234567891',
-      email: 'jane@example.com',
-      isRegistered: true,
+      id: 'qr_code',
+      name: 'Scan QR Code',
+      description: 'Scan recipient\'s QR code',
+      icon: QrCode,
     },
     {
-      id: '3',
-      name: 'Bob Wilson',
-      phone: '+1234567892',
-      isRegistered: false,
+      id: 'new_contact',
+      name: 'New Contact',
+      description: 'Send to someone new',
+      icon: UserPlus,
     },
   ];
 
-  const stepTitles = {
-    amount: 'Enter Amount',
-    contact: 'Select Recipient', 
-    confirm: 'Confirm Details',
-    result: 'Transaction Status',
-  };
-
-  const handleNext = () => {
-    switch (currentStep) {
-      case 'amount':
-        if (!amount || parseFloat(amount) <= 0) {
-          Alert.alert('Error', 'Please enter a valid amount');
-          return;
-        }
-        if (parseFloat(amount) > userBalance) {
-          Alert.alert('Insufficient Balance', `You can only send up to ₦${userBalance.toLocaleString()} from your current balance.`);
-          return;
-        }
-        setCurrentStep('contact');
-        break;
-      case 'contact':
-        if (!selectedContact) {
-          Alert.alert('Error', 'Please select a recipient');
-          return;
-        }
-        setCurrentStep('confirm');
-        break;
-      case 'confirm':
-        resetTransactionState(); // Reset before starting new transaction
-        setShowPinModal(true);
-        break;
+  // Validate amount
+  const validateAmount = () => {
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      Alert.alert('Error', 'Please enter a valid amount');
+      return false;
     }
-  };
-
-  const handleBack = () => {
-    switch (currentStep) {
-      case 'amount':
-        navigation.goBack();
-        break;
-      case 'contact':
-        setCurrentStep('amount');
-        break;
-      case 'confirm':
-        setCurrentStep('contact');
-        break;
-      case 'result':
-        resetTransactionState(); // Reset when going back from result
-        navigation.goBack();
-        break;
+    if (numAmount < 50) {
+      Alert.alert('Error', 'Minimum send amount is ₦50');
+      return false;
     }
+    if (numAmount > userBalance) {
+      Alert.alert('Error', 'Amount exceeds your available balance');
+      return false;
+    }
+    return true;
   };
 
-  // Handle PIN verification and transaction processing
-  const handlePinVerified = async (enteredPin: string) => {
+  // Handle method selection
+  const handleMethodSelect = (method: SendMethod) => {
+    setSelectedMethod(method);
+    
+    if (method.id === 'qr_code') {
+      navigation.navigate('QRScanner');
+      return;
+    }
+    
+    if (method.id === 'new_contact') {
+      navigation.navigate('AddContact');
+      return;
+    }
+    
+    // For contacts method, we'll show contact selection in the same screen
+  };
+
+  // Handle contact selection
+  const handleContactSelect = (contact: Contact) => {
+    setSelectedContact(contact);
+  };
+
+  // Handle continue button press
+  const handleContinue = () => {
+    if (!validateAmount()) return;
+    
+    if (!selectedMethod) {
+      Alert.alert('Error', 'Please select a send method');
+      return;
+    }
+    
+    if (selectedMethod.id === 'contact' && !selectedContact) {
+      Alert.alert('Error', 'Please select a contact');
+      return;
+    }
+    
+    setShowPinModal(true);
+  };
+
+  // Handle PIN verification
+  const handlePinVerified = async (pin: string) => {
     setShowPinModal(false);
-    setCurrentStep('result');
+    setLoading(true);
 
     try {
-      // Manual loading control - start with loading
-      startLoading('Initializing transaction...');
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Processing phase
-      await new Promise<void>(resolve => setTimeout(resolve, 500));
-      setProcessing('Processing payment...');
-      
-      // Confirming phase  
-      await new Promise<void>(resolve => setTimeout(resolve, 800));
-      setConfirming('Confirming transfer...');
-      
-      // Execute the actual operation
-      await new Promise<void>(resolve => setTimeout(resolve, 1000));
-      
-      // Simulate transaction processing
-      await new Promise<void>(resolve => setTimeout(resolve, 1500));
-      
-      // Set transaction as successful but don't show animations yet
-      setTransactionStatus('success');
-      
-      // Stop loading before success animation
-      stopLoading();
-      
-      // After loading is complete, start success animation
+      setLoading(false);
       setShowSuccess(true);
-      animationValue.setValue(0);
-      Animated.spring(animationValue, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8,
-      }).start();
       
-      // Send notification only once
-      if (selectedContact && !notificationSent) {
-        setNotificationSent(true);
-        await notificationService.sendMoneySentNotification({
-          transactionId: `tx_${Date.now()}`,
-          amount: parseFloat(amount),
-          currency: '₦',
-          senderName: 'You',
-          recipientName: selectedContact.name,
-        });
-      }
-    } catch (error) {
-      console.error('Transaction error:', error);
-      stopLoading();
-      setTransactionStatus('failed');
+      // Show success notification
+      Alert.alert(
+        'Success',
+        `₦${amount} sent successfully${selectedContact ? ` to ${selectedContact.name}` : ''}`
+      );
+    } catch {
+      setLoading(false);
+      Alert.alert('Error', 'Send money failed. Please try again.');
     }
   };
 
-  // Handle quick amount selection with loading animation
-  const handleQuickAmountPress = async (amount: number) => {
-    setQuickAmountLoading(true);
-    
-    await new Promise<void>(resolve => setTimeout(resolve, 400));
-    
-    setAmount(amount.toString());
-    setQuickAmountLoading(false);
+  // Pull to refresh
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setRefreshing(false);
   };
 
-  const renderStepIndicator = () => {
-    const steps = ['amount', 'contact', 'confirm', 'result'];
-    const currentIndex = steps.indexOf(currentStep);
+  // Success Screen Component
+  const SuccessScreen = () => (
+    <View style={styles.successContainer}>
+      <View style={styles.successIcon}>
+        <CheckCircle size={60} color={colors.primary} />
+      </View>
+      <Text style={styles.successTitle}>Money Sent!</Text>
+      <Text style={styles.successMessage}>
+        ₦{amount} has been sent successfully{selectedContact ? ` to ${selectedContact.name}` : ''}.
+        {description && ` Note: ${description}`}
+      </Text>
+      <TouchableOpacity
+        style={styles.doneButton}
+        onPress={() => {
+          setShowSuccess(false);
+          setAmount('');
+          setSelectedContact(null);
+          setSelectedMethod(null);
+          setDescription('');
+          navigation.goBack();
+        }}
+      >
+        <Text style={styles.doneButtonText}>Done</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
+  if (showSuccess) {
     return (
-      <View style={styles.stepIndicator}>
-        {steps.map((step, index) => (
-          <View key={step} style={styles.stepContainer}>
-            <View
-              style={[
-                styles.stepCircle,
-                index <= currentIndex && styles.stepCircleActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.stepNumber,
-                  index <= currentIndex && styles.stepNumberActive,
-                ]}
-              >
-                {index + 1}
-              </Text>
-            </View>
-            {index < steps.length - 1 && (
-              <View
-                style={[
-                  styles.stepLine,
-                  index < currentIndex && styles.stepLineActive,
-                ]}
-              />
-            )}
-          </View>
-        ))}
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.placeholder} />
+          <Text style={styles.headerTitle}>Send Money</Text>
+          <View style={styles.placeholder} />
+        </View>
+        
+        <View style={styles.successContentWrapper}>
+          <SuccessScreen />
+        </View>
+      </SafeAreaView>
     );
-  };
-
-  const renderAmountStep = () => (
-    <View style={styles.stepContent}>
-      {/* Balance Card */}
-      <View style={styles.balanceCard}>
-        <View style={styles.balanceHeader}>
-          <Text style={styles.balanceLabel}>Current Wallet Balance</Text>
-          <TouchableOpacity onPress={() => setShowBalance(!showBalance)}>
-            <EyeIcon 
-              size={iconSizes.sm} 
-              color={colors.white} 
-              filled={!showBalance}
-            />
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity 
-          onPress={() => {
-            if (showBalance && userBalance > 0) {
-              setAmount(userBalance.toString());
-            }
-          }}
-          disabled={!showBalance}
-        >
-          <Text style={styles.balanceAmount}>
-            {showBalance ? `₦${userBalance.toLocaleString()}` : '••••••'}
-          </Text>
-        </TouchableOpacity>
-        <Text style={styles.balanceSubtext}>
-          Available for spending{showBalance ? ' • Tap amount to use full balance' : ''}
-        </Text>
-      </View>
-
-      <View style={styles.amountContainer}>
-        <Text style={styles.inputLabel}>Amount</Text>
-        <View style={[styles.currencyContainer, isAmountFocused && styles.currencyContainerFocused]}>
-          <Text style={styles.nairaSign}>₦</Text>
-          <TextInput
-            style={styles.amountInput}
-            value={amount}
-            onChangeText={setAmount}
-            placeholder="0.00"
-            placeholderTextColor={colors.placeholder}
-            keyboardType="numeric"
-            autoFocus
-            onFocus={() => setIsAmountFocused(true)}
-            onBlur={() => setIsAmountFocused(false)}
-          />
-        </View>
-      </View>
-      
-      <View style={styles.descriptionContainer}>
-        <Text style={styles.inputLabel}>For</Text>
-        <TextInput
-          style={[styles.descriptionInput, isDescriptionFocused && styles.descriptionInputFocused]}
-          value={description}
-          onChangeText={setDescription}
-          placeholder="What's this for?"
-          placeholderTextColor={colors.placeholder}
-          multiline
-          onFocus={() => setIsDescriptionFocused(true)}
-          onBlur={() => setIsDescriptionFocused(false)}
-        />
-      </View>
-
-      <View style={styles.quickAmountsContainer}>
-        <Text style={styles.quickAmountsLabel}>Top Up</Text>
-        <View style={styles.quickAmounts}>
-          {[100, 500, 1000, 5000].map((quickAmount) => (
-            <TouchableOpacity
-              key={quickAmount}
-              style={[
-                styles.quickAmountButton,
-                quickAmountLoading && styles.quickAmountButtonDisabled
-              ]}
-              onPress={() => handleQuickAmountPress(quickAmount)}
-              disabled={quickAmountLoading}
-            >
-              <Text style={styles.quickAmountText}>₦{quickAmount.toLocaleString()}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.infoCard}>
-        <Text style={styles.infoTitle}>Send Money</Text>
-        <Text style={styles.infoText}>
-          Send money instantly to friends and family. They&apos;ll receive a notification and the money immediately.
-        </Text>
-      </View>
-
-      <View style={styles.suggestionsContainer}>
-        <Text style={styles.suggestionsLabel}>or pick any of the options below</Text>
-        <View style={styles.suggestionsGrid}>
-          {[
-            'Coffee',
-            'Lunch',
-            'Gas',
-            'Groceries',
-            'Dinner',
-            'Movie',
-          ].map((suggestion) => (
-            <TouchableOpacity
-              key={suggestion}
-              style={styles.suggestionCard}
-              onPress={() => {
-                setDescription(suggestion);
-              }}
-            >
-              <Text style={styles.suggestionCardText}>{suggestion}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderContactStep = () => (
-    <View style={styles.stepContent}>
-      {!showManualEntry ? (
-        <>
-          <View style={styles.contactOptions}>
-            <TouchableOpacity
-              style={styles.optionButton}
-              onPress={handleQRScan}
-            >
-              <QrCode size={iconSizes.lg} color={colors.primary} />
-              <Text style={styles.optionText}>Scan QR Code</Text>
-              <ChevronRight size={iconSizes.sm} color={colors.secondaryText} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.optionButton}
-              onPress={handleManualEntry}
-            >
-              <UserPlus size={iconSizes.lg} color={colors.primary} />
-              <Text style={styles.optionText}>Add New Contact</Text>
-              <ChevronRight size={iconSizes.sm} color={colors.secondaryText} />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.sectionTitle}>Recent Contacts</Text>
-          <ScrollView style={styles.contactsList}>
-            {contacts.map((contact) => (
-              <TouchableOpacity
-                key={contact.id}
-                style={[
-                  styles.contactItem,
-                  selectedContact?.id === contact.id && styles.contactItemSelected,
-                ]}
-                onPress={() => setSelectedContact(contact)}
-              >
-                <View style={styles.contactAvatar}>
-                  <Users size={iconSizes.md} color={colors.white} />
-                </View>
-                <View style={styles.contactInfo}>
-                  <Text style={styles.contactName}>{contact.name}</Text>
-                  <Text style={styles.contactPhone}>{contact.phone}</Text>
-                </View>
-                <View style={styles.contactStatus}>
-                  {contact.isRegistered && (
-                    <View style={styles.registeredBadge}>
-                      <Check size={iconSizes.xs} color={colors.white} />
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </>
-      ) : (
-        <View style={styles.manualEntryContainer}>
-          <Text style={styles.manualEntryTitle}>Add New Contact</Text>
-          
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Full Name *</Text>
-            <TextInput
-              style={styles.input}
-              value={manualName}
-              onChangeText={setManualName}
-              placeholder="Enter full name"
-              placeholderTextColor={colors.placeholder}
-            />
-          </View>
-          
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Phone Number *</Text>
-            <TextInput
-              style={styles.input}
-              value={manualPhone}
-              onChangeText={setManualPhone}
-              placeholder="+1234567890"
-              placeholderTextColor={colors.placeholder}
-              keyboardType="phone-pad"
-            />
-          </View>
-          
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Email (Optional)</Text>
-            <TextInput
-              style={styles.input}
-              value={manualEmail}
-              onChangeText={setManualEmail}
-              placeholder="email@example.com"
-              placeholderTextColor={colors.placeholder}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
-          
-          <View style={styles.manualEntryButtons}>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={handleCancelManualEntry}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={handleManualContactAdd}
-            >
-              <Text style={styles.addButtonText}>Add Contact</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-    </View>
-  );
-
-  const renderConfirmStep = () => (
-    <View style={styles.stepContent}>
-      <View style={styles.confirmCard}>
-        <Text style={styles.confirmTitle}>Transaction Details</Text>
-        
-        <View style={styles.confirmRow}>
-          <Text style={styles.confirmLabel}>Amount</Text>
-          <Text style={styles.confirmValue}>₦{amount}</Text>
-        </View>
-        
-        <View style={styles.confirmRow}>
-          <Text style={styles.confirmLabel}>To</Text>
-          <Text style={styles.confirmValue}>{selectedContact?.name}</Text>
-        </View>
-        
-        <View style={styles.confirmRow}>
-          <Text style={styles.confirmLabel}>Phone</Text>
-          <Text style={styles.confirmValue}>{selectedContact?.phone}</Text>
-        </View>
-        
-        {description && (
-          <View style={styles.confirmRow}>
-            <Text style={styles.confirmLabel}>Description</Text>
-            <Text style={styles.confirmValue}>{description}</Text>
-          </View>
-        )}
-        
-        <View style={styles.confirmRow}>
-          <Text style={styles.confirmLabel}>Fee</Text>
-          <Text style={styles.confirmValue}>₦0.00</Text>
-        </View>
-        
-        <View style={[styles.confirmRow, styles.confirmTotal]}>
-          <Text style={styles.confirmTotalLabel}>Total</Text>
-          <Text style={styles.confirmTotalValue}>₦{amount}</Text>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderResultStep = () => {
-    const statusConfig = {
-      success: {
-        icon: Check,
-        color: colors.success,
-        title: 'Transaction Successful!',
-        subtitle: `₦${amount} sent to ${selectedContact?.name}`,
-      },
-      failed: {
-        icon: X,
-        color: colors.error,
-        title: 'Transaction Failed',
-        subtitle: 'Please try again or contact support',
-      },
-      pending: {
-        icon: Clock,
-        color: colors.warning,
-        title: 'Transaction Pending',
-        subtitle: 'Your transaction is being processed',
-      },
-    };
-
-    const config = statusConfig[transactionStatus];
-    const IconComponent = config.icon;
-
-    return (
-      <View style={styles.stepContent}>
-        <Animated.View
-          style={[
-            styles.resultContainer,
-            showSuccess && transactionStatus === 'success' && {
-              opacity: animationValue.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.7, 1],
-              }),
-              transform: [
-                {
-                  scale: animationValue.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.9, 1],
-                  }),
-                },
-              ],
-            },
-          ]}
-          >
-            <View style={[styles.resultIcon, { backgroundColor: config.color }]}>
-              <IconComponent size={iconSizes.xxl} color={colors.white} />
-            </View>
-            <Text style={styles.resultTitle}>{config.title}</Text>
-            <Text style={styles.resultSubtitle}>{config.subtitle}</Text>
-            
-            {transactionStatus === 'success' && (
-              <TouchableOpacity
-                style={styles.doneButton}
-                onPress={() => navigation.navigate('MainTabs')}
-              >
-                <Text style={styles.doneButtonText}>Done</Text>
-              </TouchableOpacity>
-            )}
-            
-            {transactionStatus === 'failed' && (
-              <TouchableOpacity
-                style={styles.retryButton}
-                onPress={() => {
-                  resetTransactionState();
-                  setShowPinModal(true);
-                }}
-              >
-                <Text style={styles.retryButtonText}>Try Again</Text>
-              </TouchableOpacity>
-            )}
-          </Animated.View>
-      </View>
-    );
-  };
-
-  const renderStepContent = () => {
-    switch (currentStep) {
-      case 'amount':
-        return renderAmountStep();
-      case 'contact':
-        return renderContactStep();
-      case 'confirm':
-        return renderConfirmStep();
-      case 'result':
-        return renderResultStep();
-      default:
-        return null;
-    }
-  };
+  }
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Fixed Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={globalStyles.backButton} onPress={handleBack}>
-          <ChevronLeft size={iconSizes.md} color={colors.text} />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <ChevronLeft size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{stepTitles[currentStep]}</Text>
-        <View style={styles.headerSpacer} />
+        <Text style={styles.headerTitle}>Send Money</Text>
+        <View style={styles.placeholder} />
       </View>
 
-      {renderStepIndicator()}
-      
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {renderStepContent()}
-      </ScrollView>
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        {/* Scrollable Content */}
+        <ScrollView 
+          style={styles.scrollContent} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {/* Balance Display */}
+          <View style={styles.balanceSection}>
+            <Text style={styles.balanceLabel}>Available Balance</Text>
+            <Text style={styles.balanceAmount}>₦{userBalance.toLocaleString()}</Text>
+          </View>
 
-      {currentStep !== 'result' && (
-        <View style={styles.footer}>
+          {/* Amount Input Section */}
+          <View style={styles.amountSection}>
+            <Text style={styles.sectionTitle}>Enter Amount</Text>
+            
+            <View style={[
+              styles.amountContainer,
+              amountFocused && styles.amountContainerFocused
+            ]}>
+              <Text style={styles.currencySymbol}>₦</Text>
+              <TextInput
+                style={styles.amountInput}
+                placeholder="0.00"
+                value={amount}
+                onChangeText={setAmount}
+                onFocus={() => setAmountFocused(true)}
+                onBlur={() => setAmountFocused(false)}
+                keyboardType="numeric"
+                placeholderTextColor="#ccc"
+                maxLength={10}
+              />
+            </View>
+          </View>
+
+          {/* Description Input Section */}
+          <View style={styles.descriptionSection}>
+            <Text style={styles.sectionTitle}>Description (Optional)</Text>
+            
+            <View style={[
+              styles.descriptionContainer,
+              descriptionFocused && styles.descriptionContainerFocused
+            ]}>
+              <TextInput
+                style={styles.descriptionInput}
+                placeholder="What's this for?"
+                value={description}
+                onChangeText={setDescription}
+                onFocus={() => setDescriptionFocused(true)}
+                onBlur={() => setDescriptionFocused(false)}
+                placeholderTextColor="#ccc"
+                maxLength={50}
+              />
+            </View>
+          </View>
+
+          {/* Send Methods */}
+          <View style={styles.methodsSection}>
+            <Text style={styles.sectionTitle}>Select Send Method</Text>
+            {sendMethods.map((method) => (
+              <TouchableOpacity
+                key={method.id}
+                style={[
+                  styles.methodCard,
+                  selectedMethod?.id === method.id && styles.selectedMethodCard,
+                ]}
+                onPress={() => handleMethodSelect(method)}
+              >
+                <View style={styles.methodIcon}>
+                  <method.icon size={24} color={selectedMethod?.id === method.id ? colors.primary : colors.secondaryText} />
+                </View>
+                <View style={styles.methodInfo}>
+                  <Text style={styles.methodName}>{method.name}</Text>
+                  <Text style={styles.methodDescription}>{method.description}</Text>
+                </View>
+                {selectedMethod?.id === method.id && (
+                  <CheckCircle size={20} color={colors.primary} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Recent Contacts (when contact method is selected) */}
+          {selectedMethod?.id === 'contact' && (
+            <View style={styles.contactsSection}>
+              <Text style={styles.sectionTitle}>Recent Contacts</Text>
+              {recentContacts.map((contact) => (
+                <TouchableOpacity
+                  key={contact.id}
+                  style={[
+                    styles.contactCard,
+                    selectedContact?.id === contact.id && styles.selectedContactCard,
+                  ]}
+                  onPress={() => handleContactSelect(contact)}
+                >
+                  <View style={styles.contactAvatar}>
+                    <Text style={styles.contactAvatarText}>
+                      {contact.name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.contactInfo}>
+                    <Text style={styles.contactName}>{contact.name}</Text>
+                    <Text style={styles.contactPhone}>{contact.phone}</Text>
+                    <Text style={[
+                      styles.contactStatus,
+                      contact.isRegistered ? styles.registeredStatus : styles.unregisteredStatus
+                    ]}>
+                      {contact.isRegistered ? 'KotaPay User' : 'Not on KotaPay'}
+                    </Text>
+                  </View>
+                  {selectedContact?.id === contact.id && (
+                    <CheckCircle size={20} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* Transaction Summary */}
+          {amount && selectedMethod && (
+            <View style={styles.summarySection}>
+              <Text style={styles.sectionTitle}>Transaction Summary</Text>
+              <View style={styles.summaryCard}>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Amount</Text>
+                  <Text style={styles.summaryValue}>₦{parseFloat(amount || '0').toLocaleString()}</Text>
+                </View>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Method</Text>
+                  <Text style={styles.summaryValue}>{selectedMethod.name}</Text>
+                </View>
+                {selectedContact && (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Recipient</Text>
+                    <Text style={styles.summaryValue}>{selectedContact.name}</Text>
+                  </View>
+                )}
+                {description && (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Description</Text>
+                    <Text style={styles.summaryValue}>{description}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+        </ScrollView>
+
+        {/* Fixed Continue Button */}
+        <View style={[styles.buttonContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
           <TouchableOpacity
             style={[
-              styles.nextButton,
-              (!amount && currentStep === 'amount') ||
-              (!selectedContact && currentStep === 'contact') ||
-              (currentStep === 'amount' && amount && parseFloat(amount) > userBalance)
-                ? styles.nextButtonDisabled
-                : {},
+              styles.continueButton,
+              (!amount || !selectedMethod || loading || (selectedMethod.id === 'contact' && !selectedContact)) && styles.disabledButton,
             ]}
-            onPress={handleNext}
-            disabled={
-              (!amount && currentStep === 'amount') ||
-              (!selectedContact && currentStep === 'contact') ||
-              (currentStep === 'amount' && amount && parseFloat(amount) > userBalance)
-            }
+            onPress={handleContinue}
+            disabled={!amount || !selectedMethod || loading || (selectedMethod.id === 'contact' && !selectedContact)}
           >
-            <Text style={styles.nextButtonText}>
-              {currentStep === 'amount' && amount && parseFloat(amount) > userBalance
-                ? 'Insufficient Balance'
-                : 'Continue'}
-            </Text>
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.continueButtonText}>
+                Send Money
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
-      )}
+      </KeyboardAvoidingView>
 
-      {/* PIN Entry Modal */}
-      <PinEntryModal
-        visible={showPinModal}
-        onClose={() => setShowPinModal(false)}
-        onPinEntered={handlePinVerified}
-        title="Enter PIN to Send Money"
-        subtitle={`Send ₦${parseFloat(amount || '0').toLocaleString()} to ${selectedContact?.name}`}
-        allowBiometric={true}
-      />
-
-      {/* Loading Overlay */}
-      <LoadingOverlay
-        visible={isLoading}
-        type={loadingState}
-        message={loadingMessage}
-      />
-
-      {/* Quick Amount Loading Overlay */}
-      {quickAmountLoading && (
-        <View style={styles.quickAmountLoadingOverlay}>
-          <LoadingSpinner size={40} color={colors.primary} />
-        </View>
+      {/* PIN Modal */}
+      {showPinModal && (
+        <PinEntryModal
+          visible={showPinModal}
+          onClose={() => setShowPinModal(false)}
+          onPinEntered={handlePinVerified}
+          title="Enter Transaction PIN"
+          subtitle={`Confirm sending ₦${amount}${selectedContact ? ` to ${selectedContact.name}` : ''}`}
+        />
       )}
     </SafeAreaView>
   );
@@ -789,292 +425,155 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    paddingTop: spacing.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    backgroundColor: '#FFF0F5',
+  },
+  backButton: {
+    padding: 8,
   },
   headerTitle: {
-    ...typography.h3,
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.text,
+    textAlign: 'center',
+    marginRight: 40, // Offset for back button
   },
-  headerSpacer: {
+  placeholder: {
     width: 40,
   },
-  stepIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-  },
-  stepContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  stepCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.disabled,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepCircleActive: {
-    backgroundColor: colors.primary,
-  },
-  stepNumber: {
-    ...typography.caption,
-    color: colors.secondaryText,
-  },
-  stepNumberActive: {
-    color: colors.white,
-  },
-  stepLine: {
-    width: 24,
-    height: 2,
-    backgroundColor: colors.disabled,
-    marginHorizontal: spacing.xs,
-  },
-  stepLineActive: {
-    backgroundColor: colors.primary,
-  },
-  content: {
+  keyboardAvoidingView: {
     flex: 1,
   },
-  stepContent: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+  scrollContent: {
+    flex: 1,
+    paddingHorizontal: 16,
   },
-  // Balance Card Styles
-  balanceCard: {
-    marginHorizontal: 0,
-    marginBottom: spacing.xl,
-    padding: spacing.xl,
-    borderRadius: borderRadius.xl,
+  balanceSection: {
     backgroundColor: colors.primary,
-    ...shadows.medium,
-  },
-  balanceHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    borderRadius: 12,
+    padding: 20,
+    marginVertical: 16,
     alignItems: 'center',
-    marginBottom: spacing.sm,
   },
   balanceLabel: {
     fontSize: 14,
     color: colors.white,
     opacity: 0.8,
+    marginBottom: 8,
   },
   balanceAmount: {
-    fontSize: 36,
-    fontWeight: 'normal',
+    fontSize: 32,
+    fontWeight: 'bold',
     color: colors.white,
-    marginBottom: spacing.xs,
   },
-  balanceSubtext: {
-    fontSize: 12,
-    color: colors.white,
-    opacity: 0.7,
-  },
-  // Amount Step Styles
-  amountContainer: {
-    marginBottom: spacing.sm,
-  },
-  currencyContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    padding: spacing.md,
-    ...shadows.small,
-    minHeight: 60,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  currencyContainerFocused: {
-    borderColor: '#06402B',
-    ...shadows.medium,
-  },
-  nairaSign: {
-    ...typography.h2,
-    color: '#06402B',
-    includeFontPadding: false,
-    marginTop: 4,
-  },
-  amountInput: {
-    ...typography.h2,
-    color: colors.text,
-    marginLeft: spacing.sm,
-    flex: 1,
-    textAlign: 'left',
-    includeFontPadding: false,
-    paddingVertical: 0,
-    textAlignVertical: 'center',
-  },
-  descriptionContainer: {
-    marginBottom: spacing.sm,
-  },
-  inputLabel: {
-    ...typography.body,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  descriptionInput: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    padding: spacing.lg,
-    ...typography.body,
-    color: colors.text,
-    minHeight: 80,
-    textAlignVertical: 'top',
-    ...shadows.small,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  descriptionInputFocused: {
-    borderColor: '#06402B',
-    ...shadows.medium,
-  },
-  quickAmounts: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  quickAmountsContainer: {
-    marginBottom: spacing.sm,
-  },
-  quickAmountsLabel: {
-    ...typography.body,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  quickAmountButton: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    ...shadows.small,
-    flex: 1,
-    minWidth: 80,
-    maxWidth: 100,
-    alignItems: 'center',
-  },
-  quickAmountText: {
-    ...typography.body,
-    color: colors.primary,
-  },
-  // Suggestions Styles
-  suggestionsContainer: {
-    marginBottom: spacing.sm,
-  },
-  suggestionsLabel: {
-    ...typography.body,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  suggestions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  suggestionButton: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    ...shadows.small,
-    alignItems: 'center',
-    flex: 1,
-    minWidth: 70,
-    maxWidth: 100,
-  },
-  suggestionText: {
-    ...typography.caption,
-    color: colors.text,
-    textAlign: 'center',
-  },
-  // Grid suggestions styles
-  suggestionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  suggestionCard: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    ...shadows.small,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '48%',
-    minHeight: 50,
-  },
-  suggestionCardText: {
-    ...typography.body,
-    color: colors.text,
-    textAlign: 'center',
-  },
-  // Info Card Styles
-  infoCard: {
-    backgroundColor: colors.accent,
-    borderRadius: borderRadius.medium,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  infoTitle: {
-    ...typography.body,
-    color: colors.primary,
-    marginBottom: spacing.sm,
-  },
-  infoText: {
-    ...typography.caption,
-    color: colors.text,
-    lineHeight: 18,
-  },
-  // Contact Step Styles
-  contactOptions: {
-    marginBottom: spacing.md,
-  },
-  optionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    padding: spacing.lg,
-    ...shadows.small,
-  },
-  optionText: {
-    ...typography.body,
-    color: colors.text,
-    flex: 1,
-    marginLeft: spacing.lg,
+  amountSection: {
+    marginBottom: 24,
   },
   sectionTitle: {
-    ...typography.h3,
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing.lg,
+    marginBottom: 12,
   },
-  contactsList: {
-    maxHeight: 300,
-  },
-  contactItem: {
+  amountContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    padding: spacing.lg,
-    marginBottom: spacing.sm,
-    ...shadows.small,
-  },
-  contactItemSelected: {
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  amountContainerFocused: {
+    borderColor: colors.primary,
+  },
+  currencySymbol: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text,
+    marginRight: 8,
+  },
+  amountInput: {
+    flex: 1,
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  descriptionSection: {
+    marginBottom: 24,
+  },
+  descriptionContainer: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  descriptionContainerFocused: {
+    borderColor: colors.primary,
+  },
+  descriptionInput: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  methodsSection: {
+    marginBottom: 24,
+  },
+  methodCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  selectedMethodCard: {
+    borderColor: colors.primary,
+  },
+  methodIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  methodInfo: {
+    flex: 1,
+  },
+  methodName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  methodDescription: {
+    fontSize: 14,
+    color: colors.secondaryText,
+  },
+  contactsSection: {
+    marginBottom: 24,
+  },
+  contactCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  selectedContactCard: {
     borderColor: colors.primary,
   },
   contactAvatar: {
@@ -1082,219 +581,119 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     backgroundColor: colors.primary,
-    alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.lg,
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  contactAvatarText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.white,
   },
   contactInfo: {
     flex: 1,
   },
   contactName: {
-    ...typography.body,
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.text,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   contactPhone: {
-    ...typography.caption,
+    fontSize: 14,
     color: colors.secondaryText,
+    marginBottom: 4,
   },
   contactStatus: {
-    alignItems: 'center',
+    fontSize: 12,
+    fontWeight: '500',
   },
-  registeredBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.success,
-    alignItems: 'center',
-    justifyContent: 'center',
+  registeredStatus: {
+    color: colors.primary,
   },
-  // Manual Entry Styles
-  manualEntryContainer: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.large,
-    padding: spacing.xl,
-    ...shadows.medium,
-  },
-  manualEntryTitle: {
-    ...typography.h3,
-    color: colors.text,
-    marginBottom: spacing.xl,
-    textAlign: 'center',
-  },
-  inputContainer: {
-    marginBottom: spacing.lg,
-  },
-  input: {
-    backgroundColor: colors.background,
-    borderRadius: borderRadius.medium,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    ...typography.body,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  manualEntryButtons: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.lg,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: colors.background,
-    borderRadius: borderRadius.medium,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  cancelButtonText: {
-    ...typography.body,
+  unregisteredStatus: {
     color: colors.secondaryText,
   },
-  addButton: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.medium,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
+  summarySection: {
+    marginBottom: 24,
   },
-  addButtonText: {
-    ...typography.body,
-    color: colors.white,
-  },
-  // Confirm Step Styles
-  confirmCard: {
+  summaryCard: {
     backgroundColor: colors.white,
-    borderRadius: borderRadius.large,
-    padding: spacing.xl,
-    ...shadows.medium,
+    borderRadius: 12,
+    padding: 16,
   },
-  confirmTitle: {
-    ...typography.h3,
-    color: colors.text,
-    marginBottom: spacing.xl,
-    textAlign: 'center',
-  },
-  confirmRow: {
+  summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginBottom: 12,
   },
-  confirmLabel: {
-    ...typography.body,
+  summaryLabel: {
+    fontSize: 14,
     color: colors.secondaryText,
   },
-  confirmValue: {
-    ...typography.body,
+  summaryValue: {
+    fontSize: 14,
+    fontWeight: '500',
     color: colors.text,
   },
-  confirmTotal: {
-    borderBottomWidth: 0,
-    paddingTop: spacing.lg,
-    borderTopWidth: 2,
-    borderTopColor: colors.primary,
+  buttonContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
-  confirmTotalLabel: {
-    ...typography.h3,
-    color: colors.text,
-  },
-  confirmTotalValue: {
-    ...typography.h3,
-    color: colors.primary,
-  },
-  // Result Step Styles
-  processingContainer: {
+  continueButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 16,
     alignItems: 'center',
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  continueButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
+  },
+  successContentWrapper: {
+    flex: 1,
     justifyContent: 'center',
-    paddingVertical: spacing.xxxl,
-  },
-  processingText: {
-    ...typography.body,
-    color: colors.text,
-    marginTop: spacing.lg,
-  },
-  resultContainer: {
     alignItems: 'center',
-    paddingVertical: spacing.xxxl,
   },
-  resultIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  successContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xl,
+    paddingHorizontal: 32,
   },
-  resultTitle: {
-    ...typography.h2,
+  successIcon: {
+    marginBottom: 24,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
     color: colors.text,
-    marginBottom: spacing.sm,
+    marginBottom: 16,
     textAlign: 'center',
   },
-  resultSubtitle: {
-    ...typography.body,
+  successMessage: {
+    fontSize: 16,
     color: colors.secondaryText,
     textAlign: 'center',
-    marginBottom: spacing.xl,
+    lineHeight: 24,
+    marginBottom: 32,
   },
   doneButton: {
     backgroundColor: colors.primary,
-    borderRadius: borderRadius.medium,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xxl,
-    ...shadows.small,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
   },
   doneButtonText: {
-    ...typography.body,
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.white,
-  },
-  retryButton: {
-    backgroundColor: colors.error,
-    borderRadius: borderRadius.medium,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xxl,
-    ...shadows.small,
-  },
-  retryButtonText: {
-    ...typography.body,
-    color: colors.white,
-  },
-  // Footer Styles
-  footer: {
-    padding: spacing.xl,
-  },
-  nextButton: {
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.medium,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-  },
-  nextButtonDisabled: {
-    backgroundColor: colors.disabled,
-    opacity: 0.6,
-  },
-  nextButtonText: {
-    ...typography.body,
-    color: colors.white,
-  },
-  quickAmountButtonDisabled: {
-    opacity: 0.5,
-  },
-  quickAmountLoadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.overlay,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
   },
 });
 

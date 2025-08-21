@@ -2,38 +2,27 @@ import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
+  TextInput,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
-  TextInput,
-  Modal,
+  StyleSheet,
   Alert,
-  Animated,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Image,
-  ImageSourcePropType,
+  RefreshControl,
+  Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ChevronLeft,
-  ChevronDown,
   Phone,
-  Check,
-  Zap,
   CheckCircle,
   Users,
 } from 'lucide-react-native';
-import { RootStackParamList } from '../types';
-import { colors, spacing, shadows, borderRadius, iconSizes } from '../theme';
-import PinEntryModal from '../components/PinEntryModal';
-import LoadingOverlay from '../components/LoadingOverlay';
-import PageLoadingOverlay from '../components/PageLoadingOverlay';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { useLoading } from '../hooks/useLoading';
-import { usePageLoading } from '../hooks/usePageLoading';
-import { billNotificationService } from '../services/billNotifications';
-import { useToast } from '../components/ToastProvider';
+import { colors } from '../theme';
 
 // Import network provider logos
 const mtnLogo = require('../../logo/MTN.png');
@@ -41,638 +30,355 @@ const gloLogo = require('../../logo/Glo.png');
 const airtelLogo = require('../../logo/Airtel.png');
 const nineMobileLogo = require('../../logo/9mobile.png');
 
-type AirtimeTopUpScreenNavigationProp = StackNavigationProp<RootStackParamList>;
-
 interface AirtimeProvider {
   id: string;
   name: string;
   color: string;
-  logo: ImageSourcePropType;
-}
-
-interface QuickAmount {
-  value: number;
-  label: string;
-  bonus?: string;
+  logo: any;
 }
 
 interface Contact {
   id: string;
   name: string;
-  phone: string;
-  provider?: string;
+  phoneNumber: string;
+  network?: string;
 }
 
 const AirtimeTopUpScreen: React.FC = () => {
-  const navigation = useNavigation<AirtimeTopUpScreenNavigationProp>();
-
-  // Provider list as specified
-  const providerList: AirtimeProvider[] = [
-    {
-      id: 'mtn',
-      name: 'MTN',
-      color: '#FFCC00',
-      logo: mtnLogo,
-    },
-    {
-      id: 'glo',
-      name: 'GLO',
-      color: '#00B04F',
-      logo: gloLogo,
-    },
-    {
-      id: 'airtel',
-      name: 'AIRTEL',
-      color: '#FF0000',
-      logo: airtelLogo,
-    },
-    {
-      id: '9mobile',
-      name: '9MOBILE',
-      color: '#00AA44',
-      logo: nineMobileLogo,
-    },
-  ];
-
-  // Quick amount buttons with bonuses
-  const quickAmounts: QuickAmount[] = [
-    { value: 50, label: '₦50' },
-    { value: 100, label: '₦100' },
-    { value: 200, label: '₦200' },
-    { value: 500, label: '₦500', bonus: 'Get 10% bonus!' },
-    { value: 1000, label: '₦1,000', bonus: 'Get 15% bonus!' },
-    { value: 2000, label: '₦2,000', bonus: 'Get 20% bonus!' },
-  ];
-
-  // State management
-  const [selectedProvider, setSelectedProvider] = useState<AirtimeProvider | null>(null);
-  const [showProviderModal, setShowProviderModal] = useState(false);
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  
   const [phoneNumber, setPhoneNumber] = useState('');
   const [amount, setAmount] = useState('');
-  const [selectedQuickAmount, setSelectedQuickAmount] = useState<number | null>(null);
-  const [showPinModal, setShowPinModal] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<AirtimeProvider | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [showContactModal, setShowContactModal] = useState(false);
-  const [quickAmountLoading, setQuickAmountLoading] = useState(false);
+  const [showContacts, setShowContacts] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [spinningButton, setSpinningButton] = useState<string | null>(null);
   
-  // Loading state management
-  const { isLoading, loadingState, loadingMessage, setConfirming, setError, stopLoading } = useLoading();
+  const spinValue = useRef(new Animated.Value(0)).current;
 
-  // Page loading state management
-  const { isPageLoading } = usePageLoading({ duration: 800 });
-  
-  // Animation state for success feedback  
-  const animationValue = useRef(new Animated.Value(0)).current;
-
-  // Mock contact data
-  const mockContacts: Contact[] = [
-    { id: '1', name: 'John Doe', phone: '08012345678', provider: 'mtn' },
-    { id: '2', name: 'Jane Smith', phone: '08123456789', provider: 'mtn' },
-    { id: '3', name: 'Mike Johnson', phone: '07098765432', provider: 'glo' },
-    { id: '4', name: 'Sarah Wilson', phone: '08034567890', provider: 'airtel' },
-    { id: '5', name: 'David Brown', phone: '09012345678', provider: '9mobile' },
+  const providers: AirtimeProvider[] = [
+    { id: 'mtn', name: 'MTN', color: '#FFCC00', logo: mtnLogo },
+    { id: 'glo', name: 'Glo', color: '#008E00', logo: gloLogo },
+    { id: 'airtel', name: 'Airtel', color: '#FF0000', logo: airtelLogo },
+    { id: '9mobile', name: '9mobile', color: '#00B04F', logo: nineMobileLogo },
   ];
 
-  // Toast hook
-  const { showToast } = useToast();
+  const quickAmounts = ['100', '200', '500', '1000', '2000', '3000', '5000', '10000', '15000', '20000'];
 
-  // Validation functions
-  const validatePhoneNumber = (phone: string): boolean => {
-    // Nigerian phone number validation
-    const phoneRegex = /^(\+234|234|0)?[789][01]\d{8}$/;
-    return phoneRegex.test(phone.replace(/\s/g, ''));
-  };
+  // Mock recent contacts for demo
+  const recentContacts: Contact[] = [
+    { id: '1', name: 'John Doe', phoneNumber: '08012345678', network: 'MTN' },
+    { id: '2', name: 'Jane Smith', phoneNumber: '08098765432', network: 'Glo' },
+    { id: '3', name: 'Mike Johnson', phoneNumber: '08087654321', network: 'Airtel' },
+  ];
 
-  const validateForm = (): boolean => {
-    if (!selectedProvider) {
-      Alert.alert('Error', 'Please select a network provider');
-      return false;
-    }
-    if (!phoneNumber.trim()) {
-      Alert.alert('Error', 'Please enter a phone number');
-      return false;
-    }
-    if (!validatePhoneNumber(phoneNumber)) {
-      Alert.alert('Error', 'Please enter a valid Nigerian phone number');
-      return false;
-    }
-    if (!amount || parseFloat(amount) <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
-      return false;
-    }
-    if (parseFloat(amount) < 50) {
-      Alert.alert('Error', 'Minimum airtime purchase is ₦50');
-      return false;
-    }
-    if (parseFloat(amount) > 10000) {
-      Alert.alert('Error', 'Maximum airtime purchase is ₦10,000');
-      return false;
-    }
-    return true;
-  };
+  const detectNetwork = (phone: string): AirtimeProvider | null => {
+    if (!phone) return null;
+    
+    const mtnPrefixes = ['0803', '0806', '0703', '0706', '0813', '0816', '0810', '0814', '0903', '0906', '0913', '0916'];
+    const gloPrefixes = ['0805', '0807', '0705', '0815', '0811', '0905', '0915'];
+    const airtelPrefixes = ['0802', '0808', '0708', '0812', '0701', '0902', '0907', '0901', '0912'];
+    const nineMobilePrefixes = ['0809', '0818', '0817', '0909', '0908'];
 
-  // Format phone number as user types
-  const formatPhoneNumber = (text: string): string => {
-    // Remove all non-numeric characters
-    const cleaned = text.replace(/\D/g, '');
+    const prefix = phone.substring(0, 4);
     
-    // Limit to 11 digits for Nigerian numbers
-    const truncated = cleaned.slice(0, 11);
-    
-    // Format as XXX XXX XXXX
-    if (truncated.length >= 7) {
-      return truncated.replace(/(\d{3})(\d{3})(\d{0,5})/, '$1 $2 $3').trim();
-    } else if (truncated.length >= 4) {
-      return truncated.replace(/(\d{3})(\d{0,3})/, '$1 $2').trim();
-    }
-    return truncated;
-  };
-
-  // Auto-detect provider based on phone number
-  const detectProvider = (phone: string): AirtimeProvider | null => {
-    const cleaned = phone.replace(/\D/g, '');
-    if (cleaned.length < 4) return null;
-
-    const prefix = cleaned.slice(0, 4);
-    
-    // MTN prefixes
-    if (['0803', '0806', '0813', '0816', '0903', '0906', '0913', '0916'].some(p => prefix.startsWith(p))) {
-      return providerList.find(p => p.id === 'mtn') || null;
-    }
-    
-    // GLO prefixes
-    if (['0805', '0807', '0815', '0811', '0905', '0915'].some(p => prefix.startsWith(p))) {
-      return providerList.find(p => p.id === 'glo') || null;
-    }
-    
-    // Airtel prefixes
-    if (['0802', '0808', '0812', '0701', '0902', '0907', '0912'].some(p => prefix.startsWith(p))) {
-      return providerList.find(p => p.id === 'airtel') || null;
-    }
-    
-    // 9mobile prefixes
-    if (['0809', '0817', '0818', '0909', '0908'].some(p => prefix.startsWith(p))) {
-      return providerList.find(p => p.id === '9mobile') || null;
-    }
+    if (mtnPrefixes.includes(prefix)) return providers[0];
+    if (gloPrefixes.includes(prefix)) return providers[1];
+    if (airtelPrefixes.includes(prefix)) return providers[2];
+    if (nineMobilePrefixes.includes(prefix)) return providers[3];
     
     return null;
   };
 
-  // Handle contact selection
-  const handleContactSelect = (contact: Contact) => {
-    setPhoneNumber(contact.phone);
-    
-    // Auto-detect provider from phone number
-    const detectedProvider = detectProvider(contact.phone);
-    if (detectedProvider) {
-      setSelectedProvider(detectedProvider);
-    }
-    
-    setShowContactModal(false);
-  };
-
-  // Handle phone number input
   const handlePhoneNumberChange = (text: string) => {
-    const formatted = formatPhoneNumber(text);
-    setPhoneNumber(formatted);
+    // Remove any non-digit characters
+    const cleaned = text.replace(/\D/g, '');
     
-    // Auto-detect provider when enough digits are entered
-    if (formatted.replace(/\D/g, '').length >= 4) {
-      const detectedProvider = detectProvider(formatted);
-      if (detectedProvider && !selectedProvider) {
-        setSelectedProvider(detectedProvider);
+    // Limit to 11 digits
+    if (cleaned.length <= 11) {
+      setPhoneNumber(cleaned);
+      
+      // Auto-detect network when phone number is complete
+      if (cleaned.length >= 4) {
+        const network = detectNetwork(cleaned);
+        if (network) {
+          setSelectedProvider(network);
+        }
       }
     }
   };
 
-  // Handle quick amount selection with simple loading animation
-  const handleQuickAmountPress = async (quickAmount: QuickAmount) => {
-    setQuickAmountLoading(true);
-    
-    // Simulate processing time for amount selection
-    await new Promise<void>(resolve => setTimeout(resolve, 500));
-    
-    // Set the amount after loading
-    setAmount(quickAmount.value.toString());
-    setSelectedQuickAmount(quickAmount.value);
-    
-    setQuickAmountLoading(false);
+  const formatPhoneNumber = (phone: string) => {
+    if (phone.length <= 4) return phone;
+    if (phone.length <= 7) return `${phone.slice(0, 4)} ${phone.slice(4)}`;
+    return `${phone.slice(0, 4)} ${phone.slice(4, 7)} ${phone.slice(7)}`;
   };
 
-  // Handle custom amount input
-  const handleAmountChange = (text: string) => {
-    setAmount(text);
-    setSelectedQuickAmount(null); // Clear quick amount selection
+  const selectContact = (contact: Contact) => {
+    setPhoneNumber(contact.phoneNumber);
+    const network = detectNetwork(contact.phoneNumber);
+    if (network) {
+      setSelectedProvider(network);
+    }
+    setShowContacts(false);
   };
 
-  // Handle continue button press
-  const handleContinue = () => {
-    if (!validateForm()) return;
-    setShowPinModal(true);
+  const selectQuickAmount = (quickAmount: string) => {
+    setSpinningButton(quickAmount);
+    
+    // Reset and start spin animation
+    spinValue.setValue(0);
+    Animated.timing(spinValue, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start(() => {
+      setSpinningButton(null);
+    });
+    
+    setAmount(quickAmount);
   };
 
-  // Handle PIN verification and transaction processing
-  const handlePinVerified = async (enteredPin: string) => {
-    setShowPinModal(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    // Simulate refresh delay
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  };
 
-    const transactionId = `airtime_${Date.now()}`;
-    const transactionAmount = parseFloat(amount);
+  const handlePurchase = async () => {
+    if (!phoneNumber || !amount || !selectedProvider) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    if (phoneNumber.length !== 11) {
+      Alert.alert('Error', 'Please enter a valid 11-digit phone number');
+      return;
+    }
+
+    const amountNum = parseInt(amount);
+    if (isNaN(amountNum) || amountNum < 50) {
+      Alert.alert('Error', 'Minimum airtime amount is ₦50');
+      return;
+    }
 
     try {
-      // Start confirming phase directly (skip loading)
-      setConfirming('Confirming top-up...');
+      setIsLoading(true);
       
-      // Send pending notification
-      showToast('warning', 'Processing airtime top-up...', 2000);
+      // Mock API call
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Send pending notification
-      await billNotificationService.sendBillPaymentPendingNotification({
-        transactionId,
-        billType: 'airtime',
-        provider: selectedProvider?.name || 'Provider',
-        amount: transactionAmount,
-        accountNumber: phoneNumber,
-      });
-
-      // Mock transaction processing
-      await new Promise<void>(resolve => setTimeout(resolve, 2000));
-      
-      // Send success notification
-      await billNotificationService.sendAirtimeTopUpSuccessNotification({
-        transactionId,
-        provider: selectedProvider?.name || 'Provider',
-        phoneNumber,
-        amount: transactionAmount,
-        bonus: getCurrentBonus() || undefined,
-      });
-
-      // End loading before success animation
-      stopLoading();
-
-      // Show success toast
-      showToast('success', 'Airtime top-up successful!');
-
-      // Show animated success feedback
+      setIsLoading(false);
       setShowSuccess(true);
-      animationValue.setValue(0);
-      Animated.spring(animationValue, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8,
-      }).start();
-
-      // Auto dismiss after 2 seconds
+      
+      // Auto-dismiss success after 3 seconds
       setTimeout(() => {
         setShowSuccess(false);
-        navigation.navigate('MainTabs');
-      }, 2000);
-    } catch (error) {
-      console.error('Transaction failed:', error);
+        navigation.goBack();
+      }, 3000);
       
-      // Stop loading and show error
-      setError('Airtime top-up failed');
-      
-      // Send failure notification
-      await billNotificationService.sendBillPaymentFailedNotification({
-        transactionId,
-        billType: 'airtime',
-        provider: selectedProvider?.name || 'Provider',
-        amount: transactionAmount,
-        accountNumber: phoneNumber,
-      }, 'Network error occurred');
-
-      // Show error toast
-      showToast('error', 'Airtime top-up failed. Please try again.');
-      
-      Alert.alert('❌ Transaction Failed', 'Please try again later.');
+    } catch {
+      setIsLoading(false);
+      Alert.alert('Error', 'Failed to purchase airtime. Please try again.');
     }
   };
 
-  // Get bonus for current amount
-  const getCurrentBonus = (): string | null => {
-    const currentAmount = parseFloat(amount || '0');
-    if (currentAmount >= 2000) return 'Get 20% bonus!';
-    if (currentAmount >= 1000) return 'Get 15% bonus!';
-    if (currentAmount >= 500) return 'Get 10% bonus!';
-    return null;
-  };
+  const isFormValid = phoneNumber.length === 11 && amount && selectedProvider;
 
-  // Provider selection component
-  const ProviderSelector: React.FC = () => (
-    <TouchableOpacity
-      style={[
-        styles.providerSelector,
-        selectedProvider && { borderColor: selectedProvider.color }
-      ]}
-      onPress={() => setShowProviderModal(true)}
-    >
-      <View style={styles.providerSelectorContent}>
-        {selectedProvider ? (
-          <>
-            <View style={styles.providerLogo}>
-              <Image 
-                source={selectedProvider.logo} 
-                style={styles.providerLogoImage}
-                defaultSource={require('../../assets/images/icon.png')}
-              />
-            </View>
-            <Text style={styles.providerSelectorText}>{selectedProvider.name}</Text>
-          </>
-        ) : (
-          <Text style={styles.providerSelectorPlaceholder}>Select network provider</Text>
-        )}
-      </View>
-      <ChevronDown size={iconSizes.md} color={colors.secondaryText} />
-    </TouchableOpacity>
-  );
-
-  // Provider modal component
-  const ProviderModal: React.FC = () => (
-    <Modal
-      visible={showProviderModal}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={() => setShowProviderModal(false)}
-    >
-      <SafeAreaView style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <TouchableOpacity onPress={() => setShowProviderModal(false)}>
-            <Text style={styles.modalCancelText}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={styles.modalTitle}>Select Network</Text>
-          <View style={styles.modalSpacer} />
+  if (showSuccess) {
+    return (
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.successContainer}>
+          <CheckCircle size={80} color={colors.success} />
+          <Text style={styles.successTitle}>Airtime Purchase Successful!</Text>
+          <Text style={styles.successMessage}>
+            ₦{amount} airtime has been sent to {formatPhoneNumber(phoneNumber)}
+          </Text>
+          <Text style={styles.successNetwork}>via {selectedProvider?.name}</Text>
         </View>
-        
-        <ScrollView style={styles.modalContent}>
-          {providerList.map((provider) => (
-            <TouchableOpacity
-              key={provider.id}
-              style={styles.providerOption}
-              onPress={() => {
-                setSelectedProvider(provider);
-                setShowProviderModal(false);
-              }}
-            >
-              <View style={styles.providerOptionContent}>
-                <View style={styles.providerLogo}>
-                  <Image 
-                    source={provider.logo} 
-                    style={styles.providerLogoImage}
-                    defaultSource={require('../../assets/images/icon.png')}
-                  />
-                </View>
-                <Text style={styles.providerOptionText}>{provider.name}</Text>
-              </View>
-              {selectedProvider?.id === provider.id && (
-                <Check size={iconSizes.md} color={colors.success} />
-              )}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
       </SafeAreaView>
-    </Modal>
-  );
-
-  // Quick amount button component
-  const QuickAmountButton: React.FC<{ quickAmount: QuickAmount }> = ({ quickAmount }) => (
-    <TouchableOpacity
-      style={[
-        styles.quickAmountButton,
-        selectedQuickAmount === quickAmount.value && styles.quickAmountButtonSelected
-      ]}
-      onPress={() => handleQuickAmountPress(quickAmount)}
-      disabled={quickAmountLoading}
-    >
-      <Text
-        style={[
-          styles.quickAmountText,
-          selectedQuickAmount === quickAmount.value && styles.quickAmountTextSelected
-        ]}
-      >
-        {quickAmount.label}
-      </Text>
-      {quickAmount.bonus && (
-        <Text style={styles.quickAmountBonus}>{quickAmount.bonus}</Text>
-      )}
-    </TouchableOpacity>
-  );
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ChevronLeft size={24} color="#000d10" />
-        </TouchableOpacity>
-        <View style={styles.headerPlaceholder} />
-        <Text style={styles.headerTitle}>Airtime</Text>
-        <View style={styles.headerPlaceholder} />
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Network Provider Selection */}
-        <View style={styles.section}>
-          <ProviderSelector />
+      <KeyboardAvoidingView 
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <ChevronLeft size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Buy Airtime</Text>
+          <View style={styles.placeholder} />
         </View>
 
-        {/* Phone Number Input */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Phone Number</Text>
-          <View style={styles.phoneInputContainer}>
-            <Phone size={iconSizes.md} color={colors.secondaryText} />
-            <TextInput
-              style={styles.phoneInput}
-              placeholder="080 1234 5678"
-              value={phoneNumber}
-              onChangeText={handlePhoneNumberChange}
-              keyboardType="phone-pad"
-              maxLength={13} // For formatted number: XXX XXXX XXXX
-            />
-            <TouchableOpacity
-              style={styles.contactButton}
-              onPress={() => setShowContactModal(true)}
-            >
-              <Users size={iconSizes.md} color={colors.primary} />
-            </TouchableOpacity>
+        <ScrollView 
+          style={styles.content} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {/* Phone Number Input */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Phone Number</Text>
+            <View style={styles.phoneInputContainer}>
+              <View style={styles.phoneInputWrapper}>
+                <Phone size={20} color={colors.secondaryText} style={styles.phoneIcon} />
+                <TextInput
+                  style={styles.phoneInput}
+                  value={formatPhoneNumber(phoneNumber)}
+                  onChangeText={handlePhoneNumberChange}
+                  placeholder="Enter phone number"
+                  keyboardType="numeric"
+                  maxLength={13} // Formatted length
+                />
+                <TouchableOpacity 
+                  style={styles.contactsButton}
+                  onPress={() => setShowContacts(!showContacts)}
+                >
+                  <Users size={20} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Network Detection */}
+            {selectedProvider && (
+              <View style={styles.networkDetected}>
+                <Image source={selectedProvider.logo} style={styles.networkLogo} />
+                <Text style={styles.networkName}>{selectedProvider.name} detected</Text>
+              </View>
+            )}
+
+            {/* Recent Contacts */}
+            {showContacts && (
+              <View style={styles.contactsList}>
+                <Text style={styles.contactsTitle}>Recent Contacts</Text>
+                {recentContacts.map(contact => (
+                  <TouchableOpacity
+                    key={contact.id}
+                    style={styles.contactItem}
+                    onPress={() => selectContact(contact)}
+                  >
+                    <View style={styles.contactInfo}>
+                      <Text style={styles.contactName}>{contact.name}</Text>
+                      <Text style={styles.contactPhone}>{contact.phoneNumber}</Text>
+                    </View>
+                    {contact.network && (
+                      <Text style={styles.contactNetwork}>{contact.network}</Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
-        </View>
 
-        {/* Quick Amount Buttons */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Amount</Text>
-          <View style={styles.quickAmountsGrid}>
-            {quickAmounts.map((quickAmount) => (
-              <QuickAmountButton key={quickAmount.value} quickAmount={quickAmount} />
-            ))}
-          </View>
-        </View>
-
-        {/* Custom Amount Input */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Or Enter Amount</Text>
-          <View style={styles.amountInputContainer}>
-            <Text style={styles.currencySymbol}>₦</Text>
+          {/* Amount Input */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Amount</Text>
             <TextInput
               style={styles.amountInput}
-              placeholder="0.00"
               value={amount}
-              onChangeText={handleAmountChange}
+              onChangeText={setAmount}
+              placeholder="Enter amount"
               keyboardType="numeric"
             />
-          </View>
-          <Text style={styles.amountHint}>Minimum: ₦50 • Maximum: ₦10,000</Text>
-          
-          {/* Bonus Display */}
-          {getCurrentBonus() && (
-            <View style={styles.bonusContainer}>
-              <Zap size={iconSizes.sm} color={colors.success} />
-              <Text style={styles.bonusText}>{getCurrentBonus()}</Text>
+
+            {/* Quick Amount Buttons */}
+            <View style={styles.quickAmountsContainer}>
+              <Text style={styles.quickAmountsTitle}>Quick amounts</Text>
+              <View style={styles.quickAmounts}>
+                {quickAmounts.map((quickAmount) => {
+                  const isSpinning = spinningButton === quickAmount;
+                  const spin = spinValue.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0deg', '360deg'],
+                  });
+
+                  return (
+                    <TouchableOpacity
+                      key={quickAmount}
+                      style={[
+                        styles.quickAmountButton,
+                        amount === quickAmount && styles.quickAmountButtonSelected
+                      ]}
+                      onPress={() => selectQuickAmount(quickAmount)}
+                    >
+                      <Animated.View
+                        style={[
+                          { transform: [{ rotate: isSpinning ? spin : '0deg' }] }
+                        ]}
+                      >
+                        <Text style={[
+                          styles.quickAmountText,
+                          amount === quickAmount && styles.quickAmountTextSelected
+                        ]}>
+                          ₦{quickAmount}
+                        </Text>
+                      </Animated.View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
-          )}
-        </View>
-
-        {/* Information Section */}
-        <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>Transaction Details</Text>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoBullet}>•</Text>
-            <Text style={styles.infoText}>Airtime will be credited instantly</Text>
           </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoBullet}>•</Text>
-            <Text style={styles.infoText}>Bonus applies to eligible amounts</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoBullet}>•</Text>
-            <Text style={styles.infoText}>No additional charges apply</Text>
-          </View>
-        </View>
-      </ScrollView>
 
-      {/* Continue Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[
-            styles.continueButton,
-            (!selectedProvider || !phoneNumber || !amount || isLoading) && styles.continueButtonDisabled
-          ]}
-          onPress={handleContinue}
-          disabled={!selectedProvider || !phoneNumber || !amount || isLoading}
-        >
-          <Text style={styles.continueButtonText}>
-            {isLoading ? 'Processing...' : 'Continue'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Modals */}
-      <ProviderModal />
-      
-      {/* PIN Entry Modal */}
-      <PinEntryModal
-        visible={showPinModal}
-        onClose={() => setShowPinModal(false)}
-        onPinEntered={handlePinVerified}
-        title="Enter PIN to Confirm"
-        subtitle={`Buy ₦${parseFloat(amount || '0').toLocaleString()} airtime for ${phoneNumber} (${selectedProvider?.name})`}
-        allowBiometric={true}
-      />
-
-      {/* Contact Selection Modal */}
-      <Modal
-        visible={showContactModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowContactModal(false)}
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Contact</Text>
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={() => setShowContactModal(false)}
-            >
-              <Text style={styles.modalCloseText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView style={styles.contactList}>
-            {mockContacts.map((contact) => {
-              const detectedProvider = detectProvider(contact.phone);
-              return (
+          {/* Network Provider Selection */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Network Provider</Text>
+            <View style={styles.providersGrid}>
+              {providers.map((provider) => (
                 <TouchableOpacity
-                  key={contact.id}
-                  style={styles.contactItem}
-                  onPress={() => handleContactSelect(contact)}
+                  key={provider.id}
+                  style={[
+                    styles.providerCard,
+                    selectedProvider?.id === provider.id && styles.providerCardSelected
+                  ]}
+                  onPress={() => setSelectedProvider(provider)}
                 >
-                  <View style={styles.contactInfo}>
-                    <Text style={styles.contactName}>{contact.name}</Text>
-                    <Text style={styles.contactPhone}>{contact.phone}</Text>
-                  </View>
-                  {detectedProvider && (
-                    <View style={[styles.providerBadge, { backgroundColor: detectedProvider.color }]}>
-                      <Text style={styles.providerBadgeText}>{detectedProvider.name}</Text>
-                    </View>
-                  )}
+                  <Image source={provider.logo} style={styles.providerLogo} />
+                  <Text style={styles.providerName}>{provider.name}</Text>
                 </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
-
-      {/* Success Animation Overlay */}
-      {showSuccess && (
-        <View style={styles.successOverlay}>
-          <Animated.View
-            style={[
-              styles.successContainer,
-              {
-                opacity: animationValue.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.7, 1],
-                }),
-                transform: [
-                  {
-                    scale: animationValue.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.9, 1],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <View style={styles.successIcon}>
-              <CheckCircle size={60} color={colors.white} />
+              ))}
             </View>
-            <Text style={styles.successTitle}>Top-up Successful!</Text>
-            <Text style={styles.successSubtitle}>
-              ₦{parseFloat(amount || '0').toLocaleString()} airtime sent to {phoneNumber}
-            </Text>
-          </Animated.View>
-        </View>
-      )}
-      
-      {/* Loading Overlay */}
-      <LoadingOverlay 
-        visible={isLoading}
-        type={loadingState}
-        message={loadingMessage}
-      />
-
-      {/* Page Loading Overlay */}
-      <PageLoadingOverlay visible={isPageLoading} />
-
-      {/* Simple Quick Amount Loading */}
-      {quickAmountLoading && (
-        <View style={styles.quickAmountLoadingOverlay}>
-          <View style={styles.quickAmountLoadingContainer}>
-            <LoadingSpinner size={40} color={colors.primary} />
           </View>
+
+          <View style={styles.bottomPadding} />
+        </ScrollView>
+
+        {/* Purchase Button */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.purchaseButton, !isFormValid && styles.purchaseButtonDisabled]}
+            onPress={handlePurchase}
+            disabled={!isFormValid || isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <>
+                <Text style={styles.purchaseButtonText}>
+                  Purchase Airtime {amount && `(₦${amount})`}
+                </Text>
+                <View style={styles.discountBadge}>
+                  <Text style={styles.discountText}>2% OFF</Text>
+                </View>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
-      )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -680,393 +386,273 @@ const AirtimeTopUpScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF0F5',
+    backgroundColor: colors.background,
   },
-  header: {
-    backgroundColor: '#FFF0F5',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    paddingTop: spacing.xl,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerPlaceholder: {
+  keyboardContainer: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFF0F5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000d10',
-    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  placeholder: {
+    width: 40,
+    height: 40,
   },
   content: {
     flex: 1,
-    padding: spacing.lg,
+    paddingHorizontal: 20,
   },
   section: {
-    marginBottom: spacing.xl,
+    marginTop: 24,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  providerSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    borderWidth: 1,
-    borderColor: colors.borderBills,
-    ...shadows.billsCard,
-    elevation: 2,
-  },
-  providerSelectorContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  providerLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  providerLogoText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.white,
-  },
-  providerLogoImage: {
-    width: 36,
-    height: 36,
-    resizeMode: 'contain',
-  },
-  providerSelectorText: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  providerSelectorPlaceholder: {
-    fontSize: 16,
-    color: colors.secondaryText,
+    marginBottom: 12,
   },
   phoneInputContainer: {
+    marginBottom: 12,
+  },
+  phoneInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 56,
     borderWidth: 1,
-    borderColor: colors.borderBills,
-    paddingHorizontal: spacing.lg,
-    ...shadows.billsCard,
-    elevation: 2,
+    borderColor: colors.border,
+  },
+  phoneIcon: {
+    marginRight: 12,
   },
   phoneInput: {
     flex: 1,
-    padding: spacing.lg,
-    fontSize: 16,
-    color: colors.text,
-    marginLeft: spacing.sm,
-  },
-  quickAmountsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  quickAmountButton: {
-    width: '30%',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    borderWidth: 1,
-    borderColor: colors.borderBills,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    alignItems: 'center',
-    ...shadows.billsCard,
-    elevation: 2,
-  },
-  quickAmountButtonSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryTransparent,
-  },
-  quickAmountText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  quickAmountTextSelected: {
-    color: colors.primary,
-  },
-  quickAmountBonus: {
-    fontSize: 10,
-    color: colors.success,
-    fontWeight: '500',
-    marginTop: spacing.xs,
-    textAlign: 'center',
-  },
-  amountInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    borderWidth: 1,
-    borderColor: colors.borderBills,
-    paddingHorizontal: spacing.lg,
-    ...shadows.billsCard,
-    elevation: 2,
-  },
-  currencySymbol: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginRight: spacing.sm,
-  },
-  amountInput: {
-    flex: 1,
-    padding: spacing.lg,
     fontSize: 16,
     color: colors.text,
   },
-  amountHint: {
-    fontSize: 14,
-    color: colors.secondaryText,
-    marginTop: spacing.xs,
+  contactsButton: {
+    padding: 4,
   },
-  bonusContainer: {
+  networkDetected: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 8,
+    padding: 12,
     backgroundColor: colors.successTransparent,
-    borderRadius: borderRadius.medium,
-    padding: spacing.sm,
-    marginTop: spacing.sm,
+    borderRadius: 8,
   },
-  bonusText: {
+  networkLogo: {
+    width: 24,
+    height: 24,
+    marginRight: 8,
+  },
+  networkName: {
     fontSize: 14,
     color: colors.success,
-    fontWeight: '600',
-    marginLeft: spacing.xs,
+    fontWeight: '500',
   },
-  infoSection: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    padding: spacing.lg,
-    ...shadows.small,
+  contactsList: {
+    marginTop: 12,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: spacing.sm,
-  },
-  infoBullet: {
-    fontSize: 16,
-    color: colors.secondaryText,
-    marginRight: spacing.sm,
-    marginTop: 2,
-  },
-  infoText: {
-    flex: 1,
+  contactsTitle: {
     fontSize: 14,
-    color: colors.secondaryText,
-    lineHeight: 20,
-  },
-  footer: {
-    padding: spacing.lg,
-    backgroundColor: colors.background,
-  },
-  continueButton: {
-    backgroundColor: colors.primaryBills,
-    borderRadius: borderRadius.medium,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.billsCard,
-    elevation: 2,
-  },
-  continueButtonDisabled: {
-    backgroundColor: colors.disabled,
-    opacity: 0.6,
-  },
-  continueButtonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // Modal Styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalCancelText: {
-    fontSize: 16,
-    color: colors.primary,
-  },
-  modalTitle: {
-    fontSize: 18,
     fontWeight: '600',
     color: colors.text,
-  },
-  modalSpacer: {
-    width: 60,
-  },
-  modalContent: {
-    flex: 1,
-    padding: spacing.lg,
-  },
-  providerOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    marginBottom: spacing.sm,
-    ...shadows.small,
-  },
-  providerOptionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  providerOptionText: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  successOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  successContainer: {
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.large,
-    padding: spacing.xl,
-    marginHorizontal: spacing.xl,
-  },
-  successIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#A8E4A0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
-  },
-  successTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  successSubtitle: {
-    fontSize: 16,
-    color: colors.secondaryText,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  contactButton: {
-    padding: 8,
-    marginLeft: spacing.sm,
-  },
-  modalCloseButton: {
-    padding: spacing.sm,
-  },
-  modalCloseText: {
-    fontSize: 16,
-    color: colors.primary,
-    fontWeight: '500',
-  },
-  contactList: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
+    marginBottom: 12,
   },
   contactItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderBills,
+    borderBottomColor: colors.border,
   },
   contactInfo: {
     flex: 1,
   },
   contactName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
     color: colors.text,
-    marginBottom: 4,
   },
   contactPhone: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.secondaryText,
+    marginTop: 2,
   },
-  providerBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: spacing.md,
+  contactNetwork: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
   },
-  providerBadgeText: {
+  amountInput: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 56,
+    fontSize: 16,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  quickAmountsContainer: {
+    marginTop: 16,
+  },
+  quickAmountsTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '500',
+    color: colors.secondaryText,
+    marginBottom: 8,
+  },
+  quickAmounts: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  quickAmountButton: {
+    width: '18%',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  quickAmountButtonSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  quickAmountText: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  quickAmountTextSelected: {
     color: colors.white,
   },
-  quickAmountLoadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
+  providersGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
-  quickAmountLoadingContainer: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.large,
-    padding: spacing.xl,
+  providerCard: {
+    width: '48%',
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  providerCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryTransparent,
+  },
+  providerLogo: {
+    width: 40,
+    height: 40,
+    marginBottom: 8,
+  },
+  providerName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  bottomPadding: {
+    height: 100,
+  },
+  footer: {
+    padding: 20,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  purchaseButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.medium,
+  },
+  purchaseButtonDisabled: {
+    backgroundColor: colors.border,
+  },
+  purchaseButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
+  },
+  successContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.success,
+    marginTop: 24,
+    textAlign: 'center',
+  },
+  successMessage: {
+    fontSize: 16,
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: 12,
+    lineHeight: 24,
+  },
+  successNetwork: {
+    fontSize: 14,
+    color: colors.secondaryText,
+    marginTop: 8,
+  },
+  discountBadge: {
+    position: 'absolute',
+    top: -8,
+    right: 12,
+    backgroundColor: '#FF4757',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+  },
+  discountText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
 });
 
