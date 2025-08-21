@@ -12,6 +12,12 @@ declare namespace NodeJS {
   }
 }
 
+// Additional timer functions with React Native compatible types
+declare function setTimeout(callback: () => void, ms: number): number | NodeJS.Timeout;
+declare function clearTimeout(timeoutId: number | NodeJS.Timeout): void;
+declare function setInterval(callback: () => void, ms: number): number | NodeJS.Timeout;
+declare function clearInterval(intervalId: number | NodeJS.Timeout): void;
+
 // React Native core module augmentation
 declare module 'react-native' {
   // TextInput interface for refs
@@ -20,6 +26,46 @@ declare module 'react-native' {
     blur(): void;
     clear(): void;
     isFocused(): boolean;
+  }
+
+  // ScrollView interface for refs
+  interface ScrollView {
+    scrollTo(options: { x?: number; y?: number; animated?: boolean }): void;
+    scrollToEnd(options?: { animated?: boolean }): void;
+    getScrollableNode(): any;
+  }
+
+  // FlatList interface for refs
+  interface FlatList {
+    scrollToEnd(params?: { animated?: boolean }): void;
+    scrollToIndex(params: { animated?: boolean; index: number; viewOffset?: number; viewPosition?: number }): void;
+    scrollToItem(params: { animated?: boolean; item: any; viewPosition?: number }): void;
+    scrollToOffset(params: { animated?: boolean; offset: number }): void;
+    getScrollableNode(): any;
+  }
+
+  // ImageSourcePropType interface
+  interface ImageSource {
+    uri?: string;
+    bundle?: string;
+    method?: string;
+    headers?: object;
+    body?: string;
+    cache?: 'default' | 'reload' | 'force-cache' | 'only-if-cached';
+    width?: number;
+    height?: number;
+    scale?: number;
+  }
+
+  export type ImageSourcePropType = ImageSource;
+
+  // NativeScrollEvent interface
+  interface NativeScrollEvent {
+    contentInset: { top: number; left: number; bottom: number; right: number };
+    contentOffset: { x: number; y: number };
+    contentSize: { height: number; width: number };
+    layoutMeasurement: { height: number; width: number };
+    zoomScale?: number;
   }
 
   // Animated API
@@ -35,6 +81,7 @@ declare module 'react-native' {
     const sequence: any;
     const parallel: any;
     const loop: any;
+    const delay: any;
     const createAnimatedComponent: any;
   }
   
@@ -48,12 +95,12 @@ declare module 'react-native' {
   export const Text: any;
   export const StyleSheet: any;
   export const TouchableOpacity: any;
-  export const ScrollView: any;
+  export const ScrollView: React.ForwardRefExoticComponent<any & React.RefAttributes<ScrollView>>;
   export const SafeAreaView: any;
   export const TextInput: React.ForwardRefExoticComponent<any & React.RefAttributes<TextInput>>;
   export const Alert: any;
   export const ActivityIndicator: any;
-  export const FlatList: any;
+  export const FlatList: React.ForwardRefExoticComponent<any & React.RefAttributes<FlatList>>;
   export const RefreshControl: any;
   export const Modal: any;
   export const Pressable: any;
@@ -72,6 +119,10 @@ declare module 'react-native' {
   export const Switch: any;
   export const useColorScheme: any;
   export const Linking: any;
+  export const PanResponder: any;
+  export const NativeScrollEvent: any;
+  export const PermissionsAndroid: any;
+  export const Keyboard: any;
 }
 
 // React Native SVG module augmentation

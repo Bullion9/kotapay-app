@@ -153,13 +153,15 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
   
   // Resend timer countdown
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: number | NodeJS.Timeout;
     if (resendTimer > 0) {
       interval = setInterval(() => {
         setResendTimer(prev => prev - 1);
       }, 1000);
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [resendTimer]);
   
   // Pan responder for swipe to dismiss
