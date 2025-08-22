@@ -37,6 +37,7 @@ import {
 } from '../components/icons';
 import NotificationMailIcon from '../components/NotificationMailIcon';
 import { useAuth } from '../contexts/AuthContext';
+import { useWallet } from '../hooks/useWallet';
 import { notificationService } from '../services/notifications';
 import { kotaPayExamples } from '../services/KotaPayExamples';
 import { borderRadius, colors, iconSizes, shadows, spacing } from '../theme';
@@ -47,17 +48,21 @@ type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { user } = useAuth();
+  const { balance, refreshBalance } = useWallet();
   const [balanceVisible, setBalanceVisible] = useState(true);
-  const [balance] = useState(2847.50);
   const [accountNumber] = useState('4532 1234 5678 9012');
   const [refreshing, setRefreshing] = useState(false);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    // Simulate refresh - in real app, you'd reload user data, balance, etc.
-    setTimeout(() => {
+    try {
+      // Refresh wallet balance from real data
+      await refreshBalance();
+    } catch (error) {
+      console.error('Refresh error:', error);
+    } finally {
       setRefreshing(false);
-    }, 1500);
+    }
   };
 
   const copyAccountNumber = () => {
@@ -297,12 +302,20 @@ const HomeScreen: React.FC = () => {
         {/* Balance Card */}
         <View style={styles.balanceCard}>
           <View style={styles.balanceHeaderCentered}>
-            <Text style={styles.balanceLabel}>Available Balance</Text>
+            <Text style={styles.balanceLabel}>
+              {balance?.pending && balance.pending > 0 
+                ? `Available Balance • ${balance.currency}${balance.pending.toLocaleString()} pending`
+                : 'Available Balance'
+              }
+            </Text>
           </View>
           
           <View style={styles.balanceCenter}>
             <Text style={styles.balanceAmount}>
-              {balanceVisible ? `$${balance.toFixed(2)}` : '••••••'}
+              {balanceVisible ? 
+                `${balance?.currency || '₦'}${(balance?.available || 0).toLocaleString()}` : 
+                '••••••'
+              }
             </Text>
             <TouchableOpacity 
               style={styles.eyeButtonCentered}

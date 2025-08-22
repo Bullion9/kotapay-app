@@ -1,28 +1,28 @@
+import { useNavigation } from '@react-navigation/native';
+import {
+    CheckCircle,
+    ChevronLeft,
+    QrCode,
+    UserPlus,
+    Users,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  RefreshControl,
-  KeyboardAvoidingView,
-  Platform,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useWallet } from '../hooks';
-import {
-  ChevronLeft,
-  Users,
-  QrCode,
-  UserPlus,
-  CheckCircle,
-} from 'lucide-react-native';
 import PinEntryModal from '../components/PinEntryModal';
+import { useWallet } from '../hooks/useWallet';
 import { colors } from '../theme';
 
 interface Contact {
@@ -46,8 +46,8 @@ const SendMoneyScreen: React.FC = () => {
   
   // State
   const [amount, setAmount] = useState('');
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [selectedMethod, setSelectedMethod] = useState<SendMethod | null>(null);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [description, setDescription] = useState('');
   const [showPinModal, setShowPinModal] = useState(false);
   const [loading, setLoading] = useState(false);

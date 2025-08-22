@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import PinEntryModal from '../components/PinEntryModal';
+import { useWallet } from '../hooks/useWallet';
 import { colors } from '../theme';
 
 interface CashOutMethod {
@@ -35,6 +36,7 @@ interface CashOutMethod {
 const CashOutScreen: React.FC = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { balance } = useWallet();
   
   // State
   const [amount, setAmount] = useState('');
@@ -45,8 +47,8 @@ const CashOutScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [amountFocused, setAmountFocused] = useState(false);
 
-  // Mock user balance
-  const userBalance = 15000;
+  // Get user balance from wallet service
+  const userBalance = balance?.available || 0;
 
   // Cash-out methods
   const cashOutMethods: CashOutMethod[] = [

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronDown, ChevronLeft, CreditCard, Landmark, Search, X } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Alert,
     FlatList,
@@ -15,36 +15,22 @@ import {
     TextInput,
     TouchableOpacity,
     View,
+    ActivityIndicator,
 } from 'react-native';
 import type { PaymentMethod } from '../services/PaymentMethodService';
 import { borderRadius, colors, iconSizes, spacing, typography } from '../theme';
+import { usePaystack } from '../hooks/usePaystack';
 
-// Nigerian banks list
-const NIGERIAN_BANKS = [
-  { id: '1', name: 'Access Bank' },
-  { id: '2', name: 'First Bank of Nigeria' },
-  { id: '3', name: 'Guaranty Trust Bank (GTBank)' },
-  { id: '4', name: 'United Bank for Africa (UBA)' },
-  { id: '5', name: 'Zenith Bank' },
-  { id: '6', name: 'Fidelity Bank' },
-  { id: '7', name: 'Union Bank' },
-  { id: '8', name: 'Sterling Bank' },
-  { id: '9', name: 'Ecobank Nigeria' },
-  { id: '10', name: 'First City Monument Bank (FCMB)' },
-  { id: '11', name: 'Stanbic IBTC Bank' },
-  { id: '12', name: 'Unity Bank' },
-  { id: '13', name: 'Wema Bank' },
-  { id: '14', name: 'Heritage Bank' },
-  { id: '15', name: 'Keystone Bank' },
-  { id: '16', name: 'Polaris Bank' },
-  { id: '17', name: 'Standard Chartered Bank' },
-  { id: '18', name: 'Providus Bank' },
-  { id: '19', name: 'Jaiz Bank' },
-  { id: '20', name: 'SunTrust Bank' },
-];
+interface Bank {
+  id: string;
+  name: string;
+  code: string;
+}
 
 const AddPaymentMethodScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { getBanks, loadingBanks, banks, resolveAccount, resolvingAccount } = usePaystack();
+  
   const [type, setType] = useState<'card' | 'bank'>('card');
   const [nickname, setNickname] = useState('');
   const [cardNumber, setCardNumber] = useState('');
@@ -53,10 +39,56 @@ const AddPaymentMethodScreen: React.FC = () => {
   const [cardBrand, setCardBrand] = useState<string>('');
   const [showBankModal, setShowBankModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredBanks, setFilteredBanks] = useState(NIGERIAN_BANKS);
+  const [filteredBanks, setFilteredBanks] = useState<Bank[]>([]);
   const [accountNumber, setAccountNumber] = useState('');
   const [bankName, setBankName] = useState('');
+  const [bankCode, setBankCode] = useState('');
   const [accountName, setAccountName] = useState('');
+
+  // Load banks from Paystack API on component mount
+  useEffect(() => {
+    getBanks();
+  }, [getBanks]);
+
+  // Update filtered banks when banks data changes
+  useEffect(() => {
+    if (banks && banks.length > 0) {
+      const banksData = banks.map((bank: any, index: number) => ({
+        id: `bank_${index}_${bank.code || 'no_code'}_${bank.name.replace(/\s+/g, '_').toLowerCase()}`,
+        name: bank.name,
+        code: bank.code,
+      }));
+      setFilteredBanks(banksData);
+    }
+  }, [banks]);
+
+  // Auto-fetch account name when account number and bank code are available
+  useEffect(() => {
+    const fetchAccountName = async () => {
+      if (accountNumber.length === 10 && bankCode && accountNumber.match(/^\d{10}$/)) {
+        try {
+          console.log('Fetching account name for:', accountNumber, 'Bank code:', bankCode);
+          const response = await resolveAccount(accountNumber, bankCode);
+          console.log('Account resolution response:', response);
+          if (response.status && response.data && response.data.account_name) {
+            console.log('Setting account name to:', response.data.account_name);
+            setAccountName(response.data.account_name);
+          }
+        } catch (error) {
+          console.log('Failed to resolve account name:', error);
+          // Don't show error to user for account resolution failure
+        }
+      } else {
+        // Clear account name if account number is invalid
+        if (accountName && (!accountNumber || accountNumber.length !== 10)) {
+          setAccountName('');
+        }
+      }
+    };
+
+    const timeoutId = setTimeout(fetchAccountName, 500); // Debounce for 500ms
+    return () => clearTimeout(timeoutId);
+  }, [accountNumber, bankCode, resolveAccount, accountName]);
 
   const handleBack = () => {
     navigation.goBack();
@@ -158,29 +190,59 @@ const AddPaymentMethodScreen: React.FC = () => {
 
   const handleBankSearch = (text: string) => {
     setSearchQuery(text);
-    const filtered = NIGERIAN_BANKS.filter(bank => 
-      bank.name.toLowerCase().includes(text.toLowerCase())
-    );
-    setFilteredBanks(filtered);
+    if (banks && banks.length > 0) {
+      const banksData = banks.map((bank: any, index: number) => ({
+        id: `bank_${index}_${bank.code || 'no_code'}_${bank.name.replace(/\s+/g, '_').toLowerCase()}`,
+        name: bank.name,
+        code: bank.code,
+      }));
+      const filtered = banksData.filter(bank => 
+        bank.name.toLowerCase().includes(text.toLowerCase())
+      );
+      setFilteredBanks(filtered);
+    }
   };
 
-  const handleBankSelect = (bank: typeof NIGERIAN_BANKS[0]) => {
+  const handleBankSelect = (bank: Bank) => {
     setBankName(bank.name);
+    setBankCode(bank.code);
     setShowBankModal(false);
     setSearchQuery('');
-    setFilteredBanks(NIGERIAN_BANKS);
+    // Reset to full banks list
+    if (banks && banks.length > 0) {
+      const banksData = banks.map((bank: any, index: number) => ({
+        id: `bank_${index}_${bank.code || 'no_code'}_${bank.name.replace(/\s+/g, '_').toLowerCase()}`,
+        name: bank.name,
+        code: bank.code,
+      }));
+      setFilteredBanks(banksData);
+    }
   };
 
   const handleShowBankModal = () => {
     setSearchQuery('');
-    setFilteredBanks(NIGERIAN_BANKS);
+    if (banks && banks.length > 0) {
+      const banksData = banks.map((bank: any, index: number) => ({
+        id: `bank_${index}_${bank.code || 'no_code'}_${bank.name.replace(/\s+/g, '_').toLowerCase()}`,
+        name: bank.name,
+        code: bank.code,
+      }));
+      setFilteredBanks(banksData);
+    }
     setShowBankModal(true);
   };
 
   const handleCloseBankModal = () => {
     setShowBankModal(false);
     setSearchQuery('');
-    setFilteredBanks(NIGERIAN_BANKS);
+    if (banks && banks.length > 0) {
+      const banksData = banks.map((bank: any, index: number) => ({
+        id: `bank_${index}_${bank.code || 'no_code'}_${bank.name.replace(/\s+/g, '_').toLowerCase()}`,
+        name: bank.name,
+        code: bank.code,
+      }));
+      setFilteredBanks(banksData);
+    }
   };
 
   const handleSubmit = async () => {
@@ -349,12 +411,26 @@ const AddPaymentMethodScreen: React.FC = () => {
               </View>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Account Name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={accountName}
-                  onChangeText={setAccountName}
-                  placeholder="John Doe"
-                />
+                <View style={styles.accountNameContainer}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      resolvingAccount && styles.inputDisabled,
+                      accountName && bankCode && accountNumber.length === 10 && styles.inputReadOnly
+                    ]}
+                    value={accountName}
+                    onChangeText={setAccountName}
+                    placeholder={resolvingAccount ? "Fetching account name..." : "John Doe"}
+                    editable={!resolvingAccount && !(accountName && bankCode && accountNumber.length === 10)}
+                  />
+                  {resolvingAccount && (
+                    <ActivityIndicator 
+                      size="small" 
+                      color={colors.primary} 
+                      style={styles.accountNameLoader}
+                    />
+                  )}
+                </View>
               </View>
             </>
           )}
@@ -410,12 +486,18 @@ const AddPaymentMethodScreen: React.FC = () => {
                 />
               </View>
 
-              <FlatList
-                data={filteredBanks}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.bankItem}
+              {loadingBanks ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={styles.loadingText}>Loading banks...</Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={filteredBanks}
+                  keyExtractor={(item, index) => `${item.code}_${item.slug}_${index}`}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.bankItem}
                     onPress={() => handleBankSelect(item)}
                   >
                     <Text style={styles.bankItemText}>{item.name}</Text>
@@ -430,6 +512,7 @@ const AddPaymentMethodScreen: React.FC = () => {
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={styles.bankList}
               />
+              )}
             </View>
           </TouchableOpacity>
         </KeyboardAvoidingView>
@@ -617,6 +700,34 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.white,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  loadingText: {
+    ...typography.body,
+    color: colors.secondaryText,
+    marginTop: spacing.md,
+  },
+  accountNameContainer: {
+    position: 'relative',
+  },
+  accountNameLoader: {
+    position: 'absolute',
+    right: spacing.md,
+    top: '50%',
+    transform: [{ translateY: -10 }],
+  },
+  inputDisabled: {
+    backgroundColor: colors.background,
+    opacity: 0.7,
+  },
+  inputReadOnly: {
+    backgroundColor: '#f8f9fa',
+    color: colors.secondaryText,
   },
 });
 

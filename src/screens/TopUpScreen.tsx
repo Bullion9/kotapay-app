@@ -24,8 +24,14 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 import PinEntryModal from '../components/PinEntryModal';
+import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { useWallet } from '../hooks/useWallet';
+import { usePaystack } from '../hooks/usePaystack';
 import { notificationService } from '../services/notifications';
+import WalletService from '../services/WalletService';
 import { colors } from '../theme';
 
 interface PaymentMethod {
@@ -43,6 +49,9 @@ interface Currency {
 const TopUpScreen: React.FC = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const { refreshBalance } = useWallet();
+  const { initializePayment, verifyPayment } = usePaystack();
   
   // State
   const [amount, setAmount] = useState('');
@@ -106,41 +115,176 @@ const TopUpScreen: React.FC = () => {
     setShowPinModal(true);
   };
 
-  // Handle PIN verification and transaction processing
+  // Handle PIN verification and launch Paystack payment
   const handlePinVerified = async (enteredPin: string) => {
     setShowPinModal(false);
     setLoading(true);
+    
+    if (!user) {
+      Alert.alert('Error', 'User not authenticated');
+      setLoading(false);
+      return;
+    }
 
     try {
-      // Mock transaction processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const topUpAmount = parseFloat(amount);
+      const amountInKobo = topUpAmount * 100; // Convert to kobo for Paystack
 
-      // Start success animation
-      setShowSuccess(true);
+      // Initialize Paystack payment to get authorization URL
+      const paymentData = {
+        email: user.email || 'demo@kotapay.com',
+        amount: amountInKobo,
+        currency: 'NGN',
+        metadata: {
+          userId: user?.id || (user as any)?.$id || 'demo_user',
+          purpose: 'wallet_topup',
+          paymentMethod: selectedMethod?.name || 'Card'
+        }
+      };
+
+      console.log('🚀 Initializing Paystack payment:', paymentData);
       
-      // Ensure animation starts immediately
-      successAnimation.setValue(0);
-      Animated.spring(successAnimation, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8,
-      }).start();
-
-      // Send push notification
-      if (selectedMethod) {
-        await notificationService.sendMoneyReceivedNotification({
-          transactionId: `topup-${Date.now()}`,
-          amount: parseFloat(amount),
-          currency: selectedCurrency.symbol,
-          senderName: selectedMethod.name,
-          recipientName: 'Your Wallet',
-          message: 'Top-up successful',
+      const paymentResponse = await initializePayment(paymentData);
+      
+      if (paymentResponse.status && paymentResponse.data) {
+        console.log('✅ Payment initialized:', paymentResponse.data.reference);
+        
+        // Open Paystack payment page in browser
+        const authUrl = paymentResponse.data.authorization_url;
+        const result = await WebBrowser.openBrowserAsync(authUrl, {
+          presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET,
+          controlsColor: colors.primary,
         });
+
+        if (result.type === 'cancel') {
+          Alert.alert('Payment Cancelled', 'You cancelled the payment process.');
+          setLoading(false);
+          return;
+        }
+
+        // For demo purposes, we'll wait a moment and then verify the payment
+        // In production, you'd implement proper callback handling
+        setTimeout(async () => {
+          await verifyAndProcessPayment(paymentResponse.data.reference);
+        }, 3000);
+        
+      } else {
+        throw new Error('Failed to initialize payment');
       }
-    } catch (err) {
-      console.error('Transaction error:', err);
-      Alert.alert('Error', 'Failed to process top-up. Please try again.');
+    } catch (error) {
+      console.error('Payment initialization error:', error);
+      Alert.alert('Error', 'Failed to initialize payment. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  // Verify and process payment
+  const verifyAndProcessPayment = async (reference: string) => {
+    try {
+      console.log('🔄 Verifying payment:', reference);
+      
+      const verificationResult = await verifyPayment(reference);
+      
+      if (verificationResult.status && verificationResult.data.status === 'success') {
+        await handlePaymentSuccess({ reference });
+      } else {
+        // Payment might still be pending, ask user to confirm
+        Alert.alert(
+          'Payment Status',
+          'We couldn\'t verify your payment automatically. Did you complete the payment successfully?',
+          [
+            { text: 'No, I cancelled', style: 'cancel', onPress: () => setLoading(false) },
+            { text: 'Yes, I paid', onPress: () => handlePaymentSuccess({ reference }) }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Payment verification error:', error);
+      Alert.alert(
+        'Payment Verification',
+        'Unable to verify payment automatically. If you completed the payment, it will be processed shortly.',
+        [{ text: 'OK', onPress: () => setLoading(false) }]
+      );
+    }
+  };
+
+  // Handle successful payment
+  const handlePaymentSuccess = async (response: any) => {
+    setLoading(true);
+    
+    try {
+      console.log('💳 Payment successful:', response);
+      
+      // Verify payment with Paystack backend
+      const verificationResult = await verifyPayment(response.transactionRef?.reference || response.reference);
+      
+      if (verificationResult.status && verificationResult.data.status === 'success') {
+        console.log('✅ Payment verified successfully');
+        
+        const topUpAmount = parseFloat(amount);
+        const userId = user?.id || (user as any)?.$id || 'demo_user';
+        const transactionRef = response.transactionRef?.reference || response.reference;
+
+        try {
+          // Initialize wallet service and process top-up
+          await WalletService.initialize(userId);
+          
+          await WalletService.processTopUpSuccess(transactionRef, topUpAmount, {
+            paymentMethod: selectedMethod?.name || 'Card',
+            gateway: 'Paystack Live',
+            currency: selectedCurrency.symbol,
+            paystackReference: transactionRef,
+            amount: topUpAmount
+          });
+
+          // Refresh the wallet balance
+          await refreshBalance();
+
+          console.log('✅ Wallet top-up processed successfully:', { amount: topUpAmount, ref: transactionRef });
+        } catch (walletError) {
+          console.error('Wallet update error:', walletError);
+          // Continue with success flow even if wallet update fails
+        }
+
+        // Start success animation
+        setShowSuccess(true);
+        
+        successAnimation.setValue(0);
+        Animated.spring(successAnimation, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 8,
+        }).start();
+
+        // Send success notification
+        if (selectedMethod) {
+          await notificationService.sendMoneyReceivedNotification({
+            transactionId: transactionRef,
+            amount: topUpAmount,
+            currency: selectedCurrency.symbol,
+            senderName: 'Paystack',
+            recipientName: 'Your Wallet',
+            message: `₦${topUpAmount.toLocaleString()} added to your wallet successfully`,
+          });
+        }
+
+        // Auto-navigate after success animation
+        setTimeout(() => {
+          setShowSuccess(false);
+          try {
+            navigation.navigate('TransactionHistoryScreen' as never);
+          } catch (navError) {
+            console.warn('Navigation error:', navError);
+          }
+        }, 2500);
+        
+      } else {
+        throw new Error('Payment verification failed');
+      }
+    } catch (error) {
+      console.error('Payment processing error:', error);
+      Alert.alert('Error', 'Payment verification failed. Please contact support if money was deducted.');
     } finally {
       setLoading(false);
     }

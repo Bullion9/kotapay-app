@@ -57,3 +57,15 @@ src/**/*.JPG
 src/**/*.jpg
 betting*/**/*.JPG
 betting*/**/*.jpg
+
+# PERMANENTLY BLOCK INTERCOM FILES - DO NOT REMOVE THIS SECTION
+**/IntercomService.ts
+**/IntercomContext.tsx
+**/intercomJWT.ts
+**/IntercomDemo.tsx
+**/*Intercom*.tsx
+**/*Intercom*.ts
+**/*intercom*.tsx
+**/*intercom*.ts
+INTERCOM_INTEGRATION_GUIDE.md
+INTERCOM_*.md

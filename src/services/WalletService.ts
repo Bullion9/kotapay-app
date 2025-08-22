@@ -146,8 +146,8 @@ class WalletService {
     try {
       if (!this.currentUser) throw new Error('User not initialized');
 
-      // Get user profile with balance field
-      const userProfile = await AppwriteService.getUserProfile(this.currentUser.$id);
+      // Get user profile with balance field - use userId field, not document $id
+      const userProfile = await AppwriteService.getUserProfile(this.currentUser.userId);
       
       // Calculate pending transactions
       const pendingTransactions = await this.getPendingTransactions();
@@ -521,11 +521,49 @@ class WalletService {
 
   private async updateWalletBalance(userId: string, amount: number): Promise<void> {
     const userProfile = await AppwriteService.getUserProfile(userId);
-    const currentBalance = userProfile?.walletBalance || 0;
+    if (!userProfile) {
+      throw new Error(`User profile not found for userId: ${userId}`);
+    }
     
-    await AppwriteService.updateUserProfile(userProfile?.$id || userId, {
+    const currentBalance = userProfile.walletBalance || 0;
+    
+    await AppwriteService.updateUserProfile(userProfile.$id, {
       walletBalance: currentBalance + amount
     });
+  }
+
+  // Public method to update wallet balance after successful top-up
+  async processTopUpSuccess(reference: string, amount: number, metadata: any = {}): Promise<void> {
+    if (!this.currentUser) {
+      throw new Error('User not initialized');
+    }
+
+    try {
+      // Update wallet balance
+      await this.updateWalletBalance(this.currentUser.$id, amount);
+
+      // Create transaction record
+      await this.createTransaction({
+        type: 'credit',
+        amount,
+        description: `Wallet top-up via ${metadata.paymentMethod || 'Card'} - ₦${amount.toLocaleString()}`,
+        reference,
+        status: 'successful'
+      });
+
+      // Send notification
+      await notificationService.sendWalletTopUpNotification(
+        reference,
+        amount,
+        '₦',
+        metadata.paymentMethod || 'Card Payment'
+      );
+
+      console.log('Top-up processed successfully:', { reference, amount });
+    } catch (error) {
+      console.error('Error processing top-up success:', error);
+      throw error;
+    }
   }
 
   private async getPendingTransactions(): Promise<Transaction[]> {

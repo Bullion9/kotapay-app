@@ -14,6 +14,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { ProfileParamList } from '../types';
 import {
   ChevronLeft,
+  MessageSquare,
   ChevronRight,
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius, shadows } from '../theme';
@@ -73,6 +74,36 @@ const HelpSupportScreen: React.FC<HelpSupportScreenProps> = ({ navigation }) => 
 
   const handleFAQ = () => {
     navigation.navigate('FAQ');
+  };
+
+  const handleChatSupport = () => {
+    Alert.alert(
+      'Chat with Support',
+      'Choose how you would like to contact our support team:',
+      [
+        {
+          text: 'Call Us',
+          onPress: handlePhoneCall,
+        },
+        {
+          text: 'Telegram',
+          onPress: handleTelegram,
+        },
+        {
+          text: 'Email Us',
+          onPress: () => {
+            const email = 'support@kotapay.com';
+            Linking.openURL(`mailto:${email}`).catch(() => {
+              Alert.alert('Error', 'Unable to open email client');
+            });
+          },
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
   };
 
   const goBack = () => {
@@ -165,6 +196,17 @@ const HelpSupportScreen: React.FC<HelpSupportScreenProps> = ({ navigation }) => 
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
+
+      {/* Floating Chat with Support Button */}
+      <View style={styles.floatingButtonContainer}>
+        <TouchableOpacity 
+          style={styles.chatSupportButton}
+          onPress={handleChatSupport}
+        >
+          <MessageSquare size={20} color={colors.white} />
+          <Text style={styles.chatSupportText}>Chat with Support</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };
@@ -289,8 +331,39 @@ const styles = StyleSheet.create({
     color: colors.secondaryText,
   },
   
+  // Floating Chat Button
+  floatingButtonContainer: {
+    position: 'absolute',
+    bottom: spacing.xl + spacing.md,
+    right: spacing.lg,
+  },
+  chatSupportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.large,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    minHeight: 50,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  chatSupportText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
+    marginLeft: spacing.sm,
+  },
+  
   bottomSpacing: {
-    height: spacing.xl,
+    height: spacing.xl + 80, // Extra space for floating button
   },
 });
 

@@ -1,10 +1,13 @@
 import { Account, Client, Databases, Functions, ID, ImageGravity, Query, Storage } from 'appwrite';
 import { APPWRITE_CONFIG } from '../config/api';
 
-// Initialize Appwrite Client
+// Initialize Appwrite Client for client-side operations
 const client = new Client()
   .setEndpoint(APPWRITE_CONFIG.endpoint)
   .setProject(APPWRITE_CONFIG.projectId);
+
+// For database operations, we'll use a different approach since React Native client
+// doesn't support API keys directly. We'll handle auth through user sessions.
 
 // Initialize Services
 export const account = new Account(client);
@@ -30,6 +33,7 @@ export interface UserDocument {
   userId: string;
   firstName: string;
   lastName: string;
+  email: string; // Email field for the user
   phone: string;
   dateOfBirth?: string;
   address?: string;
@@ -37,8 +41,8 @@ export interface UserDocument {
   state?: string;
   country?: string;
   profileImage?: string;
-  kycStatus: 'pending' | 'verified' | 'rejected';
-  accountBalance: number; // Legacy field
+  kycStatus?: 'pending' | 'verified' | 'rejected'; // Make optional
+  accountBalance?: number; // Legacy field - make optional
   walletBalance: number; // New field for stored-value wallet
   createdAt: string;
   updatedAt: string;
@@ -387,6 +391,20 @@ class AppwriteService {
       return (response.documents[0] as unknown as UserDocument) || null;
     } catch (error) {
       console.error('Error getting user by ID:', error);
+      return null;
+    }
+  }
+
+  async getUserByEmail(email: string): Promise<UserDocument | null> {
+    try {
+      const response = await databases.listDocuments(
+        APPWRITE_CONFIG.databaseId,
+        COLLECTIONS.USERS,
+        [Query.equal('email', email)]
+      );
+      return (response.documents[0] as unknown as UserDocument) || null;
+    } catch (error) {
+      console.error('Error getting user by email:', error);
       return null;
     }
   }

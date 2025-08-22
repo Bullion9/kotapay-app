@@ -171,6 +171,7 @@ class KYCService {
         userId,
         firstName: '',
         lastName: '',
+        email: `user_${userId}@kotapay.com`, // Generate a placeholder email
         phone: phoneNumber,
         kycStatus: 'pending',
         accountBalance: 0,

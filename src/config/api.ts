@@ -1,12 +1,12 @@
 // API Configuration
 const API_CONFIG = {
-  baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api',
-  healthURL: process.env.EXPO_PUBLIC_BACKEND_HEALTH || 'http://localhost:3000/health',
-  paystackURL: process.env.EXPO_PUBLIC_PAYSTACK_API_URL || 'https://api.paystack.co',
+  baseURL: process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000/api',
+  healthURL: process.env.EXPO_PUBLIC_HEALTH_CHECK_URL || 'http://localhost:3000/health',
   timeout: parseInt(process.env.EXPO_PUBLIC_API_TIMEOUT || '10000'),
   retryAttempts: parseInt(process.env.EXPO_PUBLIC_API_RETRY_ATTEMPTS || '3'),
   retryDelay: parseInt(process.env.EXPO_PUBLIC_API_RETRY_DELAY || '1000'),
-  environment: process.env.EXPO_PUBLIC_ENVIRONMENT || 'development',
+  environment: process.env.EXPO_PUBLIC_APP_ENV || 'development',
+  isProduction: process.env.EXPO_PUBLIC_APP_ENV === 'production',
 };
 
 // Appwrite Configuration
@@ -36,7 +36,9 @@ export const APPWRITE_CONFIG = {
 // Paystack Configuration
 export const PAYSTACK_CONFIG = {
   publicKey: process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
-  apiUrl: process.env.EXPO_PUBLIC_PAYSTACK_API_URL || 'https://api.paystack.co',
+  secretKey: process.env.EXPO_PUBLIC_PAYSTACK_SECRET_KEY || '', // Only for backend use
+  apiUrl: 'https://api.paystack.co',
+  isLive: !process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY?.includes('test'),
 };
 
 // Debug Configuration

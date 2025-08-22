@@ -1,4 +1,5 @@
 import { User } from '../types';
+import AppwriteService from './AppwriteService';
 
 // Simple hash function to replace crypto-js (React Native compatible)
 const simpleHash = (str: string): string => {
@@ -14,18 +15,29 @@ const simpleHash = (str: string): string => {
 class AuthService {
   private storageKey = 'kotapay_user';
   private pinKey = 'kotapay_pin';
+  private currentUser: User | null = null;
 
   async login(email: string, password: string): Promise<User> {
-    // Simulate API call
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (email === 'demo@kotapay.com' && password === 'password') {
-          const user: User = {
-            id: '1',
-            name: 'John Doe',
+    try {
+      // Check if this is the demo account with the correct password
+      if (email === 'demo@kotapay.com' && password === 'DemoUser123!') {
+        console.log('🎯 Demo user detected, attempting database lookup...');
+        
+        // Get the real demo user from Appwrite
+        const demoProfile = await this.getDemoUserFromDatabase();
+        if (demoProfile) {
+          this.currentUser = demoProfile;
+          console.log('✅ Found demo user in database with ID:', demoProfile.id);
+          return demoProfile;
+        } else {
+          console.log('⚠️ Demo user not found in database, using fallback ID');
+          // Fallback to a known demo user ID
+          const fallbackUser: User = {
+            id: 'demo_fallback_user',
+            name: 'Demo User',
             email: email,
             phone: '+234 123 456 7890',
-            balance: 1000.00,
+            balance: 50000.00,
             isVerified: true,
             address: '123 Lagos Street, Victoria Island, Lagos',
             dateOfBirth: '15/06/1990',
@@ -33,12 +45,67 @@ class AuthService {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
-          resolve(user);
-        } else {
-          reject(new Error('Invalid credentials'));
+          this.currentUser = fallbackUser;
+          return fallbackUser;
         }
-      }, 1000);
-    });
+      }
+      
+      // For other credentials, use mock data
+      if (email === 'demo@kotapay.com' && password === 'password') {
+        const user: User = {
+          id: 'demo_user',
+          name: 'Demo User',
+          email: email,
+          phone: '+234 123 456 7890',
+          balance: 50000.00,
+          isVerified: true,
+          address: '123 Lagos Street, Victoria Island, Lagos',
+          dateOfBirth: '15/06/1990',
+          nationality: 'Nigerian',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        this.currentUser = user;
+        return user;
+      } else {
+        throw new Error('Invalid credentials');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
+  }
+
+  private async getDemoUserFromDatabase(): Promise<User | null> {
+    try {
+      // Search for demo user by email using AppwriteService
+      const demoUser = await AppwriteService.getUserByEmail('demo@kotapay.com');
+      
+      if (demoUser) {
+        // Convert Appwrite user to our User type
+        const user: User = {
+          id: demoUser.userId, // Use the userId field from Appwrite
+          name: `${demoUser.firstName || ''} ${demoUser.lastName || ''}`.trim() || 'Demo User',
+          email: demoUser.email, // Now we can use the email field
+          phone: demoUser.phone || '',
+          balance: demoUser.walletBalance || 0,
+          isVerified: demoUser.kycStatus === 'verified' || true, // Default to true for demo
+          address: demoUser.address || '',
+          dateOfBirth: demoUser.dateOfBirth || '',
+          nationality: demoUser.country || 'Nigerian',
+          createdAt: demoUser.createdAt,
+          updatedAt: demoUser.updatedAt,
+        };
+        
+        console.log('✅ Demo user loaded from database:', user.email, 'Balance:', user.balance);
+        return user;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error fetching demo user from database:', error);
+      return null;
+    }
   }
 
   async register(name: string, email: string, password: string, phone?: string): Promise<User> {
@@ -64,7 +131,12 @@ class AuthService {
   }
 
   async getCurrentUser(): Promise<User | null> {
-    // For demo purposes, return a logged-in user
+    // Return the currently logged-in user if available
+    if (this.currentUser) {
+      return this.currentUser;
+    }
+
+    // For demo purposes, return a logged-in user if no one is currently logged in
     return new Promise((resolve) => {
       setTimeout(() => {
         const user: User = {
@@ -80,15 +152,20 @@ class AuthService {
           createdAt: '2024-01-15T10:30:00Z',
           updatedAt: new Date().toISOString(),
         };
+        // Set this as current user if none exists
+        if (!this.currentUser) {
+          this.currentUser = user;
+        }
         resolve(user);
       }, 500);
     });
   }
 
   async logout(): Promise<void> {
-    // Simulate logout
+    // Clear current user and simulate logout
     return new Promise((resolve) => {
       setTimeout(() => {
+        this.currentUser = null;
         resolve();
       }, 500);
     });

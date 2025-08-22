@@ -20,10 +20,12 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useWallet } from '../hooks/useWallet';
 import { borderRadius, colors, shadows, spacing } from '../theme';
 
 const TopUpVirtualCardScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { balance } = useWallet();
   const [amount, setAmount] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [loadingQuickAmount, setLoadingQuickAmount] = useState<number | null>(null);
@@ -198,7 +200,9 @@ const TopUpVirtualCardScreen: React.FC = () => {
               </View>
               <View style={styles.sourceInfo}>
                 <Text style={styles.sourceName}>Main Wallet</Text>
-                <Text style={styles.sourceBalance}>Balance: ₦150,000</Text>
+                <Text style={styles.sourceBalance}>
+                  Balance: {balance?.currency || '₦'}{(balance?.available || 0).toLocaleString()}
+                </Text>
               </View>
             </TouchableOpacity>
           </View>
