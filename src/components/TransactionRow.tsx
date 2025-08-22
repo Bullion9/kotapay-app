@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { ArrowUp, ArrowDown, CreditCard, FileText, Receipt } from 'lucide-react-native';
+import { ArrowUp, ArrowDown, CreditCard, FileText, ChevronRight } from 'lucide-react-native';
 import { useSettings } from '../contexts/SettingsContext';
 
 interface Transaction {
@@ -125,7 +125,7 @@ const TransactionRow: React.FC<TransactionRowProps> = React.memo(({ transaction,
             onPress={handleReceiptPress}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Receipt size={16} color="#06402B" />
+            <ChevronRight size={16} color="#06402B" />
           </TouchableOpacity>
         )}
       </View>

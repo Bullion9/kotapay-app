@@ -44,8 +44,8 @@ const ContactDetailScreen: React.FC = () => {
   };
 
   const handleSendMoney = () => {
-    // Navigate to SendScreen with contact
-    (navigation as any).navigate('Send', { contact });
+    // Navigate to SendMoney screen with contact
+    (navigation as any).navigate('SendMoney', { contact });
   };
 
   const handleRequestMoney = () => {

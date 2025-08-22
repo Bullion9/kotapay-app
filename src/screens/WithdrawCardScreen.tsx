@@ -16,33 +16,36 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import {
   ChevronLeft,
-  Plus,
+  ArrowUpCircle,
   CreditCard,
+  Wallet,
   CheckCircle,
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius, shadows } from '../theme';
 
-const CreateVirtualCardScreen: React.FC = () => {
+const WithdrawCardScreen: React.FC = () => {
   const navigation = useNavigation();
-  const [cardName, setCardName] = useState('');
-  const [spendLimit, setSpendLimit] = useState('');
-  const [cardNameFocused, setCardNameFocused] = useState(false);
-  const [spendLimitFocused, setSpendLimitFocused] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
   const [loadingQuickAmount, setLoadingQuickAmount] = useState<number | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const cardBalance = 25000;
   
   // Animation refs
   const successScale = useRef(new Animated.Value(0)).current;
   const successOpacity = useRef(new Animated.Value(0)).current;
   const spinValue = useRef(new Animated.Value(0)).current;
   
-  const handleCreateCard = async () => {
-    if (!cardName.trim()) {
-      Alert.alert('Error', 'Please enter a card name');
+  const handleWithdraw = async () => {
+    const withdrawAmount = parseInt(amount) || 0;
+    
+    if (withdrawAmount <= 0) {
+      Alert.alert('Error', 'Please enter a valid amount');
       return;
     }
-    if (!spendLimit || parseInt(spendLimit) <= 0) {
-      Alert.alert('Error', 'Please enter a valid spend limit');
+    
+    if (withdrawAmount > cardBalance) {
+      Alert.alert('Error', 'Insufficient card balance');
       return;
     }
     
@@ -75,8 +78,8 @@ const CreateVirtualCardScreen: React.FC = () => {
     }).start();
   };
 
-  const handleQuickAmount = async (amount: number) => {
-    setLoadingQuickAmount(amount);
+  const handleQuickAmount = async (quickAmount: number) => {
+    setLoadingQuickAmount(quickAmount);
     
     // Start spinning animation
     Animated.loop(
@@ -92,11 +95,11 @@ const CreateVirtualCardScreen: React.FC = () => {
     
     // Stop spinning and set amount
     spinValue.setValue(0);
-    setSpendLimit(amount.toString());
+    setAmount(quickAmount.toString());
     setLoadingQuickAmount(null);
   };
 
-  const quickAmounts = [25000, 50000, 100000, 250000];
+  const quickAmounts = [5000, 10000, 15000, cardBalance];
 
   const spin = spinValue.interpolate({
     inputRange: [0, 1],
@@ -117,7 +120,7 @@ const CreateVirtualCardScreen: React.FC = () => {
           >
             <ChevronLeft size={24} color={colors.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Create Card</Text>
+          <Text style={styles.headerTitle}>Withdraw</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -126,106 +129,107 @@ const CreateVirtualCardScreen: React.FC = () => {
         <View style={styles.cardSection}>
           <View style={styles.virtualCard}>
             <View style={styles.cardHeader}>
-              <Text style={styles.cardName}>{cardName || 'New Virtual Card'}</Text>
+              <Text style={styles.cardName}>Virtual Card</Text>
               <CreditCard size={24} color={colors.white} />
             </View>
 
             <View style={styles.cardNumber}>
-              <Text style={styles.cardNumberText}>•••• •••• •••• ••••</Text>
+              <Text style={styles.cardNumberText}>•••• •••• •••• 9012</Text>
             </View>
 
             <View style={styles.cardDetails}>
               <View>
-                <Text style={styles.cardLabel}>SPEND LIMIT</Text>
-                <Text style={styles.balanceAmount}>
-                  ₦{parseInt(spendLimit || '0').toLocaleString()}
-                </Text>
+                <Text style={styles.cardLabel}>AVAILABLE BALANCE</Text>
+                <Text style={styles.balanceAmount}>₦{cardBalance.toLocaleString()}</Text>
               </View>
               <View style={styles.cardBalance}>
-                <Text style={styles.cardLabel}>STATUS</Text>
-                <Text style={styles.statusText}>Ready to Create</Text>
+                <Text style={styles.cardLabel}>AFTER WITHDRAWAL</Text>
+                <Text style={styles.balanceAmount}>
+                  ₦{(cardBalance - (parseInt(amount) || 0)).toLocaleString()}
+                </Text>
               </View>
             </View>
           </View>
         </View>
 
-        {/* Form Section */}
+        {/* Amount Input */}
         <View style={styles.formSection}>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Card Name</Text>
-            <TextInput
-              style={[
-                styles.textInput,
-                cardNameFocused && styles.textInputFocused
-              ]}
-              placeholder="Enter card name"
-              value={cardName}
-              onChangeText={setCardName}
-              onFocus={() => setCardNameFocused(true)}
-              onBlur={() => setCardNameFocused(false)}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Spend Limit</Text>
+            <Text style={styles.inputLabel}>Withdrawal Amount</Text>
             <TextInput
               style={[
                 styles.amountInput,
-                spendLimitFocused && styles.amountInputFocused
+                isFocused && styles.amountInputFocused
               ]}
-              placeholder="Enter spend limit"
-              value={spendLimit}
-              onChangeText={setSpendLimit}
-              onFocus={() => setSpendLimitFocused(true)}
-              onBlur={() => setSpendLimitFocused(false)}
+              placeholder="Enter amount"
+              value={amount}
+              onChangeText={setAmount}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
               keyboardType="numeric"
             />
             
             <View style={styles.quickAmounts}>
-              {quickAmounts.map((amount) => (
+              {quickAmounts.map((quickAmount) => (
                 <TouchableOpacity
-                  key={amount}
+                  key={quickAmount}
                   style={[
                     styles.amountButton,
-                    parseInt(spendLimit) === amount && styles.amountButtonSelected,
-                    loadingQuickAmount === amount && styles.amountButtonLoading
+                    parseInt(amount) === quickAmount && styles.amountButtonSelected,
+                    loadingQuickAmount === quickAmount && styles.amountButtonLoading
                   ]}
-                  onPress={() => handleQuickAmount(amount)}
+                  onPress={() => handleQuickAmount(quickAmount)}
                   disabled={loadingQuickAmount !== null}
                 >
-                  {loadingQuickAmount === amount ? (
+                  {loadingQuickAmount === quickAmount ? (
                     <Animated.View style={{ transform: [{ rotate: spin }] }}>
                       <ActivityIndicator size="small" color={colors.white} />
                     </Animated.View>
                   ) : (
                     <Text style={[
                       styles.amountButtonText,
-                      parseInt(spendLimit) === amount && styles.amountButtonTextSelected
+                      parseInt(amount) === quickAmount && styles.amountButtonTextSelected
                     ]}>
-                      ₦{(amount / 1000)}k
+                      {quickAmount === cardBalance ? 'All' : `₦${(quickAmount / 1000)}k`}
                     </Text>
                   )}
                 </TouchableOpacity>
               ))}
             </View>
           </View>
+
+          {/* Destination */}
+          <View style={styles.destinationSection}>
+            <Text style={styles.inputLabel}>Transfer To</Text>
+            <TouchableOpacity style={styles.destinationCard}>
+              <View style={styles.destinationIcon}>
+                <Wallet size={20} color={colors.primary} />
+              </View>
+              <View style={styles.destinationInfo}>
+                <Text style={styles.destinationName}>Main Wallet</Text>
+                <Text style={styles.destinationBalance}>Current: ₦150,000</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.bottomPadding} />
       </ScrollView>
 
-      {/* Create Button */}
+      {/* Withdraw Button */}
       <View style={styles.bottomContainer}>
         <TouchableOpacity
           style={[
-            styles.createButton,
-            (!cardName.trim() || !spendLimit || parseInt(spendLimit) <= 0) && styles.createButtonDisabled
+            styles.withdrawButton,
+            (!amount || parseInt(amount) <= 0 || parseInt(amount) > cardBalance) && styles.withdrawButtonDisabled
           ]}
-          onPress={handleCreateCard}
-          disabled={!cardName.trim() || !spendLimit || parseInt(spendLimit) <= 0}
+          onPress={handleWithdraw}
+          disabled={!amount || parseInt(amount) <= 0 || parseInt(amount) > cardBalance}
         >
-          <Plus size={20} color={colors.white} />
-          <Text style={styles.createButtonText}>Create Virtual Card</Text>
+          <ArrowUpCircle size={20} color={colors.white} />
+          <Text style={styles.withdrawButtonText}>
+            Withdraw ₦{parseInt(amount || '0').toLocaleString()}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -242,9 +246,9 @@ const CreateVirtualCardScreen: React.FC = () => {
             ]}
           >
             <CheckCircle size={60} color="#4CAF50" />
-            <Text style={styles.successText}>Card Created Successfully!</Text>
+            <Text style={styles.successText}>Withdrawal Successful!</Text>
             <Text style={styles.successSubtext}>
-              {cardName} is ready to use
+              ₦{parseInt(amount || '0').toLocaleString()} transferred to your main wallet
             </Text>
           </Animated.View>
         </View>
@@ -331,11 +335,6 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     marginBottom: spacing.xs,
   },
-  cardValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.white,
-  },
   cardBalance: {
     alignItems: 'flex-end',
   },
@@ -356,19 +355,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: spacing.sm,
-  },
-  textInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: borderRadius.medium,
-    padding: spacing.md,
-    fontSize: 16,
-    borderWidth: 2,
-    borderColor: colors.border,
-    ...shadows.small,
-  },
-  textInputFocused: {
-    borderColor: colors.primary,
-    ...shadows.medium,
   },
   amountInput: {
     backgroundColor: '#FFFFFF',
@@ -402,12 +388,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   amountButtonSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors.warning,
+    borderColor: colors.warning,
   },
   amountButtonLoading: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors.warning,
+    borderColor: colors.warning,
   },
   amountButtonText: {
     fontSize: 12,
@@ -417,14 +403,49 @@ const styles = StyleSheet.create({
   amountButtonTextSelected: {
     color: colors.white,
   },
+  destinationSection: {
+    marginBottom: spacing.lg,
+  },
+  destinationCard: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.medium,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.small,
+  },
+  destinationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F0F8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  destinationInfo: {
+    flex: 1,
+  },
+  destinationName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  destinationBalance: {
+    fontSize: 12,
+    color: colors.secondaryText,
+    marginTop: 2,
+  },
   bottomContainer: {
     padding: spacing.xl,
     backgroundColor: colors.background,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  createButton: {
-    backgroundColor: colors.primary,
+  withdrawButton: {
+    backgroundColor: colors.warning,
     borderRadius: borderRadius.medium,
     paddingVertical: spacing.md,
     flexDirection: 'row',
@@ -432,10 +453,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
   },
-  createButtonDisabled: {
+  withdrawButtonDisabled: {
     backgroundColor: colors.border,
   },
-  createButtonText: {
+  withdrawButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.white,
@@ -464,7 +485,7 @@ const styles = StyleSheet.create({
   successText: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.primary,
+    color: colors.warning,
     textAlign: 'center',
     marginTop: spacing.md,
   },
@@ -476,4 +497,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CreateVirtualCardScreen;
+export default WithdrawCardScreen;

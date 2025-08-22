@@ -40,8 +40,8 @@ const ContactRow: React.FC<ContactRowProps> = ({ item }) => {
         {
           text: 'Send Money',
           onPress: () => {
-            // Navigate to SendScreen with contact
-            (navigation as any).navigate('Send', { contact: item });
+            // Navigate to SendMoney screen with contact
+            (navigation as any).navigate('SendMoney', { contact: item });
           },
         },
         {

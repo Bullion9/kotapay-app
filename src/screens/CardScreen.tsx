@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,326 +7,416 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Alert,
+  Modal,
 } from 'react-native';
 import {
-  CreditCard,
   Plus,
   Eye,
   EyeOff,
+  Copy,
   Settings,
-  Lock,
-  MoreHorizontal,
   ChevronLeft,
+  ArrowDownLeft,
+  TrendingUp,
+  ShoppingBag,
+  ArrowUpRight,
+  CreditCard,
+  Lock,
+  X,
+  UserCheck,
+  Bell,
+  HelpCircle,
+  FileText,
+  Shield,
 } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius, shadows, iconSizes, globalStyles } from '../theme';
+import { colors, spacing, borderRadius, shadows } from '../theme';
 import { useNavigation } from '@react-navigation/native';
-import PinEntryModal from '../components/PinEntryModal';
-import LoadingOverlay from '../components/LoadingOverlay';
-import CardTransactionRow, { CardTransaction } from '../components/CardTransactionRow';
-import { useLoading } from '../hooks/useLoading';
+import type { NavigationProp } from '@react-navigation/native';
+
+type RootStackParamList = {
+  VirtualCardHub: undefined;
+  CreateVirtualCardScreen: undefined;
+  VirtualCardDetailScreen: { cardId: string };
+  ProfileMain: undefined;
+  Notifications: undefined;
+  SecuritySettings: undefined;
+  HelpSupport: undefined;
+  Settings: undefined;
+  TermsPrivacy: undefined;
+};
 
 const CardScreen: React.FC = () => {
-  const navigation = useNavigation();
-  const [showCardNumber, setShowCardNumber] = React.useState(false);
-  const [showBalance, setShowBalance] = React.useState(false);
-  const [showPinModal, setShowPinModal] = React.useState(false);
-  const [pinModalAction, setPinModalAction] = React.useState<'viewCard' | 'freezeCard' | 'addCard' | 'settings' | null>(null);
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const [showCardNumber, setShowCardNumber] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
-  // Loading state management
-  const {
-    isLoading,
-    loadingState,
-    loadingMessage,
-    executeWithLoading,
-  } = useLoading();
+  const currentCard = {
+    id: '1',
+    name: 'Virtual Card',
+    type: 'Virtual',
+    number: '4532 1234 5678 9012',
+    cvv: '123',
+    expiry: '12/27',
+    balance: 25000.00,
+    isActive: true,
+    color: '#06402B',
+  };
 
-  const cards = [
+  // Recent transactions data - Simple merged transaction data
+  const recentTransactions = [
     {
       id: '1',
-      type: 'Virtual',
-      last4: '4532',
-      balance: 1234.56,
-      isActive: true,
-      color: '#06402B',
+      type: 'purchase',
+      description: 'Amazon Online Purchase',
+      amount: -2500,
+      date: 'Today, 2:30 PM',
+      icon: ShoppingBag,
+      iconColor: '#000000',
     },
     {
       id: '2',
-      type: 'Physical',
-      last4: '8901',
-      balance: 567.89,
-      isActive: false,
-      color: '#000d10',
-    },
-  ];
-
-  // Calculate total balance across all cards
-  const totalBalance = cards.reduce((sum, card) => sum + card.balance, 0);
-
-  // Mock transaction data
-  const transactions: CardTransaction[] = [
-    {
-      id: '1',
-      type: 'debit',
-      amount: 25000,
-      merchant: 'Amazon',
-      date: '2025-08-19',
-      category: 'Online Shopping',
-      status: 'completed'
-    },
-    {
-      id: '2',
-      type: 'debit',
-      amount: 15000,
-      merchant: 'Shoprite',
-      date: '2025-08-18',
-      category: 'Groceries',
-      status: 'completed'
+      type: 'topup',
+      description: 'Card Top Up',
+      amount: +10000,
+      date: 'Yesterday, 4:15 PM',
+      icon: TrendingUp,
+      iconColor: '#000000',
     },
     {
       id: '3',
-      type: 'credit',
-      amount: 50000,
-      merchant: 'Refund - Jumia',
-      date: '2025-08-17',
-      category: 'Refund',
-      status: 'completed'
+      type: 'purchase',
+      description: 'Netflix Subscription',
+      amount: -1200,
+      date: '2 days ago, 6:00 PM',
+      icon: ShoppingBag,
+      iconColor: '#000000',
     },
     {
       id: '4',
-      type: 'debit',
-      amount: 5000,
-      merchant: 'Netflix',
-      date: '2025-08-16',
-      category: 'Entertainment',
-      status: 'pending'
-    }
+      type: 'purchase',
+      description: 'Spotify Premium',
+      amount: -800,
+      date: '3 days ago, 11:20 AM',
+      icon: ShoppingBag,
+      iconColor: '#000000',
+    },
+    {
+      id: '5',
+      type: 'purchase',
+      description: 'Uber Ride',
+      amount: -5500,
+      date: '4 days ago, 9:45 AM',
+      icon: ShoppingBag,
+      iconColor: '#000000',
+    },
+    {
+      id: '6',
+      type: 'purchase',
+      description: 'Coffee Shop',
+      amount: -1800,
+      date: '5 days ago, 7:30 AM',
+      icon: ShoppingBag,
+      iconColor: '#000000',
+    },
   ];
 
-  const handlePinVerified = (pin: string) => {
-    setShowPinModal(false);
-    
-    switch (pinModalAction) {
-      case 'viewCard':
-        setShowCardNumber(!showCardNumber);
-        break;
-      case 'freezeCard':
-        Alert.alert(
-          'Freeze Card',
-          'Are you sure you want to freeze this card? You can unfreeze it later.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Freeze', style: 'destructive', onPress: handleFreezeCard },
-          ]
-        );
-        break;
-      case 'addCard':
-        handleAddCard();
-        break;
-      case 'settings':
-        handleCardSettings();
-        break;
-    }
-    setPinModalAction(null);
+  const handleCopyCardNumber = () => {
+    Alert.alert('Copied!', 'Card number copied to clipboard');
   };
 
-  const requirePinForAction = (action: 'viewCard' | 'freezeCard' | 'addCard' | 'settings') => {
-    setPinModalAction(action);
-    setShowPinModal(true);
-  };
-
-  const toggleCardNumber = () => requirePinForAction('viewCard');
-
-  const handleFreezeCard = async () => {
-    try {
-      await executeWithLoading(
-        async () => {
-          // Simulate API call to freeze card
-          await new Promise<void>(resolve => setTimeout(resolve, 1500));
-          
-          Alert.alert('Success', 'Card has been frozen successfully');
-        },
-        {
-          loading: 'Freezing card...',
-          processing: 'Processing request...',
-          confirming: 'Confirming changes...',
-          success: 'Card frozen successfully!',
-          error: 'Failed to freeze card',
-        }
-      );
-    } catch (error) {
-      console.error('Failed to freeze card:', error);
-      Alert.alert('Error', 'Failed to freeze card. Please try again.');
-    }
-  };
-
-  const handleAddCard = () => {
-    Alert.alert('Add Card', 'Navigate to add new card screen');
-    // Navigate to add card screen
+  const handleCreateCard = () => {
+    navigation.navigate('CreateVirtualCardScreen');
   };
 
   const handleCardSettings = () => {
-    Alert.alert('Card Settings', 'Navigate to card settings screen');
-    // Navigate to card settings screen
+    setShowSettingsModal(true);
   };
 
-  const renderCard = (card: typeof cards[0]) => (
-    <View key={card.id} style={[styles.card, { backgroundColor: card.color }]}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardType}>{card.type} Card</Text>
-        <TouchableOpacity onPress={toggleCardNumber}>
-          {showCardNumber ? (
-            <EyeOff size={iconSizes.sm} color={colors.white} />
-          ) : (
-            <Eye size={iconSizes.sm} color={colors.white} />
-          )}
-        </TouchableOpacity>
-      </View>
-      
-      <View style={styles.cardBody}>
-        <Text style={styles.cardNumber}>
-          {showCardNumber ? `•••• •••• •••• ${card.last4}` : '•••• •••• •••• ••••'}
-        </Text>
-        <View style={styles.cardRow}>
-          <View>
-            <Text style={styles.cardLabel}>Balance</Text>
-            <Text style={styles.cardBalance}>₦{card.balance.toFixed(2)}</Text>
-          </View>
-          <View style={styles.cardActions}>
-            <TouchableOpacity style={styles.cardActionButton}>
-              <Settings size={iconSizes.sm} color={colors.white} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.cardActionButton}>
-              <Lock size={iconSizes.sm} color={colors.white} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.cardActionButton}>
-              <MoreHorizontal size={iconSizes.sm} color={colors.white} />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-      
-      <View style={styles.cardFooter}>
-        <Text style={styles.cardStatus}>
-          {card.isActive ? 'Active' : 'Inactive'}
-        </Text>
-        <View style={styles.cardLogo}>
-          <CreditCard size={iconSizes.lg} color={colors.white} />
-        </View>
-      </View>
-    </View>
-  );
+  const handleSettingsOption = (option: string) => {
+    setShowSettingsModal(false);
+    
+    switch (option) {
+      case 'profile':
+        navigation.navigate('ProfileMain');
+        break;
+      case 'notifications':
+        navigation.navigate('Notifications');
+        break;
+      case 'security':
+        navigation.navigate('SecuritySettings');
+        break;
+      case 'help':
+        navigation.navigate('HelpSupport');
+        break;
+      case 'terms':
+        navigation.navigate('TermsPrivacy');
+        break;
+      default:
+        break;
+    }
+  };
 
-  const quickActions = [
-    {
-      title: 'Add Card',
-      icon: Plus,
-      color: '#06402B',
-      onPress: () => requirePinForAction('addCard'),
-    },
-    {
-      title: 'Freeze Card',
-      icon: Lock,
-      color: colors.error,
-      onPress: () => requirePinForAction('freezeCard'),
-    },
-    {
-      title: 'Card Settings',
-      icon: Settings,
-      color: '#000d10',
-      onPress: () => requirePinForAction('settings'),
-    },
-  ];
+  const handleTopUp = () => {
+    navigation.navigate('TopUpVirtualCardScreen' as never);
+  };
+
+  const handleFreezeCard = () => {
+    navigation.navigate('FreezeCardScreen' as never);
+  };
+
+  const handleWithdraw = () => {
+    navigation.navigate('WithdrawCardScreen' as never);
+  };
+
+  const handleViewAllTransactions = () => {
+    // Navigate to transaction history screen
+    navigation.navigate('TransactionHistoryScreen' as never, { cardId: currentCard.id });
+  };
+
+  const handleTransactionPress = (transactionId: string) => {
+    // Navigate to transaction details or show transaction modal
+    Alert.alert(
+      'Transaction Details',
+      `View details for transaction ID: ${transactionId}`,
+      [
+        { text: 'View Receipt', onPress: () => console.log('View receipt for:', transactionId) },
+        { text: 'OK', style: 'default' }
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={globalStyles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => navigation.goBack()}
+        >
           <ChevronLeft size={24} color={colors.primary} />
         </TouchableOpacity>
-        <View style={styles.headerPlaceholder} />
-        <Text style={styles.headerTitle}>My Cards</Text>
-        <View style={styles.headerPlaceholder} />
+        <Text style={styles.headerTitle}>Virtual Cards</Text>
+        <TouchableOpacity 
+          style={styles.settingsButton}
+          onPress={handleCardSettings}
+        >
+          <Settings size={24} color={colors.primary} />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Balance Card */}
-        <View style={styles.balanceCard}>
-          <View style={styles.balanceHeader}>
-            <Text style={styles.balanceLabel}>Total Card Balance</Text>
-            <TouchableOpacity onPress={() => setShowBalance(!showBalance)}>
-              {showBalance ? (
-                <EyeOff size={iconSizes.sm} color={colors.white} />
-              ) : (
-                <Eye size={iconSizes.sm} color={colors.white} />
-              )}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Card Display */}
+        <View style={styles.cardSection}>
+          <View style={[styles.virtualCard, { backgroundColor: currentCard.color }]}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardName}>{currentCard.name}</Text>
+              <TouchableOpacity
+                onPress={() => setShowCardNumber(!showCardNumber)}
+                style={styles.eyeButton}
+              >
+                {showCardNumber ? (
+                  <EyeOff size={20} color={colors.white} />
+                ) : (
+                  <Eye size={20} color={colors.white} />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.cardNumber}>
+              <Text style={styles.cardNumberText}>
+                {showCardNumber ? currentCard.number : '•••• •••• •••• ••••'}
+              </Text>
+              <TouchableOpacity 
+                onPress={handleCopyCardNumber}
+                style={styles.copyButton}
+              >
+                <Copy size={16} color={colors.white} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.cardDetails}>
+              <View>
+                <Text style={styles.cardLabel}>VALID THRU</Text>
+                <Text style={styles.cardValue}>{currentCard.expiry}</Text>
+              </View>
+              <View>
+                <Text style={styles.cardLabel}>CVV</Text>
+                <Text style={styles.cardValue}>
+                  {showCardNumber ? currentCard.cvv : '•••'}
+                </Text>
+              </View>
+              <View style={styles.cardBalance}>
+                <Text style={styles.cardLabel}>BALANCE</Text>
+                <Text style={styles.balanceAmount}>₦{currentCard.balance.toLocaleString()}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.actionsSection}>
+          <View style={styles.actionsGrid}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={handleCreateCard}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#FFFFFF' }]}>
+                <Plus size={22} color="#000000" />
+              </View>
+              <Text style={styles.actionLabel}>Create</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={handleTopUp}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#FFFFFF' }]}>
+                <CreditCard size={22} color="#000000" />
+              </View>
+              <Text style={styles.actionLabel}>Top Up</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={handleFreezeCard}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#FFFFFF' }]}>
+                <Lock size={22} color="#000000" />
+              </View>
+              <Text style={styles.actionLabel}>Freeze</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={handleWithdraw}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#FFFFFF' }]}>
+                <ArrowDownLeft size={22} color="#000000" />
+              </View>
+              <Text style={styles.actionLabel}>Withdraw</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.balanceAmount}>
-            {showBalance ? `₦${totalBalance.toFixed(2)}` : '••••••'}
-          </Text>
-          <Text style={styles.balanceSubtext}>
-            Across {cards.length} cards
-          </Text>
         </View>
 
-        <View style={styles.content}>
-          <Text style={styles.subtitle}>Manage your payment cards</Text>
-        </View>
-
-        <View style={styles.cardsContainer}>
-          {cards.map(renderCard)}
-        </View>
-
-        <View style={styles.actionsContainer}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionsGrid}>
-            {quickActions.map((action, index) => (
-              <TouchableOpacity key={index} style={styles.actionCard} onPress={action.onPress}>
-                <View style={[styles.actionIcon, { backgroundColor: action.color }]}>
-                  <action.icon size={iconSizes.lg} color={colors.white} />
-                </View>
-                <Text style={styles.actionTitle}>{action.title}</Text>
-              </TouchableOpacity>
-            ))}
+        {/* Recent Transactions - Profile Card Style */}
+        <View style={styles.transactionsSection}>
+          <Text style={styles.sectionTitle}>Recent Transactions</Text>
+          <View style={styles.card}>
+            {recentTransactions.map((transaction) => {
+              const IconComponent = transaction.icon;
+              return (
+                <TouchableOpacity 
+                  key={transaction.id} 
+                  style={styles.listItem}
+                  onPress={() => handleTransactionPress(transaction.id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.itemLeft}>
+                    <View style={[styles.iconContainer, { backgroundColor: `${transaction.iconColor}15` }]}>
+                      <IconComponent size={20} color={transaction.iconColor} />
+                    </View>
+                    <View style={styles.itemText}>
+                      <Text style={styles.itemTitle}>{transaction.description}</Text>
+                      <Text style={styles.itemSubtitle}>{transaction.date}</Text>
+                    </View>
+                  </View>
+                  <Text style={[
+                    styles.transactionAmount,
+                    { color: transaction.amount > 0 ? '#4CAF50' : '#FF6B6B' }
+                  ]}>
+                    {transaction.amount > 0 ? '+' : ''}₦{Math.abs(transaction.amount).toLocaleString()}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+            
+            {/* View All Transactions Button */}
+            <TouchableOpacity 
+              style={styles.viewAllButton}
+              onPress={handleViewAllTransactions}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.viewAllText}>View All Transactions</Text>
+              <ArrowUpRight size={16} color={colors.primary} />
+            </TouchableOpacity>
           </View>
         </View>
 
-        <View style={styles.transactionContainer}>
-          <Text style={styles.sectionTitle}>Transaction History</Text>
-          <View style={styles.transactionCard}>
-            {transactions.map((transaction) => (
-              <CardTransactionRow key={transaction.id} transaction={transaction} />
-            ))}
-          </View>
-        </View>
+        <View style={styles.bottomPadding} />
       </ScrollView>
 
-      {/* PIN Entry Modal */}
-      <PinEntryModal
-        visible={showPinModal}
-        onClose={() => {
-          setShowPinModal(false);
-          setPinModalAction(null);
-        }}
-        onPinEntered={handlePinVerified}
-        title="Verify PIN"
-        subtitle={
-          pinModalAction === 'viewCard' ? 'Enter PIN to view card details' :
-          pinModalAction === 'freezeCard' ? 'Enter PIN to freeze card' :
-          pinModalAction === 'addCard' ? 'Enter PIN to add new card' :
-          pinModalAction === 'settings' ? 'Enter PIN to access card settings' :
-          'Enter your PIN to continue'
-        }
-        allowBiometric={true}
-      />
-      
-      {/* Loading Overlay */}
-      <LoadingOverlay
-        visible={isLoading}
-        type={loadingState}
-        message={loadingMessage}
-      />
+      {/* Settings Modal */}
+      <Modal
+        visible={showSettingsModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowSettingsModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSettingsModal(false)}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Settings</Text>
+              <TouchableOpacity 
+                onPress={() => setShowSettingsModal(false)}
+                style={styles.closeButton}
+              >
+                <X size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.settingsList}>
+              <TouchableOpacity 
+                style={styles.settingsItem}
+                onPress={() => handleSettingsOption('profile')}
+              >
+                <UserCheck size={20} color="#06402B" />
+                <Text style={styles.settingsText}>Profile Settings</Text>
+                <ArrowUpRight size={16} color="#A3AABE" />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.settingsItem}
+                onPress={() => handleSettingsOption('notifications')}
+              >
+                <Bell size={20} color="#06402B" />
+                <Text style={styles.settingsText}>Notifications</Text>
+                <ArrowUpRight size={16} color="#A3AABE" />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.settingsItem}
+                onPress={() => handleSettingsOption('security')}
+              >
+                <Shield size={20} color="#06402B" />
+                <Text style={styles.settingsText}>Security & Privacy</Text>
+                <ArrowUpRight size={16} color="#A3AABE" />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.settingsItem}
+                onPress={() => handleSettingsOption('help')}
+              >
+                <HelpCircle size={20} color="#06402B" />
+                <Text style={styles.settingsText}>Help & Support</Text>
+                <ArrowUpRight size={16} color="#A3AABE" />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.settingsItem}
+                onPress={() => handleSettingsOption('terms')}
+              >
+                <FileText size={20} color="#06402B" />
+                <Text style={styles.settingsText}>Terms & Privacy</Text>
+                <ArrowUpRight size={16} color="#A3AABE" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -337,180 +427,271 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: '#FFF0F5',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
     paddingVertical: spacing.lg,
-    paddingTop: spacing.xl,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
   },
-  headerPlaceholder: {
-    flex: 1,
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000d10',
-    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
   },
-  // Balance Card Styles
-  balanceCard: {
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.xl,
-    padding: spacing.xl,
-    borderRadius: borderRadius.xl,
-    backgroundColor: colors.primary,
-    ...shadows.medium,
-  },
-  balanceHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  settingsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.background,
     alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  balanceLabel: {
-    fontSize: 14,
-    color: colors.white,
-    opacity: 0.8,
-  },
-  balanceAmount: {
-    fontSize: 36,
-    fontWeight: 'normal',
-    color: colors.white,
-    marginBottom: spacing.xs,
-  },
-  balanceSubtext: {
-    fontSize: 12,
-    color: colors.white,
-    opacity: 0.7,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   content: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
+    flex: 1,
   },
-  subtitle: {
-    ...typography.caption,
-    color: colors.secondaryText,
-    textAlign: 'center',
-  },
-  cardsContainer: {
-    paddingHorizontal: spacing.xl,
-    gap: spacing.lg,
-  },
-  card: {
-    borderRadius: borderRadius.large,
+  cardSection: {
     padding: spacing.xl,
-    ...shadows.medium,
+  },
+  virtualCard: {
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
     minHeight: 200,
+    ...shadows.large,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
   },
-  cardType: {
-    ...typography.body,
+  cardName: {
+    fontSize: 18,
+    fontWeight: 'bold',
     color: colors.white,
-    fontWeight: '600',
   },
-  cardBody: {
-    flex: 1,
+  eyeButton: {
+    padding: spacing.sm,
   },
   cardNumber: {
-    ...typography.h3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xl,
+  },
+  cardNumberText: {
+    fontSize: 20,
+    fontWeight: 'bold',
     color: colors.white,
     letterSpacing: 2,
-    marginBottom: spacing.lg,
   },
-  cardRow: {
+  copyButton: {
+    padding: spacing.sm,
+  },
+  cardDetails: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
   },
   cardLabel: {
-    ...typography.small,
+    fontSize: 10,
     color: colors.white,
     opacity: 0.8,
     marginBottom: spacing.xs,
   },
-  cardBalance: {
-    ...typography.h3,
-    color: colors.white,
+  cardValue: {
+    fontSize: 14,
     fontWeight: 'bold',
-  },
-  cardActions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  cardActionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: spacing.lg,
-  },
-  cardStatus: {
-    ...typography.caption,
     color: colors.white,
-    fontWeight: '600',
   },
-  cardLogo: {
-    opacity: 0.7,
+  cardBalance: {
+    alignItems: 'flex-end',
   },
-  actionsContainer: {
-    padding: spacing.xl,
+  balanceAmount: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.white,
   },
-  sectionTitle: {
-    ...typography.h3,
-    color: colors.text,
-    marginBottom: spacing.lg,
+  actionsSection: {
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.xl,
   },
   actionsGrid: {
     flexDirection: 'row',
-    gap: spacing.lg,
+    justifyContent: 'space-between',
+    gap: spacing.sm,
   },
   actionCard: {
     flex: 1,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    padding: spacing.lg,
+    backgroundColor: 'transparent',
+    padding: spacing.md,
     alignItems: 'center',
-    ...shadows.small,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
   },
-  actionTitle: {
-    ...typography.caption,
+  actionLabel: {
+    fontSize: 11,
+    fontWeight: '500',
     color: colors.text,
     textAlign: 'center',
+  },
+  transactionsSection: {
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.xl,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.md,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#06402B',
+    marginBottom: 16,
+  },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+    minHeight: 60,
+  },
+  itemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  itemText: {
+    flex: 1,
+  },
+  itemTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#06402B',
+  },
+  itemSubtitle: {
+    fontSize: 12,
+    color: '#A3AABE',
+    marginTop: 2,
+  },
+  transactionAmount: {
+    fontSize: 14,
     fontWeight: '600',
   },
-  transactionContainer: {
-    padding: spacing.xl,
-    paddingTop: 0,
-  },
-  transactionCard: {
-    backgroundColor: colors.white,
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8F9FA',
     borderRadius: borderRadius.medium,
-    padding: spacing.lg,
-    ...shadows.small,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  viewAllText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.primary,
+    marginRight: spacing.xs,
+  },
+  bottomPadding: {
+    height: 100,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#06402B',
+  },
+  closeButton: {
+    padding: spacing.xs,
+  },
+  settingsList: {
+    gap: spacing.sm,
+  },
+  settingsItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    backgroundColor: '#F8F9FA',
+    borderRadius: borderRadius.medium,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  settingsText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#06402B',
+    marginLeft: spacing.md,
   },
 });
 

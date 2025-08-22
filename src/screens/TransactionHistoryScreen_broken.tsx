@@ -30,18 +30,9 @@ const TransactionHistoryScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showSortModal, setShowSortModal] = useState(false);
-  const [showDateFilter, setShowDateFilter] = useState(false);
-  const [showAmountFilter, setShowAmountFilter] = useState(false);
-  const [showStatusFilter, setShowStatusFilter] = useState(false);
   const [selectedSort, setSelectedSort] = useState('All');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
-  
-  // Filter states
-  const [selectedDateRange, setSelectedDateRange] = useState('All Time');
-  const [selectedAmountRange, setSelectedAmountRange] = useState('All Amounts');
-  const [selectedStatus, setSelectedStatus] = useState('All Status');
-  const [hasActiveFilters, setHasActiveFilters] = useState(false);
 
   const loadInitialTransactions = useCallback(async () => {
     try {
@@ -146,58 +137,8 @@ const TransactionHistoryScreen: React.FC = () => {
       }
     }
 
-    // Filter by date range
-    if (selectedDateRange !== 'All Time') {
-      const now = new Date();
-      const filterMap: { [key: string]: number } = {
-        'Today': 1,
-        'Last 7 days': 7,
-        'Last 30 days': 30,
-        'Last 90 days': 90
-      };
-      const days = filterMap[selectedDateRange];
-      if (days) {
-        const cutoffDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-        filtered = filtered.filter(t => t.timestamp >= cutoffDate);
-      }
-    }
-
-    // Filter by amount range
-    if (selectedAmountRange !== 'All Amounts') {
-      const rangeMap: { [key: string]: { min: number; max: number } } = {
-        'Under ₦1,000': { min: 0, max: 1000 },
-        '₦1,000 - ₦5,000': { min: 1000, max: 5000 },
-        '₦5,000 - ₦10,000': { min: 5000, max: 10000 },
-        'Above ₦10,000': { min: 10000, max: Infinity }
-      };
-      const range = rangeMap[selectedAmountRange];
-      if (range) {
-        filtered = filtered.filter(t => t.amount > range.min && t.amount <= range.max);
-      }
-    }
-
-    // Filter by status
-    if (selectedStatus !== 'All Status') {
-      const statusMap: { [key: string]: string } = {
-        'Successful': 'success',
-        'Pending': 'pending',
-        'Failed': 'failed'
-      };
-      const filterStatus = statusMap[selectedStatus];
-      if (filterStatus) {
-        filtered = filtered.filter(t => t.status === filterStatus);
-      }
-    }
-
-    // Check if any filters are active
-    const hasFilters = selectedSort !== 'All' || 
-                      selectedDateRange !== 'All Time' || 
-                      selectedAmountRange !== 'All Amounts' || 
-                      selectedStatus !== 'All Status';
-    
-    setHasActiveFilters(hasFilters);
     setFilteredTransactions(filtered);
-  }, [transactions, selectedSort, selectedDateRange, selectedAmountRange, selectedStatus]);
+  }, [transactions, selectedSort]);
 
   // Initialize with mock data - replace with API call
   useEffect(() => {
@@ -226,44 +167,6 @@ const TransactionHistoryScreen: React.FC = () => {
   const handleFilterPress = useCallback(() => {
     setShowFilterModal(true);
   }, []);
-
-  const handleDateFilterPress = useCallback(() => {
-    setShowFilterModal(false);
-    setShowDateFilter(true);
-  }, []);
-
-  const handleAmountFilterPress = useCallback(() => {
-    setShowFilterModal(false);
-    setShowAmountFilter(true);
-  }, []);
-
-  const handleStatusFilterPress = useCallback(() => {
-    setShowFilterModal(false);
-    setShowStatusFilter(true);
-  }, []);
-
-  const handleResetFilters = useCallback(() => {
-    setSelectedDateRange('All Time');
-    setSelectedAmountRange('All Amounts');
-    setSelectedStatus('All Status');
-    setSelectedSort('All');
-    setShowFilterModal(false);
-  }, []);
-
-  const handleDateSelect = (dateRange: string) => {
-    setSelectedDateRange(dateRange);
-    setShowDateFilter(false);
-  };
-
-  const handleAmountSelect = (amountRange: string) => {
-    setSelectedAmountRange(amountRange);
-    setShowAmountFilter(false);
-  };
-
-  const handleStatusSelect = (status: string) => {
-    setSelectedStatus(status);
-    setShowStatusFilter(false);
-  };
 
   const handleAllPress = useCallback(() => {
     setShowSortModal(true);
@@ -334,7 +237,7 @@ const TransactionHistoryScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      {/* Authentic iOS Mail Header */}
       <View style={styles.header}>
         <TouchableOpacity 
           style={globalStyles.backButton}
@@ -357,15 +260,9 @@ const TransactionHistoryScreen: React.FC = () => {
           <ChevronDown size={16} color="#06402B" strokeWidth={2} />
         </TouchableOpacity>
         
-        <TouchableOpacity style={[
-          styles.filterButton,
-          hasActiveFilters && styles.filterButtonActive
-        ]} onPress={handleFilterPress}>
-          <Text style={[
-            styles.filterButtonText,
-            hasActiveFilters && styles.filterButtonTextActive
-          ]}>Filter</Text>
-          <Filter size={16} color={hasActiveFilters ? "#FFFFFF" : "#06402B"} strokeWidth={2} />
+        <TouchableOpacity style={styles.filterButton} onPress={handleFilterPress}>
+          <Text style={styles.filterButtonText}>Filter</Text>
+          <Filter size={16} color="#06402B" strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
@@ -425,32 +322,17 @@ const TransactionHistoryScreen: React.FC = () => {
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Filter</Text>
             
-            <TouchableOpacity 
-              style={styles.modalOption}
-              onPress={handleDateFilterPress}
-            >
+            <TouchableOpacity style={styles.modalOption}>
               <Text style={styles.modalOptionText}>Date Range</Text>
-              <Text style={styles.modalOptionValue}>{selectedDateRange}</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.modalOption}
-              onPress={handleAmountFilterPress}
-            >
+            <TouchableOpacity style={styles.modalOption}>
               <Text style={styles.modalOptionText}>Amount Range</Text>
-              <Text style={styles.modalOptionValue}>{selectedAmountRange}</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.modalOption}
-              onPress={handleStatusFilterPress}
-            >
+            <TouchableOpacity style={styles.modalOption}>
               <Text style={styles.modalOptionText}>Status</Text>
-              <Text style={styles.modalOptionValue}>{selectedStatus}</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.modalOption, styles.resetOption]}
-              onPress={handleResetFilters}
-            >
-              <Text style={styles.resetOptionText}>Reset Filters</Text>
+            <TouchableOpacity style={styles.modalOption}>
+              <Text style={styles.modalOptionText}>Reset Filters</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -484,114 +366,6 @@ const TransactionHistoryScreen: React.FC = () => {
                   {sort}
                 </Text>
                 {selectedSort === sort && (
-                  <Check size={20} color="#06402B" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* Date Filter Modal */}
-      <Modal
-        visible={showDateFilter}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowDateFilter(false)}
-      >
-        <Pressable 
-          style={styles.modalOverlay}
-          onPress={() => setShowDateFilter(false)}
-        >
-          <View style={styles.bottomSheet}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Date Range</Text>
-            
-            {['All Time', 'Today', 'Last 7 days', 'Last 30 days', 'Last 90 days'].map((dateRange) => (
-              <TouchableOpacity
-                key={dateRange}
-                style={styles.modalOption}
-                onPress={() => handleDateSelect(dateRange)}
-              >
-                <Text style={[
-                  styles.modalOptionText,
-                  selectedDateRange === dateRange && styles.selectedOptionText
-                ]}>
-                  {dateRange}
-                </Text>
-                {selectedDateRange === dateRange && (
-                  <Check size={20} color="#06402B" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* Amount Filter Modal */}
-      <Modal
-        visible={showAmountFilter}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowAmountFilter(false)}
-      >
-        <Pressable 
-          style={styles.modalOverlay}
-          onPress={() => setShowAmountFilter(false)}
-        >
-          <View style={styles.bottomSheet}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Amount Range</Text>
-            
-            {['All Amounts', 'Under ₦1,000', '₦1,000 - ₦5,000', '₦5,000 - ₦10,000', 'Above ₦10,000'].map((amountRange) => (
-              <TouchableOpacity
-                key={amountRange}
-                style={styles.modalOption}
-                onPress={() => handleAmountSelect(amountRange)}
-              >
-                <Text style={[
-                  styles.modalOptionText,
-                  selectedAmountRange === amountRange && styles.selectedOptionText
-                ]}>
-                  {amountRange}
-                </Text>
-                {selectedAmountRange === amountRange && (
-                  <Check size={20} color="#06402B" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* Status Filter Modal */}
-      <Modal
-        visible={showStatusFilter}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowStatusFilter(false)}
-      >
-        <Pressable 
-          style={styles.modalOverlay}
-          onPress={() => setShowStatusFilter(false)}
-        >
-          <View style={styles.bottomSheet}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Status</Text>
-            
-            {['All Status', 'Successful', 'Pending', 'Failed'].map((status) => (
-              <TouchableOpacity
-                key={status}
-                style={styles.modalOption}
-                onPress={() => handleStatusSelect(status)}
-              >
-                <Text style={[
-                  styles.modalOptionText,
-                  selectedStatus === status && styles.selectedOptionText
-                ]}>
-                  {status}
-                </Text>
-                {selectedStatus === status && (
                   <Check size={20} color="#06402B" />
                 )}
               </TouchableOpacity>
@@ -642,22 +416,15 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
-  filterButtonActive: {
-    backgroundColor: '#06402B',
-    borderColor: '#06402B',
-  },
   filterButtonText: {
     fontSize: 16,
     color: '#06402B',
     fontWeight: '500',
     marginRight: 6,
   },
-  filterButtonTextActive: {
-    color: '#FFFFFF',
-  },
   content: {
     flex: 1,
-    backgroundColor: '#FFF0F5',
+    backgroundColor: '#FFF0F5', // Same as NotificationScreen
   },
   allButtonContainer: {
     flexDirection: 'row',
@@ -703,6 +470,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666666',
     fontStyle: 'italic',
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+  },
+  filterTab: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 12,
+    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
+  },
+  activeFilterTab: {
+    backgroundColor: '#06402B',
+  },
+  filterText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666666',
+  },
+  activeFilterText: {
+    color: '#FFFFFF',
   },
   list: {
     flex: 1,
@@ -763,20 +555,6 @@ const styles = StyleSheet.create({
   modalOptionText: {
     fontSize: 17,
     color: '#000000',
-  },
-  modalOptionValue: {
-    fontSize: 15,
-    color: '#666666',
-    fontStyle: 'italic',
-  },
-  resetOption: {
-    borderBottomWidth: 0,
-    marginTop: 10,
-  },
-  resetOptionText: {
-    fontSize: 17,
-    color: '#FF3B30',
-    fontWeight: '600',
   },
   selectedOptionText: {
     color: '#007AFF',

@@ -121,7 +121,16 @@ const SimpleQRCodeModal: React.FC<QRCodeScannerModalProps> = ({
   };
 
   const toggleFlash = () => {
-    setFlashMode(flashMode === 'off' ? 'on' : 'off');
+    const newFlashMode = flashMode === 'off' ? 'on' : 'off';
+    setFlashMode(newFlashMode);
+    
+    // Optional: Add haptic feedback for better UX
+    try {
+      // You can add Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light) here if you want
+      console.log(`Flash ${newFlashMode === 'on' ? 'enabled' : 'disabled'}`);
+    } catch (error) {
+      console.warn('Flash toggle error:', error);
+    }
   };
 
   const toggleCameraType = () => {
@@ -264,6 +273,7 @@ const SimpleQRCodeModal: React.FC<QRCodeScannerModalProps> = ({
           facing={cameraType}
           flash={flashMode}
           onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+          enableTorch={flashMode === 'on'}
         >
           {/* Scanner Overlay */}
           <View style={styles.scannerOverlay}>
@@ -283,6 +293,11 @@ const SimpleQRCodeModal: React.FC<QRCodeScannerModalProps> = ({
             <Text style={styles.instructionText}>
               {scanned ? 'QR Code Detected!' : 'Point camera at QR code or tap gallery icon to scan from photos'}
             </Text>
+            {flashMode === 'on' && !scanned && (
+              <Text style={styles.flashStatusText}>
+                💡 Flashlight is ON
+              </Text>
+            )}
             {scanned && (
               <TouchableOpacity
                 style={styles.rescanButton}
@@ -295,7 +310,13 @@ const SimpleQRCodeModal: React.FC<QRCodeScannerModalProps> = ({
 
           {/* Camera Controls */}
           <View style={styles.cameraControls}>
-            <TouchableOpacity style={styles.controlButton} onPress={toggleFlash}>
+            <TouchableOpacity 
+              style={[
+                styles.controlButton, 
+                flashMode === 'on' && styles.flashActiveButton
+              ]} 
+              onPress={toggleFlash}
+            >
               {flashMode === 'on' ? (
                 <Zap size={iconSizes.md} color={colors.warning} />
               ) : (
@@ -566,6 +587,16 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
+  flashStatusText: {
+    fontSize: 14,
+    color: colors.warning,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+    fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
   rescanButton: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
@@ -599,6 +630,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.3)',
     ...shadows.medium,
+  },
+  flashActiveButton: {
+    backgroundColor: 'rgba(255, 193, 7, 0.3)',
+    borderColor: colors.warning,
+    borderWidth: 3,
   },
   simulateText: {
     fontSize: 12,

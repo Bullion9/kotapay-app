@@ -8,12 +8,11 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
-  PermissionsAndroid,
-  Platform,
   Linking,
   RefreshControl,
 } from 'react-native';
-import { ChevronLeft, Search, Users, PlusCircle } from 'lucide-react-native';
+import { ChevronLeft, Search, Users, PlusCircle, Phone, UserPlus } from 'lucide-react-native';
+import * as Contacts from 'expo-contacts';
 import { colors, globalStyles } from '../theme';
 import SwipeableContactRow from '../components/SwipeableContactRow';
 
@@ -36,10 +35,12 @@ const ContactsScreen: React.FC<ContactsScreenProps> = ({ navigation, route }) =>
   const [query, setQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [isLoadingContacts, setIsLoadingContacts] = useState(false);
 
   // Mock data for demo - replace with actual API call
   useEffect(() => {
     fetchContacts();
+    checkContactsPermission();
   }, []);
 
   // Handle QR scan results
@@ -121,6 +122,17 @@ const ContactsScreen: React.FC<ContactsScreenProps> = ({ navigation, route }) =>
     setFiltered(mockContacts);
   };
 
+  // Check if we already have contacts permission
+  const checkContactsPermission = async () => {
+    try {
+      const { status } = await Contacts.getPermissionsAsync();
+      // Permission status is checked but not stored since we don't use it elsewhere
+      console.log('Contacts permission status:', status);
+    } catch (error) {
+      console.error('Error checking contacts permission:', error);
+    }
+  };
+
   useEffect(() => {
     setFiltered(
       contacts.filter(c =>
@@ -146,6 +158,26 @@ const ContactsScreen: React.FC<ContactsScreenProps> = ({ navigation, route }) =>
     <View style={styles.emptyState}>
       <Users size={48} color="#A3AABE" />
       <Text style={styles.emptyText}>No contacts yet</Text>
+      <Text style={styles.emptySubtext}>Import contacts from your phone or add them manually</Text>
+      
+      <TouchableOpacity
+        style={styles.importButton}
+        onPress={requestContactsPermission}
+        disabled={isLoadingContacts}
+      >
+        <Phone size={20} color="#FFFFFF" style={styles.buttonIcon} />
+        <Text style={styles.importButtonText}>
+          {isLoadingContacts ? 'Loading Contacts...' : 'Import from Phone'}
+        </Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity
+        style={styles.addManuallyButton}
+        onPress={() => navigation.navigate('AddContact')}
+      >
+        <UserPlus size={20} color="#06402B" style={styles.buttonIcon} />
+        <Text style={styles.addManuallyText}>Add Contact Manually</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -176,96 +208,98 @@ const ContactsScreen: React.FC<ContactsScreenProps> = ({ navigation, route }) =>
 
   const requestContactsPermission = async () => {
     try {
-      if (Platform.OS === 'android') {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
-          {
-            title: 'Contacts Permission',
-            message: 'KotaPay needs access to your contacts to import them.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          }
-        );
-        
-        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-          loadPhoneContacts();
-        } else {
-          Alert.alert(
-            'Permission Denied',
-            'Cannot access contacts without permission. You can grant permission in app settings.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Open Settings', onPress: () => Linking.openSettings() },
-            ]
-          );
-        }
+      setIsLoadingContacts(true);
+      
+      // Request permission using expo-contacts
+      const { status } = await Contacts.requestPermissionsAsync();
+      
+      if (status === 'granted') {
+        await loadPhoneContacts();
       } else {
-        // For iOS, you would typically use expo-contacts or react-native-contacts
-        // which handles permissions automatically
-        loadPhoneContacts();
+        Alert.alert(
+          'Permission Denied',
+          'KotaPay needs access to your contacts to import them. You can grant permission in app settings.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          ]
+        );
       }
     } catch (error) {
       console.error('Permission error:', error);
       Alert.alert('Error', 'Failed to request contacts permission');
+    } finally {
+      setIsLoadingContacts(false);
     }
   };
 
-  const loadPhoneContacts = () => {
-    // Simulate loading contacts from phone
-    // In real app, you would use expo-contacts or react-native-contacts
-    Alert.alert(
-      'Loading Contacts',
-      'Phone contacts are being loaded...',
-      [{ text: 'OK' }]
-    );
-    
-    // Mock additional contacts that would come from phone
-    const timestamp = Date.now();
-    const phoneContacts: Contact[] = [
-      { 
-        id: `phone_${timestamp}_1`, 
-        name: 'Mom', 
-        phone: '+1 (555) 111-1111',
-        profileImage: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face',
-        isRegistered: true
-      },
-      { 
-        id: `phone_${timestamp}_2`, 
-        name: 'Dad', 
-        phone: '+1 (555) 222-2222',
-        // No profile image - will use initials
-        isRegistered: false
-      },
-      { 
-        id: `phone_${timestamp}_3`, 
-        name: 'Best Friend', 
-        phone: '+1 (555) 333-3333',
-        profileImage: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-        isRegistered: true
-      },
-      { 
-        id: `phone_${timestamp}_4`, 
-        name: 'Work Colleague', 
-        phone: '+1 (555) 444-4444',
-        // No profile image - will use initials
-        isRegistered: false
-      },
-      { 
-        id: `phone_${timestamp}_5`, 
-        name: 'Sister', 
-        phone: '+1 (555) 555-5555',
-        profileImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face',
-        isRegistered: true
-      },
-    ];
-    
+  const loadPhoneContacts = async () => {
+    try {
+      setIsLoadingContacts(true);
+      
+      // Get contacts from phone
+      const { data } = await Contacts.getContactsAsync({
+        fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers, Contacts.Fields.Image],
+        sort: Contacts.SortTypes.FirstName,
+      });
+
+      if (data.length > 0) {
+        const phoneContacts: Contact[] = data
+          .filter(contact => 
+            contact.name && 
+            contact.phoneNumbers && 
+            contact.phoneNumbers.length > 0
+          )
+          .map(contact => ({
+            id: `phone_${contact.id}`,
+            name: contact.name || 'Unknown Contact',
+            phone: contact.phoneNumbers?.[0]?.number || '',
+            profileImage: contact.imageAvailable && contact.image ? contact.image.uri : undefined,
+            isRegistered: Math.random() > 0.5, // Random for demo - replace with actual registration check
+          }))
+          .slice(0, 50); // Limit to first 50 contacts for performance
+
         // Only add contacts that don't already exist
-    setContacts(prev => {
-      const existingIds = prev.map(contact => contact.id);
-      const newContacts = phoneContacts.filter(contact => !existingIds.includes(contact.id));
-      return [...prev, ...newContacts];
-    });
+        setContacts(prev => {
+          const existingPhones = prev.map(contact => contact.phone.replace(/\D/g, ''));
+          const newContacts = phoneContacts.filter(contact => {
+            const phoneDigits = contact.phone.replace(/\D/g, '');
+            return !existingPhones.includes(phoneDigits);
+          });
+          
+          if (newContacts.length > 0) {
+            Alert.alert(
+              'Contacts Imported',
+              `Successfully imported ${newContacts.length} contacts from your phone.`,
+              [{ text: 'OK' }]
+            );
+            return [...prev, ...newContacts];
+          } else {
+            Alert.alert(
+              'No New Contacts',
+              'All your phone contacts are already in your KotaPay contacts.',
+              [{ text: 'OK' }]
+            );
+            return prev;
+          }
+        });
+      } else {
+        Alert.alert(
+          'No Contacts Found',
+          'No contacts were found on your phone.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error loading phone contacts:', error);
+      Alert.alert(
+        'Error',
+        'Failed to load contacts from your phone. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsLoadingContacts(false);
+    }
   };
 
   const onRefresh = useCallback(async () => {
@@ -327,8 +361,21 @@ const ContactsScreen: React.FC<ContactsScreenProps> = ({ navigation, route }) =>
           <Text style={styles.headerTitle}>Contacts</Text>
         </View>
         
-        <View style={styles.placeholder} />
+        <TouchableOpacity
+          style={styles.headerButton}
+          onPress={requestContactsPermission}
+          disabled={isLoadingContacts}
+        >
+          <Phone 
+            size={20} 
+            color={isLoadingContacts ? "#A3AABE" : colors.seaGreen}
+            fill={isLoadingContacts ? "#A3AABE" : colors.seaGreen}
+          />
+        </TouchableOpacity>
       </View>
+      
+      {/* Header Separator Line */}
+      <View style={styles.headerSeparator} />
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -339,15 +386,19 @@ const ContactsScreen: React.FC<ContactsScreenProps> = ({ navigation, route }) =>
           <Search size={20} color="#A3AABE" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search by name or phone"
+            placeholder={isLoadingContacts ? "Loading contacts..." : "Search by name or phone"}
             placeholderTextColor="#A3AABE"
             value={query}
             onChangeText={setQuery}
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
+            editable={!isLoadingContacts}
           />
         </View>
       </View>
+
+      {/* Search Separator Line */}
+      <View style={styles.searchSeparator} />
 
       {/* Contacts List */}
       <FlatList
@@ -402,8 +453,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000d10',
   },
-  placeholder: {
+  headerButton: {
     width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  headerSeparator: {
+    height: 1,
+    backgroundColor: '#E5E5E5',
+    marginHorizontal: 0,
   },
   searchContainer: {
     paddingHorizontal: 16,
@@ -432,6 +498,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#000d10',
   },
+  searchSeparator: {
+    height: 1,
+    backgroundColor: '#E5E5E5',
+    marginHorizontal: 0,
+  },
   list: {
     flex: 1,
   },
@@ -445,11 +516,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 80,
+    paddingHorizontal: 32,
   },
   emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000d10',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  emptySubtext: {
     fontSize: 14,
     color: '#A3AABE',
+    marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  importButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#06402B',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginTop: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  importButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  addManuallyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#06402B',
     marginTop: 16,
+  },
+  addManuallyText: {
+    color: '#06402B',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  buttonIcon: {
+    marginRight: 4,
   },
   fab: {
     position: 'absolute',

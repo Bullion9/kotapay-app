@@ -4,6 +4,8 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -15,7 +17,7 @@ import {
   Camera,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../types';
-import { colors, spacing, shadows, borderRadius, iconSizes, globalStyles } from '../theme';
+import { colors, spacing, shadows, borderRadius, globalStyles } from '../theme';
 import SimpleQRCodeModal from '../components/SimpleQRCodeModal';
 
 type QRScannerScreenNavigationProp = StackNavigationProp<RootStackParamList>;
@@ -60,100 +62,71 @@ const QRScannerScreen: React.FC = () => {
     setModalVisible(true);
   };
 
-  const ActionCard = ({ 
-    title, 
-    description, 
-    icon: Icon, 
-    onPress, 
-    color = colors.primary 
-  }: {
-    title: string;
-    description: string;
-    icon: React.ComponentType<any>;
-    onPress: () => void;
-    color?: string;
-  }) => (
-    <TouchableOpacity style={styles.actionCard} onPress={onPress}>
-      <View style={[styles.iconContainer, { backgroundColor: `${color}15` }]}>
-        <Icon size={iconSizes.xl} color={color} />
-      </View>
-      <Text style={styles.actionTitle}>{title}</Text>
-      <Text style={styles.actionDescription}>{description}</Text>
-    </TouchableOpacity>
-  );
-
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={globalStyles.backButton} 
-          onPress={() => navigation.goBack()}
-        >
-          <ChevronLeft size={24} color={colors.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>QR Code Scanner</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFF0F5" />
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={globalStyles.backButton} 
+            onPress={() => navigation.goBack()}
+          >
+            <ChevronLeft size={24} color={colors.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>QR Scanner</Text>
+          <View style={styles.headerSpacer} />
+        </View>
 
-      {/* Content */}
-      <View style={styles.content}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Card Info */}
+        <View style={styles.cardInfo}>
+          <Text style={styles.cardTitle}>QR Code Scanner</Text>
+          <Text style={styles.cardSubtitle}>Scan or generate payment codes instantly</Text>
+        </View>
+
         {/* Main Actions */}
-        <View style={styles.actionsContainer}>
-          <ActionCard
-            title="Scan QR Code"
-            description="Scan a payment QR code to send money or add contacts"
-            icon={Scan}
-            onPress={openScanner}
-            color={colors.primary}
-          />
-
-          <ActionCard
-            title="My QR Code"
-            description="Generate and share your payment QR code"
-            icon={QrCode}
-            onPress={openGenerator}
-            color={colors.success}
-          />
-        </View>
-
-        {/* Info Section */}
-        <View style={styles.infoSection}>
-          <View style={styles.infoHeader}>
-            <Camera size={iconSizes.md} color={colors.accent} />
-            <Text style={styles.infoTitle}>How to use QR Codes</Text>
-          </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Choose Action</Text>
           
-          <View style={styles.infoList}>
-            <Text style={styles.infoItem}>• Scan QR codes to quickly send money to friends</Text>
-            <Text style={styles.infoItem}>• Generate your QR code for others to pay you</Text>
-            <Text style={styles.infoItem}>• Save QR codes to your photo gallery</Text>
-            <Text style={styles.infoItem}>• Share QR codes via messages or social media</Text>
-            <Text style={styles.infoItem}>• Use flash for better scanning in dark environments</Text>
-          </View>
-        </View>
-
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <TouchableOpacity 
-            style={styles.quickActionButton}
-            onPress={openScanner}
-          >
-            <Scan size={iconSizes.sm} color={colors.white} />
-            <Text style={styles.quickActionText}>Quick Scan</Text>
+          <TouchableOpacity style={styles.actionButton} onPress={openScanner}>
+            <View style={styles.actionIcon}>
+              <Scan size={28} color={colors.white} />
+            </View>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionTitle}>Scan QR Code</Text>
+              <Text style={styles.actionSubtitle}>Scan to send money or add contacts</Text>
+            </View>
+            <View style={styles.actionArrow}>
+              <Camera size={20} color={colors.secondaryText} />
+            </View>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.quickActionButton, styles.quickActionButtonSecondary]}
-            onPress={openGenerator}
-          >
-            <QrCode size={iconSizes.sm} color={colors.primary} />
-            <Text style={[styles.quickActionText, styles.quickActionTextSecondary]}>
-              My QR
-            </Text>
+          <TouchableOpacity style={styles.actionButton} onPress={openGenerator}>
+            <View style={[styles.actionIcon, { backgroundColor: colors.success }]}>
+              <QrCode size={28} color={colors.white} />
+            </View>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionTitle}>My QR Code</Text>
+              <Text style={styles.actionSubtitle}>Generate and share your payment code</Text>
+            </View>
+            <View style={styles.actionArrow}>
+              <ChevronLeft size={20} color={colors.secondaryText} style={{ transform: [{ rotate: '180deg' }] }} />
+            </View>
           </TouchableOpacity>
         </View>
-      </View>
+
+        {/* Quick Tips */}
+        <View style={styles.tipsSection}>
+          <Text style={styles.tipsTitle}>💡 Quick Tips</Text>
+          <Text style={styles.tipText}>• Hold steady while scanning for best results</Text>
+          <Text style={styles.tipText}>• Tap flashlight button for better scanning in dark</Text>
+          <Text style={styles.tipText}>• Make sure QR code is well-lit and clear</Text>
+          <Text style={styles.tipText}>• Your QR code updates automatically for security</Text>
+        </View>
+
+        <View style={styles.bottomPadding} />
+      </ScrollView>
 
       {/* QR Code Scanner Modal */}
       <SimpleQRCodeModal
@@ -164,123 +137,125 @@ const QRScannerScreen: React.FC = () => {
         qrData="user@kotapay.com"
         title={modalMode === 'scan' ? 'Scan QR Code' : 'My QR Code'}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF0F5',
+    backgroundColor: colors.background,
   },
   header: {
+    backgroundColor: '#FFF0F5',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    paddingTop: 24,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    paddingTop: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5EA',
-    backgroundColor: '#FFF0F5',
+    minHeight: 60,
+  },
+  headerPlaceholder: {
+    flex: 1,
+  },
+  headerSpacer: {
+    width: 40,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#000d10',
-  },
-  headerSpacer: {
-    width: 40,
+    textAlign: 'center',
   },
   content: {
     flex: 1,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.xl,
   },
-  actionsContainer: {
-    gap: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  actionCard: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.large,
+  cardInfo: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.xl,
     padding: spacing.xl,
-    alignItems: 'center',
+    marginTop: spacing.lg,
+    marginBottom: spacing.xl,
     ...shadows.medium,
   },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
-  },
-  actionTitle: {
-    fontSize: 20,
+  cardTitle: {
+    fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
+    color: colors.white,
+    marginBottom: spacing.xs,
   },
-  actionDescription: {
+  cardSubtitle: {
     fontSize: 14,
-    color: colors.secondaryText,
-    textAlign: 'center',
-    lineHeight: 20,
+    color: colors.white,
+    opacity: 0.8,
   },
-  infoSection: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.large,
-    padding: spacing.lg,
+  section: {
     marginBottom: spacing.xl,
-    ...shadows.small,
   },
-  infoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  infoTitle: {
+  sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginLeft: spacing.sm,
+    marginBottom: spacing.md,
   },
-  infoList: {
-    gap: spacing.sm,
-  },
-  infoItem: {
-    fontSize: 14,
-    color: colors.secondaryText,
-    lineHeight: 20,
-  },
-  quickActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  quickActionButton: {
-    flex: 1,
+  actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.lg,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.white,
     borderRadius: borderRadius.medium,
-    gap: spacing.sm,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
     ...shadows.small,
   },
-  quickActionButtonSecondary: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.primary,
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
   },
-  quickActionText: {
+  actionContent: {
+    flex: 1,
+  },
+  actionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  actionSubtitle: {
+    fontSize: 14,
+    color: colors.secondaryText,
+  },
+  actionArrow: {
+    marginLeft: spacing.sm,
+  },
+  tipsSection: {
+    backgroundColor: colors.primaryTransparent,
+    borderRadius: borderRadius.medium,
+    padding: spacing.lg,
+    marginTop: spacing.md,
+  },
+  tipsTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.white,
-  },
-  quickActionTextSecondary: {
     color: colors.primary,
+    marginBottom: spacing.sm,
+  },
+  tipText: {
+    fontSize: 12,
+    color: colors.text,
+    marginBottom: 4,
+  },
+  bottomPadding: {
+    height: 100,
   },
 });
 

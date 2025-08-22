@@ -16,18 +16,16 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import {
   ChevronLeft,
-  Plus,
+  Zap,
   CreditCard,
   CheckCircle,
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius, shadows } from '../theme';
 
-const CreateVirtualCardScreen: React.FC = () => {
+const TopUpVirtualCardScreen: React.FC = () => {
   const navigation = useNavigation();
-  const [cardName, setCardName] = useState('');
-  const [spendLimit, setSpendLimit] = useState('');
-  const [cardNameFocused, setCardNameFocused] = useState(false);
-  const [spendLimitFocused, setSpendLimitFocused] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
   const [loadingQuickAmount, setLoadingQuickAmount] = useState<number | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   
@@ -36,13 +34,9 @@ const CreateVirtualCardScreen: React.FC = () => {
   const successOpacity = useRef(new Animated.Value(0)).current;
   const spinValue = useRef(new Animated.Value(0)).current;
   
-  const handleCreateCard = async () => {
-    if (!cardName.trim()) {
-      Alert.alert('Error', 'Please enter a card name');
-      return;
-    }
-    if (!spendLimit || parseInt(spendLimit) <= 0) {
-      Alert.alert('Error', 'Please enter a valid spend limit');
+  const handleTopUp = async () => {
+    if (!amount || parseInt(amount) <= 0) {
+      Alert.alert('Error', 'Please enter a valid amount');
       return;
     }
     
@@ -75,8 +69,8 @@ const CreateVirtualCardScreen: React.FC = () => {
     }).start();
   };
 
-  const handleQuickAmount = async (amount: number) => {
-    setLoadingQuickAmount(amount);
+  const handleQuickAmount = async (quickAmount: number) => {
+    setLoadingQuickAmount(quickAmount);
     
     // Start spinning animation
     Animated.loop(
@@ -92,11 +86,11 @@ const CreateVirtualCardScreen: React.FC = () => {
     
     // Stop spinning and set amount
     spinValue.setValue(0);
-    setSpendLimit(amount.toString());
+    setAmount(quickAmount.toString());
     setLoadingQuickAmount(null);
   };
 
-  const quickAmounts = [25000, 50000, 100000, 250000];
+  const quickAmounts = [10000, 25000, 50000, 100000];
 
   const spin = spinValue.interpolate({
     inputRange: [0, 1],
@@ -117,7 +111,7 @@ const CreateVirtualCardScreen: React.FC = () => {
           >
             <ChevronLeft size={24} color={colors.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Create Card</Text>
+          <Text style={styles.headerTitle}>Top Up Card</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -126,106 +120,107 @@ const CreateVirtualCardScreen: React.FC = () => {
         <View style={styles.cardSection}>
           <View style={styles.virtualCard}>
             <View style={styles.cardHeader}>
-              <Text style={styles.cardName}>{cardName || 'New Virtual Card'}</Text>
+              <Text style={styles.cardName}>Virtual Card</Text>
               <CreditCard size={24} color={colors.white} />
             </View>
 
             <View style={styles.cardNumber}>
-              <Text style={styles.cardNumberText}>•••• •••• •••• ••••</Text>
+              <Text style={styles.cardNumberText}>•••• •••• •••• 9012</Text>
             </View>
 
             <View style={styles.cardDetails}>
               <View>
-                <Text style={styles.cardLabel}>SPEND LIMIT</Text>
-                <Text style={styles.balanceAmount}>
-                  ₦{parseInt(spendLimit || '0').toLocaleString()}
-                </Text>
+                <Text style={styles.cardLabel}>CURRENT BALANCE</Text>
+                <Text style={styles.balanceAmount}>₦25,000</Text>
               </View>
               <View style={styles.cardBalance}>
-                <Text style={styles.cardLabel}>STATUS</Text>
-                <Text style={styles.statusText}>Ready to Create</Text>
+                <Text style={styles.cardLabel}>AFTER TOP UP</Text>
+                <Text style={styles.balanceAmount}>
+                  ₦{(25000 + (parseInt(amount) || 0)).toLocaleString()}
+                </Text>
               </View>
             </View>
           </View>
         </View>
 
-        {/* Form Section */}
+        {/* Amount Input */}
         <View style={styles.formSection}>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Card Name</Text>
-            <TextInput
-              style={[
-                styles.textInput,
-                cardNameFocused && styles.textInputFocused
-              ]}
-              placeholder="Enter card name"
-              value={cardName}
-              onChangeText={setCardName}
-              onFocus={() => setCardNameFocused(true)}
-              onBlur={() => setCardNameFocused(false)}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Spend Limit</Text>
+            <Text style={styles.inputLabel}>Top Up Amount</Text>
             <TextInput
               style={[
                 styles.amountInput,
-                spendLimitFocused && styles.amountInputFocused
+                isFocused && styles.amountInputFocused
               ]}
-              placeholder="Enter spend limit"
-              value={spendLimit}
-              onChangeText={setSpendLimit}
-              onFocus={() => setSpendLimitFocused(true)}
-              onBlur={() => setSpendLimitFocused(false)}
+              placeholder="Enter amount"
+              value={amount}
+              onChangeText={setAmount}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
               keyboardType="numeric"
             />
             
             <View style={styles.quickAmounts}>
-              {quickAmounts.map((amount) => (
+              {quickAmounts.map((quickAmount) => (
                 <TouchableOpacity
-                  key={amount}
+                  key={quickAmount}
                   style={[
                     styles.amountButton,
-                    parseInt(spendLimit) === amount && styles.amountButtonSelected,
-                    loadingQuickAmount === amount && styles.amountButtonLoading
+                    parseInt(amount) === quickAmount && styles.amountButtonSelected,
+                    loadingQuickAmount === quickAmount && styles.amountButtonLoading
                   ]}
-                  onPress={() => handleQuickAmount(amount)}
+                  onPress={() => handleQuickAmount(quickAmount)}
                   disabled={loadingQuickAmount !== null}
                 >
-                  {loadingQuickAmount === amount ? (
+                  {loadingQuickAmount === quickAmount ? (
                     <Animated.View style={{ transform: [{ rotate: spin }] }}>
                       <ActivityIndicator size="small" color={colors.white} />
                     </Animated.View>
                   ) : (
                     <Text style={[
                       styles.amountButtonText,
-                      parseInt(spendLimit) === amount && styles.amountButtonTextSelected
+                      parseInt(amount) === quickAmount && styles.amountButtonTextSelected
                     ]}>
-                      ₦{(amount / 1000)}k
+                      ₦{(quickAmount / 1000)}k
                     </Text>
                   )}
                 </TouchableOpacity>
               ))}
             </View>
           </View>
+
+          {/* Funding Source */}
+          <View style={styles.sourceSection}>
+            <Text style={styles.inputLabel}>Funding Source</Text>
+            <TouchableOpacity style={styles.sourceCard}>
+              <View style={styles.sourceIcon}>
+                <Text style={styles.sourceIconText}>💳</Text>
+              </View>
+              <View style={styles.sourceInfo}>
+                <Text style={styles.sourceName}>Main Wallet</Text>
+                <Text style={styles.sourceBalance}>Balance: ₦150,000</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.bottomPadding} />
       </ScrollView>
 
-      {/* Create Button */}
+      {/* Top Up Button */}
       <View style={styles.bottomContainer}>
         <TouchableOpacity
           style={[
-            styles.createButton,
-            (!cardName.trim() || !spendLimit || parseInt(spendLimit) <= 0) && styles.createButtonDisabled
+            styles.topUpButton,
+            (!amount || parseInt(amount) <= 0) && styles.topUpButtonDisabled
           ]}
-          onPress={handleCreateCard}
-          disabled={!cardName.trim() || !spendLimit || parseInt(spendLimit) <= 0}
+          onPress={handleTopUp}
+          disabled={!amount || parseInt(amount) <= 0}
         >
-          <Plus size={20} color={colors.white} />
-          <Text style={styles.createButtonText}>Create Virtual Card</Text>
+          <Zap size={20} color={colors.white} />
+          <Text style={styles.topUpButtonText}>
+            Top Up ₦{parseInt(amount || '0').toLocaleString()}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -242,9 +237,9 @@ const CreateVirtualCardScreen: React.FC = () => {
             ]}
           >
             <CheckCircle size={60} color="#4CAF50" />
-            <Text style={styles.successText}>Card Created Successfully!</Text>
+            <Text style={styles.successText}>Top Up Successful!</Text>
             <Text style={styles.successSubtext}>
-              {cardName} is ready to use
+              ₦{parseInt(amount || '0').toLocaleString()} added to your virtual card
             </Text>
           </Animated.View>
         </View>
@@ -265,8 +260,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
   },
   backButton: {
     width: 40,
@@ -331,11 +324,6 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     marginBottom: spacing.xs,
   },
-  cardValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.white,
-  },
   cardBalance: {
     alignItems: 'flex-end',
   },
@@ -357,21 +345,8 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.sm,
   },
-  textInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: borderRadius.medium,
-    padding: spacing.md,
-    fontSize: 16,
-    borderWidth: 2,
-    borderColor: colors.border,
-    ...shadows.small,
-  },
-  textInputFocused: {
-    borderColor: colors.primary,
-    ...shadows.medium,
-  },
   amountInput: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
     borderRadius: borderRadius.medium,
     padding: spacing.md,
     fontSize: 18,
@@ -393,7 +368,7 @@ const styles = StyleSheet.create({
   amountButton: {
     flex: 1,
     paddingVertical: spacing.sm,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
     borderRadius: borderRadius.medium,
     alignItems: 'center',
     borderWidth: 1,
@@ -402,8 +377,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   amountButtonSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
   amountButtonLoading: {
     backgroundColor: colors.primary,
@@ -417,14 +392,52 @@ const styles = StyleSheet.create({
   amountButtonTextSelected: {
     color: colors.white,
   },
+  sourceSection: {
+    marginBottom: spacing.lg,
+  },
+  sourceCard: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.medium,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.small,
+  },
+  sourceIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  sourceIconText: {
+    fontSize: 20,
+  },
+  sourceInfo: {
+    flex: 1,
+  },
+  sourceName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  sourceBalance: {
+    fontSize: 12,
+    color: colors.secondaryText,
+    marginTop: 2,
+  },
   bottomContainer: {
     padding: spacing.xl,
     backgroundColor: colors.background,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  createButton: {
-    backgroundColor: colors.primary,
+  topUpButton: {
+    backgroundColor: colors.success,
     borderRadius: borderRadius.medium,
     paddingVertical: spacing.md,
     flexDirection: 'row',
@@ -432,10 +445,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
   },
-  createButtonDisabled: {
+  topUpButtonDisabled: {
     backgroundColor: colors.border,
   },
-  createButtonText: {
+  topUpButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.white,
@@ -464,7 +477,7 @@ const styles = StyleSheet.create({
   successText: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.primary,
+    color: colors.success,
     textAlign: 'center',
     marginTop: spacing.md,
   },
@@ -476,4 +489,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CreateVirtualCardScreen;
+export default TopUpVirtualCardScreen;

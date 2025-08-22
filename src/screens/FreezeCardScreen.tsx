@@ -6,37 +6,40 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   Alert,
   Animated,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
   ChevronLeft,
-  Zap,
+  Snowflake,
+  Shield,
+  AlertTriangle,
   CreditCard,
   CheckCircle,
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius, shadows } from '../theme';
 
-const TopUpVirtualCardScreen: React.FC = () => {
+const FreezeCardScreen: React.FC = () => {
   const navigation = useNavigation();
-  const [amount, setAmount] = useState('');
-  const [isFocused, setIsFocused] = useState(false);
-  const [loadingQuickAmount, setLoadingQuickAmount] = useState<number | null>(null);
+  const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   
   // Animation refs
   const successScale = useRef(new Animated.Value(0)).current;
   const successOpacity = useRef(new Animated.Value(0)).current;
-  const spinValue = useRef(new Animated.Value(0)).current;
   
-  const handleTopUp = async () => {
-    if (!amount || parseInt(amount) <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
+  const reasons = [
+    { id: 'security', label: 'Security Concern', icon: Shield },
+    { id: 'lost', label: 'Card Lost/Stolen', icon: AlertTriangle },
+    { id: 'temporary', label: 'Temporary Block', icon: Snowflake },
+  ];
+
+  const handleFreezeCard = async () => {
+    if (!selectedReason) {
+      Alert.alert('Select Reason', 'Please select a reason for freezing your card');
       return;
     }
     
@@ -69,34 +72,6 @@ const TopUpVirtualCardScreen: React.FC = () => {
     }).start();
   };
 
-  const handleQuickAmount = async (quickAmount: number) => {
-    setLoadingQuickAmount(quickAmount);
-    
-    // Start spinning animation
-    Animated.loop(
-      Animated.timing(spinValue, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      })
-    ).start();
-    
-    // Simulate loading
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Stop spinning and set amount
-    spinValue.setValue(0);
-    setAmount(quickAmount.toString());
-    setLoadingQuickAmount(null);
-  };
-
-  const quickAmounts = [10000, 25000, 50000, 100000];
-
-  const spin = spinValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
   return (
     <KeyboardAvoidingView 
       style={{ flex: 1 }} 
@@ -111,7 +86,7 @@ const TopUpVirtualCardScreen: React.FC = () => {
           >
             <ChevronLeft size={24} color={colors.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Top Up Card</Text>
+          <Text style={styles.headerTitle}>Freeze Card</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -130,97 +105,81 @@ const TopUpVirtualCardScreen: React.FC = () => {
 
             <View style={styles.cardDetails}>
               <View>
-                <Text style={styles.cardLabel}>CURRENT BALANCE</Text>
+                <Text style={styles.cardLabel}>BALANCE</Text>
                 <Text style={styles.balanceAmount}>₦25,000</Text>
               </View>
-              <View style={styles.cardBalance}>
-                <Text style={styles.cardLabel}>AFTER TOP UP</Text>
-                <Text style={styles.balanceAmount}>
-                  ₦{(25000 + (parseInt(amount) || 0)).toLocaleString()}
-                </Text>
+              <View style={styles.cardStatus}>
+                <Text style={styles.cardLabel}>STATUS</Text>
+                <Text style={styles.statusText}>Active</Text>
               </View>
             </View>
           </View>
         </View>
 
-        {/* Amount Input */}
-        <View style={styles.formSection}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Top Up Amount</Text>
-            <TextInput
-              style={[
-                styles.amountInput,
-                isFocused && styles.amountInputFocused
-              ]}
-              placeholder="Enter amount"
-              value={amount}
-              onChangeText={setAmount}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              keyboardType="numeric"
-            />
-            
-            <View style={styles.quickAmounts}>
-              {quickAmounts.map((quickAmount) => (
-                <TouchableOpacity
-                  key={quickAmount}
-                  style={[
-                    styles.amountButton,
-                    parseInt(amount) === quickAmount && styles.amountButtonSelected,
-                    loadingQuickAmount === quickAmount && styles.amountButtonLoading
-                  ]}
-                  onPress={() => handleQuickAmount(quickAmount)}
-                  disabled={loadingQuickAmount !== null}
-                >
-                  {loadingQuickAmount === quickAmount ? (
-                    <Animated.View style={{ transform: [{ rotate: spin }] }}>
-                      <ActivityIndicator size="small" color={colors.white} />
-                    </Animated.View>
-                  ) : (
-                    <Text style={[
-                      styles.amountButtonText,
-                      parseInt(amount) === quickAmount && styles.amountButtonTextSelected
-                    ]}>
-                      ₦{(quickAmount / 1000)}k
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
+        {/* Info Section */}
+        <View style={styles.infoSection}>
+          <View style={styles.infoCard}>
+            <Snowflake size={24} color={colors.primary} />
+            <Text style={styles.infoTitle}>Freeze Your Card</Text>
+            <Text style={styles.infoText}>
+              Temporarily disable your card to prevent unauthorized transactions. 
+              You can unfreeze it anytime from this screen.
+            </Text>
           </View>
+        </View>
 
-          {/* Funding Source */}
-          <View style={styles.sourceSection}>
-            <Text style={styles.inputLabel}>Funding Source</Text>
-            <TouchableOpacity style={styles.sourceCard}>
-              <View style={styles.sourceIcon}>
-                <Text style={styles.sourceIconText}>💳</Text>
-              </View>
-              <View style={styles.sourceInfo}>
-                <Text style={styles.sourceName}>Main Wallet</Text>
-                <Text style={styles.sourceBalance}>Balance: ₦150,000</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
+        {/* Reason Selection */}
+        <View style={styles.reasonSection}>
+          <Text style={styles.sectionTitle}>Select Reason</Text>
+          
+          {reasons.map((reason) => {
+            const IconComponent = reason.icon;
+            const isSelected = selectedReason === reason.id;
+            
+            return (
+              <TouchableOpacity
+                key={reason.id}
+                style={[
+                  styles.reasonOption,
+                  isSelected && styles.reasonOptionSelected
+                ]}
+                onPress={() => setSelectedReason(reason.id)}
+              >
+                <View style={[
+                  styles.reasonIcon,
+                  isSelected && styles.reasonIconSelected
+                ]}>
+                  <IconComponent 
+                    size={20} 
+                    color={isSelected ? colors.white : colors.primary} 
+                  />
+                </View>
+                <Text style={[
+                  styles.reasonText,
+                  isSelected && styles.reasonTextSelected
+                ]}>
+                  {reason.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <View style={styles.bottomPadding} />
       </ScrollView>
 
-      {/* Top Up Button */}
+      {/* Freeze Button */}
       <View style={styles.bottomContainer}>
         <TouchableOpacity
           style={[
-            styles.topUpButton,
-            (!amount || parseInt(amount) <= 0) && styles.topUpButtonDisabled
+            styles.freezeButton,
+            !selectedReason && styles.freezeButtonDisabled
           ]}
-          onPress={handleTopUp}
-          disabled={!amount || parseInt(amount) <= 0}
+          onPress={handleFreezeCard}
+          disabled={!selectedReason}
         >
-          <Zap size={20} color={colors.white} />
-          <Text style={styles.topUpButtonText}>
-            Top Up ₦{parseInt(amount || '0').toLocaleString()}
-          </Text>
+          <Snowflake size={20} color={colors.white} />
+          <Text style={styles.freezeButtonText}>Freeze Card</Text>
         </TouchableOpacity>
       </View>
 
@@ -237,9 +196,9 @@ const TopUpVirtualCardScreen: React.FC = () => {
             ]}
           >
             <CheckCircle size={60} color="#4CAF50" />
-            <Text style={styles.successText}>Top Up Successful!</Text>
+            <Text style={styles.successText}>Card Frozen Successfully!</Text>
             <Text style={styles.successSubtext}>
-              ₦{parseInt(amount || '0').toLocaleString()} added to your virtual card
+              Your virtual card has been temporarily frozen for security
             </Text>
           </Animated.View>
         </View>
@@ -326,7 +285,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     marginBottom: spacing.xs,
   },
-  cardBalance: {
+  cardStatus: {
     alignItems: 'flex-end',
   },
   balanceAmount: {
@@ -334,103 +293,83 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.white,
   },
-  formSection: {
-    paddingHorizontal: spacing.xl,
-    gap: spacing.lg,
+  statusText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#4CAF50',
   },
-  inputGroup: {
+  infoSection: {
+    paddingHorizontal: spacing.xl,
     marginBottom: spacing.lg,
   },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  amountInput: {
-    backgroundColor: '#FFFFFF',
+  infoCard: {
+    backgroundColor: colors.background,
     borderRadius: borderRadius.medium,
-    padding: spacing.md,
-    fontSize: 18,
-    fontWeight: '600',
-    borderWidth: 2,
-    borderColor: colors.border,
-    textAlign: 'center',
-    ...shadows.small,
-  },
-  amountInputFocused: {
-    borderColor: colors.primary,
-    ...shadows.medium,
-  },
-  quickAmounts: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-  },
-  amountButton: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    backgroundColor: '#FFFFFF',
-    borderRadius: borderRadius.medium,
+    padding: spacing.lg,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
-    minHeight: 40,
-    justifyContent: 'center',
   },
-  amountButtonSelected: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
-  },
-  amountButtonLoading: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  amountButtonText: {
-    fontSize: 12,
-    fontWeight: '500',
+  infoTitle: {
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.text,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  amountButtonTextSelected: {
-    color: colors.white,
+  infoText: {
+    fontSize: 14,
+    color: colors.secondaryText,
+    textAlign: 'center',
+    lineHeight: 20,
   },
-  sourceSection: {
-    marginBottom: spacing.lg,
+  reasonSection: {
+    paddingHorizontal: spacing.xl,
   },
-  sourceCard: {
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.md,
+  },
+  reasonOption: {
     backgroundColor: colors.background,
     borderRadius: borderRadius.medium,
     padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
+    marginBottom: spacing.sm,
+    borderWidth: 2,
     borderColor: colors.border,
-    ...shadows.small,
   },
-  sourceIcon: {
+  reasonOptionSelected: {
+    backgroundColor: '#F0F9FF',
+    borderColor: colors.primary,
+  },
+  reasonIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
   },
-  sourceIconText: {
-    fontSize: 20,
+  reasonIconSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
-  sourceInfo: {
+  reasonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
     flex: 1,
   },
-  sourceName: {
-    fontSize: 16,
+  reasonTextSelected: {
+    color: colors.primary,
     fontWeight: '600',
-    color: colors.text,
-  },
-  sourceBalance: {
-    fontSize: 12,
-    color: colors.secondaryText,
-    marginTop: 2,
   },
   bottomContainer: {
     padding: spacing.xl,
@@ -438,8 +377,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  topUpButton: {
-    backgroundColor: colors.success,
+  freezeButton: {
+    backgroundColor: '#FF6B6B',
     borderRadius: borderRadius.medium,
     paddingVertical: spacing.md,
     flexDirection: 'row',
@@ -447,10 +386,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
   },
-  topUpButtonDisabled: {
+  freezeButtonDisabled: {
     backgroundColor: colors.border,
   },
-  topUpButtonText: {
+  freezeButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.white,
@@ -464,31 +403,40 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1000,
   },
   successContainer: {
     backgroundColor: colors.background,
-    borderRadius: borderRadius.large,
-    padding: spacing.xl,
+    borderRadius: 20,
+    padding: 32,
     alignItems: 'center',
-    marginHorizontal: spacing.xl,
-    ...shadows.large,
+    marginHorizontal: 40,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
   },
   successText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.success,
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 16,
+    marginBottom: 8,
     textAlign: 'center',
-    marginTop: spacing.md,
   },
   successSubtext: {
     fontSize: 14,
     color: colors.secondaryText,
     textAlign: 'center',
-    marginTop: spacing.xs,
+    lineHeight: 20,
   },
 });
 
-export default TopUpVirtualCardScreen;
+export default FreezeCardScreen;

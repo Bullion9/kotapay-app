@@ -268,10 +268,26 @@ const BettingScreen: React.FC = () => {
                     selectedProvider?.id === provider.id && styles.providerCardSelected
                   ]}
                   onPress={() => selectProvider(provider)}
+                  activeOpacity={0.7}
                 >
-                  <Image source={provider.logo} style={styles.providerLogo} />
-                  <Text style={styles.providerName}>{provider.name}</Text>
-                  <Text style={styles.providerMin}>Min: ₦{provider.minAmount}</Text>
+                  <View style={[
+                    styles.logoContainer,
+                    selectedProvider?.id === provider.id && styles.logoContainerSelected
+                  ]}>
+                    <Image source={provider.logo} style={styles.providerLogo} />
+                  </View>
+                  <Text style={[
+                    styles.providerName,
+                    selectedProvider?.id === provider.id && styles.providerNameSelected
+                  ]}>
+                    {provider.name}
+                  </Text>
+                  <Text style={[
+                    styles.providerMin,
+                    selectedProvider?.id === provider.id && styles.providerMinSelected
+                  ]}>
+                    Min: ₦{provider.minAmount}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -478,39 +494,92 @@ const styles = StyleSheet.create({
   providersGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'space-between',
+    gap: 12,
   },
   providerCard: {
-    width: '31%',
+    width: '30%',
     backgroundColor: colors.card,
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 8,
+    marginBottom: 12,
+    minHeight: 110,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   providerCardSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryTransparent,
+    borderColor: '#06402B',
+    backgroundColor: '#F0F8F0',
+    borderWidth: 3,
+    shadowColor: '#06402B',
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 8,
+    transform: [{ scale: 1.02 }],
+  },
+  logoContainer: {
+    borderRadius: 12,
+    padding: 2,
+    marginBottom: 10,
+  },
+  logoContainerSelected: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#06402B',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 6,
   },
   providerLogo: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginBottom: 4,
+    width: 56,
+    height: 56,
+    borderRadius: 10,
     resizeMode: 'contain',
+    backgroundColor: '#FFFFFF',
+    padding: 6,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 4,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.1)',
   },
   providerName: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
     color: colors.text,
     textAlign: 'center',
+    marginBottom: 2,
+  },
+  providerNameSelected: {
+    color: '#06402B',
+    fontWeight: '700',
   },
   providerMin: {
-    fontSize: 10,
+    fontSize: 11,
     color: colors.secondaryText,
-    marginTop: 2,
+    fontWeight: '500',
+  },
+  providerMinSelected: {
+    color: '#06402B',
+    fontWeight: '600',
   },
   userIdInputContainer: {
     marginBottom: 12,

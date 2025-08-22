@@ -21,8 +21,8 @@ interface Props {
 }
 
 const VirtualCardTransactionSection: React.FC<Props> = ({ transactions }) => {
-  const renderTransaction = ({ item }: { item: Transaction }) => (
-    <View style={styles.transactionItem}>
+  const renderTransaction = (item: Transaction) => (
+    <View key={item.id} style={styles.transactionItem}>
       <View style={[
         styles.iconContainer,
         { backgroundColor: item.type === 'credit' ? colors.success + '20' : colors.error + '20' }
@@ -65,7 +65,7 @@ const VirtualCardTransactionSection: React.FC<Props> = ({ transactions }) => {
       <Text style={styles.title}>Recent Transactions</Text>
       {transactions.length > 0 ? (
         <View style={styles.transactionsList}>
-          {transactions.map((item) => renderTransaction({ item }))}
+          {transactions.map((item) => renderTransaction(item))}
         </View>
       ) : (
         <View style={styles.emptyState}>

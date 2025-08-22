@@ -24,10 +24,12 @@ import {
   CreateAccountPinScreen,
   HomeScreen,
   SendMoneyScreen,
-  VirtualCardHubScreen,
+  CardScreen,
   CreateVirtualCardScreen,
   VirtualCardDetailScreen,
   TopUpVirtualCardScreen,
+  FreezeCardScreen,
+  WithdrawCardScreen,
   WithdrawalScreen,
   WithdrawalProcessingScreen,
   ContactsScreen,
@@ -66,6 +68,7 @@ import {
   ChangePinScreen,
   TransactionLimitScreen,
   PreferencesScreen,
+  TermsPrivacyScreen,
 } from '../screens';
 
 import NotificationScreen from '../screens/NotificationScreen';
@@ -87,7 +90,7 @@ function CardStackNavigator() {
     >
       <CardStack.Screen 
         name="VirtualCardHub" 
-        component={VirtualCardHubScreen}
+        component={CardScreen}
       />
       <CardStack.Screen 
         name="CreateVirtualCardScreen" 
@@ -102,6 +105,14 @@ function CardStackNavigator() {
         component={TopUpVirtualCardScreen}
       />
       <CardStack.Screen 
+        name="FreezeCardScreen" 
+        component={FreezeCardScreen}
+      />
+      <CardStack.Screen 
+        name="WithdrawCardScreen" 
+        component={WithdrawCardScreen}
+      />
+      <CardStack.Screen 
         name="WithdrawalScreen" 
         component={WithdrawalScreen}
       />
@@ -112,6 +123,30 @@ function CardStackNavigator() {
       <CardStack.Screen 
         name="TransactionHistoryScreen" 
         component={TransactionHistoryScreen}
+      />
+      <CardStack.Screen 
+        name="ProfileMain" 
+        component={ProfileScreen}
+      />
+      <CardStack.Screen 
+        name="Notifications" 
+        component={NotificationScreen}
+      />
+      <CardStack.Screen 
+        name="SecuritySettings" 
+        component={SecuritySettingsScreen}
+      />
+      <CardStack.Screen 
+        name="HelpSupport" 
+        component={HelpSupportScreen}
+      />
+      <CardStack.Screen 
+        name="Settings" 
+        component={SettingsScreen}
+      />
+      <CardStack.Screen 
+        name="TermsPrivacy" 
+        component={TermsPrivacyScreen}
       />
     </CardStack.Navigator>
   );
