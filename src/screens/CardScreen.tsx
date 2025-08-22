@@ -312,7 +312,7 @@ const CardScreen: React.FC = () => {
                   activeOpacity={0.7}
                 >
                   <View style={styles.itemLeft}>
-                    <View style={[styles.iconContainer, { backgroundColor: `${transaction.iconColor}15` }]}>
+                    <View style={[styles.iconContainer, { backgroundColor: '#FFFFFF' }]}>
                       <IconComponent size={20} color={transaction.iconColor} />
                     </View>
                     <View style={styles.itemText}>

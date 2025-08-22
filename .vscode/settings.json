@@ -1,0 +1,37 @@
+{
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "explicit",
+    "source.sortMembers": "explicit"
+  },
+  "typescript.validate.enable": true,
+  "typescript.check.npmIsInstalled": false,
+  "typescript.disableAutomaticTypeAcquisition": true,
+  "typescript.preferences.includePackageJsonAutoImports": "off",
+  "typescript.suggest.autoImports": false,
+  "typescript.preferences.noSemicolons": "off",
+  "typescript.reportStyleChecksAsWarnings": true,
+  "typescript.surveys.enabled": false,
+  "typescript.suggest.includeAutomaticOptionalChainCompletions": false,
+  "typescript.preferences.quoteStyle": "single",
+  "typescript.inlayHints.enabled": "off",
+  "typescript.suggestionActions.enabled": false,
+  "typescript.format.enable": false,
+  "files.exclude": {
+    "**/.expo": true,
+    "**/.expo-shared": true,
+    "**/node_modules": true,
+    "**/.tsbuildinfo": true
+  },
+  "problems.showCurrentInStatus": false,
+  "problems.decorations.enabled": true,
+  "problems.severity": {
+    "typescript": "warning"
+  },
+  "typescript.preferences.includeInlayParameterNameHints": "none",
+  "typescript.preferences.includeInlayPropertyDeclarationTypeHints": false,
+  "typescript.preferences.includeInlayFunctionParameterTypeHints": false,
+  "typescript.preferences.includeInlayVariableTypeHints": false,
+  "typescript.preferences.includeInlayFunctionLikeReturnTypeHints": false,
+  "typescript.preferences.includeInlayEnumMemberValueHints": false
+}
