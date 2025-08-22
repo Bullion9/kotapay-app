@@ -337,7 +337,7 @@ const CardScreen: React.FC = () => {
               activeOpacity={0.7}
             >
               <Text style={styles.viewAllText}>View All Transactions</Text>
-              <ArrowUpRight size={16} color={colors.primary} />
+              <ArrowUpRight size={16} color="#007AFF" />
             </TouchableOpacity>
           </View>
         </View>
@@ -636,7 +636,7 @@ const styles = StyleSheet.create({
   viewAllText: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.primary,
+    color: '#007AFF',
     marginRight: spacing.xs,
   },
   bottomPadding: {
