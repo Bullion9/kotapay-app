@@ -1,9 +1,9 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import HomeNotificationIcon from './icons/HomeNotificationIcon';
 import * as Haptics from 'expo-haptics';
+import React from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme';
+import HomeNotificationIcon from './icons/HomeNotificationIcon';
 
 interface NotificationMailIconProps {
   unreadCount?: number;

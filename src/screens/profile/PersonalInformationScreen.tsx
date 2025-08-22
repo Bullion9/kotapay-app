@@ -1,27 +1,27 @@
+import { useNavigation } from '@react-navigation/native';
+import * as Haptics from 'expo-haptics';
+import {
+    Calendar,
+    ChevronLeft,
+    Edit3,
+    Mail,
+    Phone,
+    User,
+    UserCheck,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  StatusBar,
-  KeyboardAvoidingView,
-  Platform,
-  TextInput,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import {
-  ChevronLeft,
-  User,
-  Mail,
-  Phone,
-  Calendar,
-  UserCheck,
-  Edit3,
-} from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
 
 interface EditableRow {
   icon: React.ReactNode;

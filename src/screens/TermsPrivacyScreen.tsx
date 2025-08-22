@@ -1,24 +1,24 @@
+import { useNavigation } from '@react-navigation/native';
+import {
+    AlertCircle,
+    ArrowUpRight,
+    ChevronLeft,
+    CreditCard,
+    Eye,
+    FileText,
+    Scale,
+    Shield,
+} from 'lucide-react-native';
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  Alert,
+    Alert,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import {
-  ChevronLeft,
-  FileText,
-  Shield,
-  Eye,
-  CreditCard,
-  ArrowUpRight,
-  Scale,
-  AlertCircle,
-} from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
 import { colors } from '../theme';
 
 interface DocumentItemProps {

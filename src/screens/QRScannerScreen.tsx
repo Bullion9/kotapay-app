@@ -1,24 +1,24 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import {
-  ChevronLeft,
-  QrCode,
-  Scan,
-  Camera,
+    Camera,
+    ChevronLeft,
+    QrCode,
+    Scan,
 } from 'lucide-react-native';
-import { RootStackParamList } from '../types';
-import { colors, spacing, shadows, borderRadius, globalStyles } from '../theme';
+import React, { useState } from 'react';
+import {
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import SimpleQRCodeModal from '../components/SimpleQRCodeModal';
+import { borderRadius, colors, globalStyles, shadows, spacing } from '../theme';
+import { RootStackParamList } from '../types';
 
 type QRScannerScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 

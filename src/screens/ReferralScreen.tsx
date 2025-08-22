@@ -1,29 +1,29 @@
+import { StackNavigationProp } from '@react-navigation/stack';
+import {
+    ChevronLeft,
+    Copy,
+    Gift,
+    Info,
+    User,
+    Users,
+    X,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  StatusBar,
-  Clipboard,
-  Modal,
+    Alert,
+    Clipboard,
+    Modal,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { ProfileParamList } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import {
-  X,
-  Info,
-  ChevronLeft,
-  Gift,
-  Copy,
-  Users,
-  User,
-} from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows, globalStyles } from '../theme';
+import { borderRadius, colors, globalStyles, shadows, spacing } from '../theme';
+import { ProfileParamList } from '../types';
 
 interface ReferralScreenProps {
   navigation: StackNavigationProp<ProfileParamList, 'ReferralProgram'>;

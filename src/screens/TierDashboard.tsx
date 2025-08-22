@@ -1,40 +1,40 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { RouteProp } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import * as ImagePicker from 'expo-image-picker';
+import * as Notifications from 'expo-notifications';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  Animated,
-  Dimensions,
-  Alert,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
+    ArrowDown,
+    ArrowUp,
+    CheckCircle,
+    ChevronLeft,
+    CreditCard,
+    Eye,
+    MessageCircle,
+    Phone,
+    Shield,
+    Trash2,
+    Upload,
+    Wallet,
+    X
+} from 'lucide-react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    Alert,
+    Animated,
+    Dimensions,
+    Image,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors as globalColors } from '../theme';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
-import { 
-  ChevronLeft, 
-  ArrowUp, 
-  ArrowDown, 
-  Wallet, 
-  CreditCard, 
-  Phone, 
-  CheckCircle, 
-  Upload,
-  Eye,
-  Trash2,
-  MessageCircle,
-  X,
-  Shield
-} from 'lucide-react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RouteProp } from '@react-navigation/native';
 import { ProfileParamList } from '../types';
 
 const { width } = Dimensions.get('window');

@@ -1,26 +1,26 @@
+import {
+    ChevronRight,
+    Fingerprint,
+    Globe,
+    Lock,
+    Mail,
+    Palette,
+    Shield,
+    Smartphone,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Switch,
-  Alert,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  Mail,
-  Globe,
-  Shield,
-  ChevronRight,
-  Fingerprint,
-  Lock,
-  Smartphone,
-  Palette,
-} from 'lucide-react-native';
-import { spacing, typography, borderRadius, shadows, iconSizes } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
+import { borderRadius, iconSizes, shadows, spacing, typography } from '../theme';
 
 interface SettingsItemProps {
   icon: React.ComponentType<any>;

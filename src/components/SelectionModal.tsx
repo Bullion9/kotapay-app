@@ -1,14 +1,14 @@
+import { Check } from 'lucide-react-native';
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  ScrollView,
-  Pressable,
+    Modal,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { Check } from 'lucide-react-native';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface SelectionOption {

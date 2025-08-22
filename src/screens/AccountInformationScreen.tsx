@@ -1,35 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  StatusBar,
-  TextInput,
-  Alert,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { ProfileParamList } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors as globalColors } from '../theme';
+import { StackNavigationProp } from '@react-navigation/stack';
 import {
-  ChevronLeft,
-  User,
-  Mail,
-  Phone,
-  MapPin,
-  Calendar,
-  Edit,
-  Save,
-  X,
-  CheckCircle,
-  Shield,
+    Calendar,
+    CheckCircle,
+    ChevronLeft,
+    Edit,
+    Mail,
+    MapPin,
+    Phone,
+    Save,
+    Shield,
+    User,
+    X,
 } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import {
+    Alert,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { colors as globalColors } from '../theme';
+import { ProfileParamList } from '../types';
 
 // Ultra-Professional Color Palette
 const colors = {

@@ -1,6 +1,6 @@
-import React, { useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { ArrowUp, ArrowDown, CreditCard, FileText, ChevronRight } from 'lucide-react-native';
+import { ArrowDown, ArrowUp, ChevronRight, CreditCard, FileText } from 'lucide-react-native';
+import React, { useCallback, useMemo } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSettings } from '../contexts/SettingsContext';
 
 interface Transaction {

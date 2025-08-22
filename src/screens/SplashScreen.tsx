@@ -3,7 +3,8 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
-import { colors, spacing, shadows } from '../theme';
+import { colors, spacing } from '../theme';
+import KotaPayLogo from '../components/icons/KotaPayLogo';
 
 type SplashScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Splash'>;
 
@@ -13,7 +14,7 @@ const SplashScreen: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       navigation.replace('Onboarding');
-    }, 2000);
+    }, 3000); // Increased to 3 seconds to enjoy the animation
 
     return () => clearTimeout(timer);
   }, [navigation]);
@@ -21,9 +22,7 @@ const SplashScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.logoContainer}>
-        <View style={styles.logo}>
-          <Text style={styles.logoText}>K</Text>
-        </View>
+        <KotaPayLogo size={120} animated={true} />
         <Text style={styles.brandText}>KotaPay</Text>
         <Text style={styles.tagline}>Secure Digital Payments</Text>
       </View>
@@ -40,26 +39,13 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'white',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-    ...shadows.medium,
-  },
-  logoText: {
-    fontSize: 40,
-    fontWeight: 'bold',
-    color: colors.primary,
+    marginBottom: spacing.xl,
   },
   brandText: {
     fontSize: 32,
     fontWeight: 'bold',
     color: 'white',
+    marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
   tagline: {

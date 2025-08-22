@@ -1,16 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  Dimensions,
-  Animated,
-  Easing,
-} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import Svg, { Path, Circle } from 'react-native-svg';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+    Animated,
+    Dimensions,
+    Easing,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    View,
+} from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { colors, spacing } from '../theme';
 import { CardStackParamList } from '../types/navigation';
 

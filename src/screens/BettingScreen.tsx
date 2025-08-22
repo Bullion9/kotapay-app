@@ -1,27 +1,27 @@
-import React, { useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  RefreshControl,
-  Animated,
-  Image,
-} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ChevronLeft,
-  Trophy,
-  CheckCircle,
-  Users,
+    CheckCircle,
+    ChevronLeft,
+    Trophy,
+    Users,
 } from 'lucide-react-native';
+import React, { useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme';
 
 // Import betting provider logos using PNG files (converted from JPG)
@@ -259,35 +259,26 @@ const BettingScreen: React.FC = () => {
           {/* Betting Provider Selection */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Select Betting Platform</Text>
-            <View style={styles.providersGrid}>
+            <View style={[styles.providersGrid, styles.providersContainer]}>
               {providers.map((provider) => (
                 <TouchableOpacity
                   key={provider.id}
-                  style={[
-                    styles.providerCard,
-                    selectedProvider?.id === provider.id && styles.providerCardSelected
-                  ]}
+                  style={styles.providerItem}
                   onPress={() => selectProvider(provider)}
                   activeOpacity={0.7}
                 >
-                  <View style={[
-                    styles.logoContainer,
-                    selectedProvider?.id === provider.id && styles.logoContainerSelected
-                  ]}>
-                    <Image source={provider.logo} style={styles.providerLogo} />
+                  <View style={styles.providerLogoWrapper}>
+                    <View style={[styles.providerLogoContainer, { backgroundColor: provider.color + '20' }]}>
+                      <Image source={provider.logo} style={styles.providerLogo} resizeMode="cover" />
+                    </View>
+                    {selectedProvider?.id === provider.id && (
+                      <View style={styles.checkmarkContainer}>
+                        <CheckCircle size={18} color="#4CAF50" fill="#4CAF50" />
+                      </View>
+                    )}
                   </View>
-                  <Text style={[
-                    styles.providerName,
-                    selectedProvider?.id === provider.id && styles.providerNameSelected
-                  ]}>
-                    {provider.name}
-                  </Text>
-                  <Text style={[
-                    styles.providerMin,
-                    selectedProvider?.id === provider.id && styles.providerMinSelected
-                  ]}>
-                    Min: ₦{provider.minAmount}
-                  </Text>
+                  <Text style={styles.providerName}>{provider.name}</Text>
+                  <Text style={styles.providerMin}>Min: ₦{provider.minAmount}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -492,74 +483,48 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   providersGrid: {
+    marginVertical: 8,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
   },
-  providerCard: {
+  providersContainer: {
+    paddingHorizontal: 8,
+    gap: 8,
+    justifyContent: 'space-between',
+  },
+  providerItem: {
     width: '30%',
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  providerLogoWrapper: {
+    position: 'relative',
+    marginBottom: 8,
+  },
+  providerLogoContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 12,
-    minHeight: 110,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    marginBottom: 8,
   },
-  providerCardSelected: {
-    borderColor: '#06402B',
-    backgroundColor: '#F0F8F0',
-    borderWidth: 3,
-    shadowColor: '#06402B',
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 8,
-    transform: [{ scale: 1.02 }],
-  },
-  logoContainer: {
+  checkmarkContainer: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 2,
-    marginBottom: 10,
-  },
-  logoContainerSelected: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#06402B',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   providerLogo: {
-    width: 56,
-    height: 56,
-    borderRadius: 10,
-    resizeMode: 'contain',
-    backgroundColor: '#FFFFFF',
-    padding: 6,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 4,
-    borderWidth: 0.5,
-    borderColor: 'rgba(0,0,0,0.1)',
+    width: 40,
+    height: 40,
   },
   providerName: {
     fontSize: 13,
@@ -568,18 +533,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 2,
   },
-  providerNameSelected: {
-    color: '#06402B',
-    fontWeight: '700',
-  },
   providerMin: {
     fontSize: 11,
     color: colors.secondaryText,
     fontWeight: '500',
-  },
-  providerMinSelected: {
-    color: '#06402B',
-    fontWeight: '600',
   },
   userIdInputContainer: {
     marginBottom: 12,

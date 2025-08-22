@@ -1,13 +1,13 @@
+import { Monitor, Moon, Sun } from 'lucide-react-native';
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { Sun, Moon, Monitor } from 'lucide-react-native';
 import { useTheme } from '../contexts/ThemeContext';
-import { spacing, borderRadius, shadows } from '../theme';
+import { borderRadius, shadows, spacing } from '../theme';
 
 export const ThemeToggle: React.FC = () => {
   const { themeMode, setThemeMode, colors } = useTheme();

@@ -1,23 +1,23 @@
+import { StackNavigationProp } from '@react-navigation/stack';
+import {
+    ChevronDown,
+    ChevronLeft,
+    ChevronUp,
+    HelpCircle,
+    Search,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  StatusBar,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { borderRadius, colors, shadows, spacing } from '../theme';
 import { ProfileParamList } from '../types';
-import { colors, spacing, borderRadius, shadows } from '../theme';
-import {
-  ChevronLeft,
-  ChevronDown,
-  ChevronUp,
-  Search,
-  HelpCircle,
-} from 'lucide-react-native';
 
 interface FAQScreenProps {
   navigation: StackNavigationProp<ProfileParamList, 'FAQ'>;

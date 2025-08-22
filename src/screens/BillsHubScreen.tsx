@@ -1,23 +1,23 @@
+import { useNavigation } from '@react-navigation/native';
+import {
+    ChevronLeft,
+    ChevronRight,
+    Smartphone,
+    Trophy,
+    Tv,
+    Wifi,
+    Zap,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  RefreshControl,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  ChevronLeft,
-  Zap,
-  Smartphone,
-  Wifi,
-  Tv,
-  Trophy,
-  ChevronRight,
-} from 'lucide-react-native';
 import { colors } from '../theme';
 
 interface BillCategory {

@@ -1,5 +1,5 @@
 import { useTheme } from '../contexts/ThemeContext';
-import { playSound, triggerHaptic, buttonFeedback, successFeedback, errorFeedback } from '../utils/feedback';
+import { buttonFeedback, errorFeedback, playSound, successFeedback, triggerHaptic } from '../utils/feedback';
 
 /**
  * Custom hook for handling sound and haptic feedback throughout the app

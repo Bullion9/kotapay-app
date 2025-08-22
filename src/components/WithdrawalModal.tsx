@@ -1,15 +1,15 @@
+import { ArrowDown, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  TextInput,
-  Alert,
+    Alert,
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { X, ArrowDown } from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows } from '../theme';
+import { borderRadius, colors, shadows, spacing } from '../theme';
 
 interface Props {
   visible: boolean;

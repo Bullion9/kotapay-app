@@ -1,27 +1,27 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  StatusBar,
-  KeyboardAvoidingView,
-  Platform,
-  Image as RNImage,
-} from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import {
-  ChevronLeft,
-  Send,
-  Paperclip,
-  X,
+    ChevronLeft,
+    Paperclip,
+    Send,
+    X,
 } from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows } from '../theme';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    Image as RNImage,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { borderRadius, colors, shadows, spacing } from '../theme';
 
 interface SuggestionBoxScreenProps {
   navigation: any;

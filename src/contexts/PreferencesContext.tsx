@@ -1,6 +1,6 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import { Alert, Vibration } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { Alert, Vibration } from 'react-native';
 
 export interface PreferenceSettings {
   darkMode: boolean;

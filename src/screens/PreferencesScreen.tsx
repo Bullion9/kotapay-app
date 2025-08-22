@@ -1,31 +1,31 @@
+import { useNavigation } from '@react-navigation/native';
+import {
+    Bell,
+    ChevronLeft,
+    ChevronRight,
+    DollarSign,
+    Languages,
+    Mail,
+    Moon,
+    Phone,
+    Sun,
+    Vibrate,
+    Volume2,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  Switch,
-  StatusBar,
-  Alert,
+    Alert,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import {
-  ChevronLeft,
-  DollarSign,
-  Languages,
-  Sun,
-  Moon,
-  Bell,
-  Mail,
-  Phone,
-  ChevronRight,
-  Volume2,
-  Vibrate,
-} from 'lucide-react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useFeedback } from '../hooks/useFeedback';
-import { useNavigation } from '@react-navigation/native';
 
 const PreferencesScreen: React.FC = () => {
   const { soundEnabled, setSoundEnabled, hapticFeedback, setHapticFeedback, isDarkMode, setThemeMode, colors } = useTheme();

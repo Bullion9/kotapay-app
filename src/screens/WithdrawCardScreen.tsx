@@ -1,27 +1,27 @@
-import React, { useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  Animated,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
-  ChevronLeft,
-  ArrowUpCircle,
-  CreditCard,
-  Wallet,
-  CheckCircle,
+    ArrowUpCircle,
+    CheckCircle,
+    ChevronLeft,
+    CreditCard,
+    Wallet,
 } from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows } from '../theme';
+import React, { useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    Animated,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { borderRadius, colors, shadows, spacing } from '../theme';
 
 const WithdrawCardScreen: React.FC = () => {
   const navigation = useNavigation();

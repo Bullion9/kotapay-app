@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CreditCard, Trash2, Plus, ChevronLeft } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius, shadows, iconSizes } from '../theme';
+import { useNavigation } from '@react-navigation/native';
+import { ChevronLeft, CreditCard, Plus, Trash2 } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import DeleteCardModal from '../components/DeleteCardModal';
+import { borderRadius, colors, iconSizes, shadows, spacing, typography } from '../theme';
 
 export interface PaymentMethod {
   id: string;

@@ -1,8 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Appearance, StatusBar } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getColors, ColorScheme } from './colors';
-import { spacing, borderRadius, typography, shadows, iconSizes, animations } from './index';
+import { ColorScheme, getColors } from './colors';
+import { animations, borderRadius, iconSizes, shadows, spacing, typography } from './index';
 
 interface ThemeContextType {
   colors: ColorScheme;

@@ -1,19 +1,19 @@
+import { useNavigation } from '@react-navigation/native';
+import { Check, ChevronDown, ChevronLeft, Phone, User } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Modal,
-  FlatList,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { ChevronLeft, User, Phone, Check, ChevronDown } from 'lucide-react-native';
 import { colors, globalStyles } from '../theme';
 
 const COUNTRY_CODES = [

@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Image, Text } from 'react-native';
 import { User } from 'lucide-react-native';
+import React from 'react';
+import { Image, Text, View } from 'react-native';
 import { useProfileImage } from '../contexts/ProfileImageContext';
 import { theme } from '../theme';
 

@@ -1,19 +1,19 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
-  FlatList,
-  RefreshControl,
-  Modal,
-  Pressable,
-} from 'react-native';
-import { ChevronLeft, Inbox, ChevronDown, Check, Filter } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
-import { colors, globalStyles } from '../theme';
+import { Check, ChevronDown, ChevronLeft, Filter, Inbox } from 'lucide-react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+    FlatList,
+    Modal,
+    Pressable,
+    RefreshControl,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import TransactionRow from '../components/TransactionRow';
+import { colors, globalStyles } from '../theme';
 
 interface Transaction {
   id: string;

@@ -1,24 +1,24 @@
+import { StackNavigationProp } from '@react-navigation/stack';
+import {
+    ChevronLeft,
+    ChevronRight,
+    FileText,
+    Lock,
+    Settings,
+    UserCheck,
+} from 'lucide-react-native';
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  StatusBar,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { borderRadius, colors, shadows, spacing } from '../theme';
 import { ProfileParamList } from '../types';
-import {
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-  Lock,
-  UserCheck,
-  Settings,
-} from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows } from '../theme';
 
 interface MenuItemProps {
   icon: React.ReactNode;

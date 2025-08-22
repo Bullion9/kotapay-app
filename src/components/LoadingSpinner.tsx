@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import LoadingIcon from './icons/LoadingIcon';
+import { StyleSheet, Text, View } from 'react-native';
 import { colors, spacing } from '../theme';
+import LoadingIcon from './icons/LoadingIcon';
 
 interface LoadingSpinnerProps {
   size?: 'small' | 'medium' | 'large';

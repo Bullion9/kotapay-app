@@ -1,38 +1,46 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ScrollView,
-  Clipboard
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { AvatarImage } from '../components/AvatarImage';
 import { StackNavigationProp } from '@react-navigation/stack';
 import {
-  Copy,
-  FileText,
-  Mail,
+    Copy,
+    FileText,
+    Mail,
+    TestTube,
+    Wallet,
+    Shield,
+    Link,
+    CreditCard
 } from 'lucide-react-native';
-import { RootStackParamList } from '../types';
-import { useAuth } from '../contexts/AuthContext';
-import { colors, spacing, shadows, borderRadius, iconSizes } from '../theme';
-import { notificationService } from '../services/notifications';
-import { 
-  EyeIcon,
-  HomeSendIcon,
-  HomeRequestIcon,
-  HomeQRCodeIcon,
-  HomeCashOutIcon,
-  HomeTopUpIcon,
-  HomeBillsIcon,
-  HomePayLinkIcon
+import React, { useState } from 'react';
+import {
+    Alert,
+    Clipboard,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import ActivityCard from '../components/ActivityCard';
+import { AvatarImage } from '../components/AvatarImage';
+import CarouselAds from '../components/CarouselAds';
+import {
+    EyeIcon,
+    HomeBillsIcon,
+    HomeCashOutIcon,
+    HomePayLinkIcon,
+    HomeQRCodeIcon,
+    HomeRequestIcon,
+    HomeSendIcon,
+    HomeTopUpIcon
 } from '../components/icons';
 import NotificationMailIcon from '../components/NotificationMailIcon';
-import CarouselAds from '../components/CarouselAds';
-import ActivityCard from '../components/ActivityCard';
+import { useAuth } from '../contexts/AuthContext';
+import { notificationService } from '../services/notifications';
+import { kotaPayExamples } from '../services/KotaPayExamples';
+import { borderRadius, colors, iconSizes, shadows, spacing } from '../theme';
+import { RootStackParamList } from '../types';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -42,6 +50,15 @@ const HomeScreen: React.FC = () => {
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [balance] = useState(2847.50);
   const [accountNumber] = useState('4532 1234 5678 9012');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    // Simulate refresh - in real app, you'd reload user data, balance, etc.
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1500);
+  };
 
   const copyAccountNumber = () => {
     Clipboard.setString(accountNumber);
@@ -78,6 +95,108 @@ const HomeScreen: React.FC = () => {
       color: colors.error,
       onPress: () => navigation.navigate('CashOut'),
     },
+    // KotaPay Testing Actions
+    {
+      title: 'Setup DB',
+      icon: Shield,
+      color: '#DC2626',
+      onPress: async () => {
+        try {
+          Alert.alert('� Database Setup', 'Checking database status...');
+          
+          // Import the database setup service
+          const { default: DatabaseSetup } = await import('../services/DatabaseSetup');
+          
+          // Run setup verification
+          await DatabaseSetup.runSetupVerification();
+          
+          Alert.alert(
+            '📋 Database Setup',
+            'Check the console for detailed status and instructions. If collections are missing, create them in Appwrite Console.',
+            [
+              { text: 'Open Appwrite Console', onPress: () => {} },
+              { text: 'OK', style: 'default' }
+            ]
+          );
+        } catch (error) {
+          Alert.alert('❌ Setup Failed', `Error: ${error}`);
+        }
+      },
+    },
+    {
+      title: 'Test Wallet',
+      icon: Wallet,
+      color: '#10B981',
+      onPress: async () => {
+        try {
+          Alert.alert('🔄 Testing Wallet Logic', 'Running wallet vs bank transfer examples...');
+          await kotaPayExamples.walletToWalletTransfer();
+          await kotaPayExamples.walletToBankTransfer();
+          Alert.alert('✅ Wallet Test Complete', 'Check console for detailed results');
+        } catch (error) {
+          Alert.alert('❌ Test Failed', `Error: ${error}`);
+        }
+      },
+    },
+    {
+      title: 'Test KYC',
+      icon: Shield,
+      color: '#8B5CF6',
+      onPress: async () => {
+        try {
+          Alert.alert('🆔 Testing KYC System', 'Running identity verification examples...');
+          await kotaPayExamples.onboardingFlow();
+          await kotaPayExamples.kycTierUpgrade();
+          Alert.alert('✅ KYC Test Complete', 'Check console for tier progression');
+        } catch (error) {
+          Alert.alert('❌ Test Failed', `Error: ${error}`);
+        }
+      },
+    },
+    {
+      title: 'Test Auth',
+      icon: CreditCard,
+      color: '#F59E0B',
+      onPress: async () => {
+        try {
+          Alert.alert('🔐 Testing Authentication', 'Running JWT token examples...');
+          await kotaPayExamples.authenticationFlow();
+          await kotaPayExamples.transactionLimitValidation();
+          Alert.alert('✅ Auth Test Complete', 'Check console for token details');
+        } catch (error) {
+          Alert.alert('❌ Test Failed', `Error: ${error}`);
+        }
+      },
+    },
+    {
+      title: 'Test Requests',
+      icon: Link,
+      color: '#EF4444',
+      onPress: async () => {
+        try {
+          Alert.alert('💰 Testing Payment Requests', 'Running payment link & QR examples...');
+          await kotaPayExamples.paymentRequestFlow();
+          Alert.alert('✅ Payment Test Complete', 'Check console for request lifecycle');
+        } catch (error) {
+          Alert.alert('❌ Test Failed', `Error: ${error}`);
+        }
+      },
+    },
+    {
+      title: 'Run All Tests',
+      icon: TestTube,
+      color: '#06B6D4',
+      onPress: async () => {
+        try {
+          Alert.alert('🚀 Full KotaPay Demo', 'Running complete architecture demonstration...');
+          await kotaPayExamples.demonstrateKotaPayArchitecture();
+          Alert.alert('🎉 Demo Complete!', 'All KotaPay features tested successfully');
+        } catch (error) {
+          Alert.alert('❌ Demo Failed', `Error: ${error}`);
+        }
+      },
+    },
+    // Original Actions
     {
       title: 'Test PIN',
       icon: HomeSendIcon,
@@ -133,30 +252,47 @@ const HomeScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
-        style={styles.scrollContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
+      {/* Sticky Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Profile', { 
+              screen: 'PersonalInformation' 
+            })}
+            activeOpacity={0.7}
+          >
             <AvatarImage 
               size={50}
               userName={user?.name}
               showInitials={true}
             />
-            <View style={styles.greetingContainer}>
-              <Text style={styles.greeting}>Good Morning</Text>
-              <Text style={styles.userName}>{user?.name || 'User'}</Text>
-            </View>
-          </View>
-          
-          <View style={styles.headerRight}>
-            <NotificationMailIcon 
-              unreadCount={5}
-            />
+          </TouchableOpacity>
+          <View style={styles.greetingContainer}>
+            <Text style={styles.greeting}>Good Morning</Text>
+            <Text style={styles.userName}>{user?.name || 'User'}</Text>
           </View>
         </View>
+        
+        <View style={styles.headerRight}>
+          <NotificationMailIcon 
+            unreadCount={5}
+          />
+        </View>
+      </View>
+
+      {/* Scrollable Content with Pull-to-Refresh */}
+      <ScrollView 
+        style={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+      >
 
         {/* Balance Card */}
         <View style={styles.balanceCard}>
@@ -248,6 +384,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
     paddingBottom: spacing.lg,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   headerLeft: {
     flexDirection: 'row',

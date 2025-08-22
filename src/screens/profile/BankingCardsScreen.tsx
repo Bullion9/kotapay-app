@@ -1,25 +1,25 @@
-import React, { useCallback, memo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  StatusBar,
-  Alert,
-} from 'react-native';
-import {
-  ArrowLeft,
-  PiggyBank,
-  CreditCard,
-  Settings,
-  ChevronRight,
-  Plus,
-  Eye,
-  MoreHorizontal,
-} from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import {
+    ArrowLeft,
+    ChevronRight,
+    CreditCard,
+    Eye,
+    MoreHorizontal,
+    PiggyBank,
+    Plus,
+    Settings,
+} from 'lucide-react-native';
+import React, { memo, useCallback } from 'react';
+import {
+    Alert,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 
 interface BankAccount {
   id: string;

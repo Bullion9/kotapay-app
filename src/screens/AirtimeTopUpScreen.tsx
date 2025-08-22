@@ -1,27 +1,27 @@
-import React, { useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Image,
-  RefreshControl,
-  Animated,
-} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ChevronLeft,
-  Phone,
-  CheckCircle,
-  Users,
+    CheckCircle,
+    ChevronLeft,
+    Phone,
+    Users,
 } from 'lucide-react-native';
+import React, { useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme';
 
 // Import network provider logos
@@ -256,7 +256,9 @@ const AirtimeTopUpScreen: React.FC = () => {
             {/* Network Detection */}
             {selectedProvider && (
               <View style={styles.networkDetected}>
-                <Image source={selectedProvider.logo} style={styles.networkLogo} />
+                <View style={[styles.logoContainer, { backgroundColor: selectedProvider.color + '20' }]}>
+                  <Image source={selectedProvider.logo} style={styles.networkLogo} resizeMode="cover" />
+                </View>
                 <Text style={styles.networkName}>{selectedProvider.name} detected</Text>
               </View>
             )}
@@ -337,17 +339,23 @@ const AirtimeTopUpScreen: React.FC = () => {
           {/* Network Provider Selection */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Network Provider</Text>
-            <View style={styles.providersGrid}>
+            <View style={[styles.providersGrid, styles.providersContainer]}>
               {providers.map((provider) => (
                 <TouchableOpacity
                   key={provider.id}
-                  style={[
-                    styles.providerCard,
-                    selectedProvider?.id === provider.id && styles.providerCardSelected
-                  ]}
+                  style={styles.providerItem}
                   onPress={() => setSelectedProvider(provider)}
                 >
-                  <Image source={provider.logo} style={styles.providerLogo} />
+                  <View style={styles.providerLogoWrapper}>
+                    <View style={[styles.providerLogoContainer, { backgroundColor: provider.color + '20' }]}>
+                      <Image source={provider.logo} style={styles.providerLogo} resizeMode="cover" />
+                    </View>
+                    {selectedProvider?.id === provider.id && (
+                      <View style={styles.checkmarkContainer}>
+                        <CheckCircle size={18} color="#4CAF50" fill="#4CAF50" />
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.providerName}>{provider.name}</Text>
                 </TouchableOpacity>
               ))}
@@ -462,8 +470,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   networkLogo: {
-    width: 24,
-    height: 24,
+    width: 20,
+    height: 20,
+  },
+  logoContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 8,
   },
   networkName: {
@@ -559,26 +574,46 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   providersGrid: {
+    marginVertical: 8,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
   },
-  providerCard: {
-    width: '48%',
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
+  providersContainer: {
+    paddingHorizontal: 8,
+    gap: 8,
+    justifyContent: 'space-between',
+  },
+  providerItem: {
+    width: 85,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
+    marginBottom: 16,
   },
-  providerCardSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryTransparent,
+  providerLogoWrapper: {
+    position: 'relative',
+    marginBottom: 8,
+  },
+  checkmarkContainer: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   providerLogo: {
     width: 40,
     height: 40,
+  },
+  providerLogoContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 8,
   },
   providerName: {

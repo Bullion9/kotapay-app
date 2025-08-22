@@ -1,25 +1,25 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  Animated,
-  PanResponder,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
-import {
-  X,
-  Check,
+    Check,
+    X,
 } from 'lucide-react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    Animated,
+    KeyboardAvoidingView,
+    Modal,
+    PanResponder,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { useLoading } from '../hooks/useLoading';
 import { EyeIcon } from './icons';
 import LoadingOverlay from './LoadingOverlay';
-import { useLoading } from '../hooks/useLoading';
 
 interface ForgotPasswordModalProps {
   visible: boolean;

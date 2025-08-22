@@ -18,6 +18,7 @@ import { RootStackParamList } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, borderRadius, shadows, iconSizes, globalStyles } from '../theme';
 import { EyeIcon } from '../components/icons';
+import KotaPayLogo from '../components/icons/KotaPayLogo';
 
 type RegisterScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Register'>;
 
@@ -81,9 +82,7 @@ const RegisterScreen: React.FC = () => {
               <ChevronLeft size={iconSizes.md} color={colors.text} />
             </TouchableOpacity>
             <View style={styles.headerContent}>
-              <View style={styles.logoContainer}>
-                <Text style={styles.logoText}>K</Text>
-              </View>
+              <KotaPayLogo size={80} animated={true} />
               <Text style={styles.title}>Create Your Account</Text>
               <Text style={styles.subtitle}>Join thousands using KotaPay for secure payments</Text>
             </View>
@@ -259,25 +258,11 @@ const styles = StyleSheet.create({
   headerContent: {
     alignItems: 'center',
   },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
-    ...shadows.medium,
-  },
-  logoText: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: colors.white,
-  },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: colors.text,
+    marginTop: spacing.lg,
     marginBottom: spacing.sm,
     textAlign: 'center',
   },

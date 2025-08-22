@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
-import { Send } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Send } from 'lucide-react-native';
+import React from 'react';
+import { Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface Contact {
   id: string;

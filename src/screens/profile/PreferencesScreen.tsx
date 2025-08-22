@@ -1,27 +1,27 @@
+import * as Haptics from 'expo-haptics';
+import {
+    Bell,
+    ChevronLeft,
+    ChevronRight,
+    DollarSign,
+    Languages,
+    Mail,
+    Moon,
+    Phone,
+    Sun,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  Switch,
-  StatusBar,
-  Alert,
+    Alert,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import {
-  ChevronLeft,
-  DollarSign,
-  Languages,
-  Sun,
-  Moon,
-  Bell,
-  Mail,
-  Phone,
-  ChevronRight,
-} from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
 
 const PreferencesScreen: React.FC = () => {
   const [settings, setSettings] = useState({

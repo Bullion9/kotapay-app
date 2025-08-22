@@ -1,28 +1,29 @@
+import {
+    AlertCircle,
+    CheckCircle,
+    ChevronLeft,
+    Clock,
+    Download,
+    QrCode,
+    Share as ShareIcon,
+    Shield,
+    XCircle,
+} from 'lucide-react-native';
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-  Share,
+    Alert,
+    ScrollView,
+    Share,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useSettings } from '../contexts/SettingsContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  Download,
-  Share as ShareIcon,
-  QrCode,
-  Shield,
-  AlertCircle,
-  ChevronLeft,
-  CheckCircle,
-  Clock,
-  XCircle,
-} from 'lucide-react-native';
-import { colors, spacing, iconSizes, globalStyles } from '../theme';
+import { useSettings } from '../contexts/SettingsContext';
 import { TransactionData } from '../services/receiptService';
+import { colors, globalStyles, iconSizes, spacing } from '../theme';
+import KotaPayLogo from './icons/KotaPayLogo';
 
 interface ReceiptGeneratorProps {
   transaction: TransactionData;
@@ -111,9 +112,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
           {/* Top Banner */}
           <View style={styles.topBanner}>
             {/* KotaPay Logo */}
-            <View style={styles.logoContainer}>
-              <Text style={styles.logoText}>KotaPay</Text>
-            </View>
+            <KotaPayLogo size={60} />
 
             {/* Receipt Type Badge */}
             <View style={[styles.typeBadge, { backgroundColor: getTypeColor(transaction.type) }]}>
@@ -304,15 +303,6 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  logoText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.seaGreen,
   },
   typeBadge: {
     alignSelf: 'center',

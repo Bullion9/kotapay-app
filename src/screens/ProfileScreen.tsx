@@ -1,32 +1,32 @@
+import { StackNavigationProp } from '@react-navigation/stack';
+import {
+    ChevronRight,
+    CreditCard,
+    Gift,
+    HelpCircle,
+    LogOut,
+    MessageSquare,
+    Settings,
+    Shield,
+    Trash2,
+    User,
+    UserCog,
+} from 'lucide-react-native';
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  StatusBar,
+    Alert,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { ProfileParamList } from '../types';
 import { AvatarImage } from '../components/AvatarImage';
 import { useAuth } from '../contexts/AuthContext';
-import {
-  User,
-  Settings,
-  HelpCircle,
-  LogOut,
-  ChevronRight,
-  Shield,
-  CreditCard,
-  UserCog,
-  MessageSquare,
-  Trash2,
-  Gift,
-} from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows } from '../theme';
+import { borderRadius, colors, shadows, spacing } from '../theme';
+import { ProfileParamList } from '../types';
 
 interface MenuItemProps {
   icon: React.ReactNode;

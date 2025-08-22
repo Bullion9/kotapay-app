@@ -1,37 +1,37 @@
+import type { NavigationProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import {
+    ArrowDownLeft,
+    ArrowUpRight,
+    Bell,
+    ChevronLeft,
+    Copy,
+    CreditCard,
+    Eye,
+    EyeOff,
+    FileText,
+    HelpCircle,
+    Lock,
+    Plus,
+    Settings,
+    Shield,
+    ShoppingBag,
+    TrendingUp,
+    UserCheck,
+    X,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  Alert,
-  Modal,
+    Alert,
+    Modal,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import {
-  Plus,
-  Eye,
-  EyeOff,
-  Copy,
-  Settings,
-  ChevronLeft,
-  ArrowDownLeft,
-  TrendingUp,
-  ShoppingBag,
-  ArrowUpRight,
-  CreditCard,
-  Lock,
-  X,
-  UserCheck,
-  Bell,
-  HelpCircle,
-  FileText,
-  Shield,
-} from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows } from '../theme';
-import { useNavigation } from '@react-navigation/native';
-import type { NavigationProp } from '@react-navigation/native';
+import { borderRadius, colors, shadows, spacing } from '../theme';
 
 type RootStackParamList = {
   VirtualCardHub: undefined;

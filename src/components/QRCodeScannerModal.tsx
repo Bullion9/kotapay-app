@@ -1,31 +1,31 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
-  Alert,
-  StatusBar,
-  Share,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Camera, CameraView, CameraType, FlashMode, BarcodeScanningResult } from 'expo-camera';
-import * as MediaLibrary from 'expo-media-library';
+import { BarcodeScanningResult, Camera, CameraType, CameraView, FlashMode } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import QRCode from 'react-native-qrcode-svg';
+import * as MediaLibrary from 'expo-media-library';
 import {
-  X,
-  Zap,
-  ZapOff,
-  Download,
-  Share2,
-  QrCode,
-  Camera as CameraIcon,
-  RotateCcw,
-  Image as ImageIcon,
+    Camera as CameraIcon,
+    Download,
+    Image as ImageIcon,
+    QrCode,
+    RotateCcw,
+    Share2,
+    X,
+    Zap,
+    ZapOff,
 } from 'lucide-react-native';
-import { colors, spacing, shadows, borderRadius, iconSizes } from '../theme';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+    Alert,
+    Modal,
+    Share,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { borderRadius, colors, iconSizes, shadows, spacing } from '../theme';
 
 interface QRCodeScannerModalProps {
   visible: boolean;

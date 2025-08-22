@@ -14,7 +14,6 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { ProfileParamList } from '../types';
 import {
   ChevronLeft,
-  MessageSquare,
   ChevronRight,
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius, shadows } from '../theme';
@@ -40,7 +39,7 @@ interface SupportItemProps {
 }
 
 const HelpSupportScreen: React.FC<HelpSupportScreenProps> = ({ navigation }) => {
-  
+
   const handlePhoneCall = () => {
     const phoneNumber = '+2349063242300';
     Linking.openURL(`tel:${phoneNumber}`).catch(() => {
@@ -73,13 +72,7 @@ const HelpSupportScreen: React.FC<HelpSupportScreenProps> = ({ navigation }) => 
   };
 
   const handleFAQ = () => {
-    // Navigate to FAQ screen
     navigation.navigate('FAQ');
-  };
-
-  const handleChatSupport = () => {
-    // Handle chat with support
-    Alert.alert('Chat Support', 'Starting chat with support team...');
   };
 
   const goBack = () => {
@@ -172,17 +165,6 @@ const HelpSupportScreen: React.FC<HelpSupportScreenProps> = ({ navigation }) => 
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
-
-      {/* Chat with Support Button (Floating) */}
-      <View style={styles.floatingButtonContainer}>
-        <TouchableOpacity 
-          style={styles.chatSupportButton}
-          onPress={handleChatSupport}
-        >
-          <MessageSquare size={20} color={colors.white} />
-          <Text style={styles.chatSupportText}>Chat with Support</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 };
@@ -307,40 +289,10 @@ const styles = StyleSheet.create({
     color: colors.secondaryText,
   },
   
-  // Floating Chat Button
-  floatingButtonContainer: {
-    position: 'absolute',
-    bottom: spacing.xl + spacing.md,
-    right: spacing.lg,
-  },
-  chatSupportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.large,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    minHeight: 50,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  chatSupportText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.white,
-    marginLeft: spacing.sm,
-  },
-  
   bottomSpacing: {
-    height: spacing.xl + 80, // Extra space for floating button
+    height: spacing.xl,
   },
 });
 
 export default HelpSupportScreen;
+

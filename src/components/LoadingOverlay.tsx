@@ -1,15 +1,15 @@
 import React, { useEffect, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Modal, 
-  Animated, 
-  Dimensions,
-  StatusBar 
+import {
+    Animated,
+    Dimensions,
+    Modal,
+    StatusBar,
+    StyleSheet,
+    Text,
+    View
 } from 'react-native';
+import { borderRadius, colors, spacing } from '../theme';
 import LoadingIcon from './icons/LoadingIcon';
-import { colors, spacing, borderRadius } from '../theme';
 
 interface LoadingOverlayProps {
   visible: boolean;
@@ -17,6 +17,7 @@ interface LoadingOverlayProps {
   subMessage?: string;
   type?: 'loading' | 'processing' | 'confirming' | 'success' | 'error';
   onComplete?: () => void;
+  transparent?: boolean;
 }
 
 const { width } = Dimensions.get('window');
@@ -27,6 +28,7 @@ const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
   subMessage,
   type = 'loading',
   onComplete,
+  transparent = false,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -114,31 +116,56 @@ const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
           }
         ]}
       >
-        <Animated.View 
-          style={[
-            styles.container,
-            {
+        {transparent ? (
+          <Animated.View 
+            style={{
               transform: [{ scale: scaleAnim }],
-            }
-          ]}
-        >
-          <View style={styles.content}>
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
             <LoadingIcon 
-              size={60} 
+              size={120} 
               color={getLoadingColor()} 
             />
             
-            <Text style={[styles.message, { color: getLoadingColor() }]}>
+            <Text style={[styles.transparentMessage, { color: getLoadingColor() }]}>
               {getLoadingMessage()}
             </Text>
             
             {subMessage && (
-              <Text style={styles.subMessage}>
+              <Text style={styles.transparentSubMessage}>
                 {subMessage}
               </Text>
             )}
-          </View>
-        </Animated.View>
+          </Animated.View>
+        ) : (
+          <Animated.View 
+            style={[
+              styles.container,
+              {
+                transform: [{ scale: scaleAnim }],
+              }
+            ]}
+          >
+            <View style={styles.content}>
+              <LoadingIcon 
+                size={120} 
+                color={getLoadingColor()} 
+              />
+              
+              <Text style={[styles.message, { color: getLoadingColor() }]}>
+                {getLoadingMessage()}
+              </Text>
+              
+              {subMessage && (
+                <Text style={styles.subMessage}>
+                  {subMessage}
+                </Text>
+              )}
+            </View>
+          </Animated.View>
+        )}
       </Animated.View>
     </Modal>
   );
@@ -184,6 +211,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     marginTop: spacing.xs,
+  },
+  transparentMessage: {
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  transparentSubMessage: {
+    fontSize: 14,
+    color: colors.white,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: spacing.xs,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 });
 

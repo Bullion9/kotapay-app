@@ -69,10 +69,10 @@ import {
   TransactionLimitScreen,
   PreferencesScreen,
   TermsPrivacyScreen,
+  HelpSupportScreen,
 } from '../screens';
 
 import NotificationScreen from '../screens/NotificationScreen';
-import HelpSupportScreen from '../screens/HelpSupportScreen';
 import FAQScreen from '../screens/FAQScreen';
 import ReferralScreen from '../screens/ReferralScreen';
 

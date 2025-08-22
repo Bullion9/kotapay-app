@@ -1,11 +1,11 @@
+import { ArrowDownLeft, ArrowUpRight } from 'lucide-react-native';
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
+    StyleSheet,
+    Text,
+    View,
 } from 'react-native';
-import { ArrowDownLeft, ArrowUpRight } from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows } from '../theme';
+import { borderRadius, colors, shadows, spacing } from '../theme';
 
 interface Transaction {
   id: string;

@@ -1,29 +1,29 @@
+import { useNavigation } from '@react-navigation/native';
+import {
+    CheckCircle,
+    ChevronDown,
+    ChevronLeft,
+    CreditCard,
+    Smartphone,
+    X
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  Modal,
-  Animated,
-  RefreshControl,
-  KeyboardAvoidingView,
-  Platform,
+    ActivityIndicator,
+    Alert,
+    Animated,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { 
-  ChevronLeft, 
-  ChevronDown, 
-  CreditCard, 
-  Smartphone, 
-  CheckCircle,
-  X 
-} from 'lucide-react-native';
 import PinEntryModal from '../components/PinEntryModal';
 import { notificationService } from '../services/notifications';
 import { colors } from '../theme';

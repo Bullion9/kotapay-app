@@ -1,23 +1,23 @@
+import { useNavigation } from '@react-navigation/native';
+import {
+    ChevronLeft,
+    CreditCard,
+    Eye,
+    EyeOff,
+    Freeze,
+    Plus,
+    Settings,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import {
-  CreditCard,
-  Plus,
-  Eye,
-  EyeOff,
-  Settings,
-  ChevronLeft,
-  Freeze,
-} from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows } from '../theme';
-import { useNavigation } from '@react-navigation/native';
+import { borderRadius, colors, shadows, spacing } from '../theme';
 
 const CardScreenSimple: React.FC = () => {
   const navigation = useNavigation();

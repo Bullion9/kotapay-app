@@ -1,23 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  TouchableOpacity,
-} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useSettings } from '../contexts/SettingsContext';
 import {
-  ArrowUpRight,
-  ArrowDownLeft,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Zap,
+    AlertCircle,
+    ArrowDownLeft,
+    ArrowUpRight,
+    CheckCircle,
+    Clock,
+    Zap,
 } from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows } from '../theme';
+import React, { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { useSettings } from '../contexts/SettingsContext';
+import { borderRadius, colors, shadows, spacing } from '../theme';
 import { RootStackParamList } from '../types';
 
 interface ActivityItem {

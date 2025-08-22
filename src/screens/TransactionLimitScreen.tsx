@@ -1,23 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { ChevronLeft, Info, Shield } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { borderRadius, colors, spacing, typography } from '../theme';
 import { ProfileParamList } from '../types';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ChevronLeft, Shield, Info } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius } from '../theme';
 
 interface LimitPreset {
   amount: number;

@@ -1,5 +1,5 @@
 import React from 'react';
-import Svg, { Rect, Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
 interface InstagramIconProps {
   size?: number;

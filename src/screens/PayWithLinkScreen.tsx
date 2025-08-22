@@ -1,28 +1,28 @@
+import { useNavigation, useRoute } from '@react-navigation/native';
+import {
+    AlertCircle,
+    Banknote,
+    CheckCircle,
+    ChevronLeft,
+    CreditCard,
+    PiggyBank,
+    University,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  RefreshControl,
-  KeyboardAvoidingView,
-  Platform,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  ChevronLeft,
-  CreditCard,
-  University,
-  PiggyBank,
-  CheckCircle,
-  AlertCircle,
-  Banknote,
-} from 'lucide-react-native';
 import { colors } from '../theme';
 
 interface PaymentLink {

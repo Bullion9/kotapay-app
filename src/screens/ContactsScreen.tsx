@@ -1,20 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  FlatList,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  Linking,
-  RefreshControl,
-} from 'react-native';
-import { ChevronLeft, Search, Users, PlusCircle, Phone, UserPlus } from 'lucide-react-native';
 import * as Contacts from 'expo-contacts';
-import { colors, globalStyles } from '../theme';
+import { ChevronLeft, Phone, PlusCircle, Search, UserPlus, Users } from 'lucide-react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+    Alert,
+    FlatList,
+    Linking,
+    RefreshControl,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import SwipeableContactRow from '../components/SwipeableContactRow';
+import { colors, globalStyles } from '../theme';
 
 interface Contact {
   id: string;

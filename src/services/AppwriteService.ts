@@ -1,4 +1,4 @@
-import { Client, Account, Databases, Storage, Functions, ID, Query, ImageGravity } from 'appwrite';
+import { Account, Client, Databases, Functions, ID, ImageGravity, Query, Storage } from 'appwrite';
 import { APPWRITE_CONFIG } from '../config/api';
 
 // Initialize Appwrite Client
@@ -38,7 +38,8 @@ export interface UserDocument {
   country?: string;
   profileImage?: string;
   kycStatus: 'pending' | 'verified' | 'rejected';
-  accountBalance: number;
+  accountBalance: number; // Legacy field
+  walletBalance: number; // New field for stored-value wallet
   createdAt: string;
   updatedAt: string;
 }
@@ -301,6 +302,92 @@ class AppwriteService {
     } catch (error) {
       console.error('Error executing function:', error);
       throw error;
+    }
+  }
+
+  // Generic Document Methods
+  async createDocument(collectionId: string, documentId: string, data: any) {
+    try {
+      const response = await databases.createDocument(
+        APPWRITE_CONFIG.databaseId,
+        collectionId,
+        documentId,
+        data
+      );
+      return response;
+    } catch (error) {
+      console.error('Error creating document:', error);
+      throw error;
+    }
+  }
+
+  async getDocument(collectionId: string, documentId: string) {
+    try {
+      const response = await databases.getDocument(
+        APPWRITE_CONFIG.databaseId,
+        collectionId,
+        documentId
+      );
+      return response;
+    } catch (error) {
+      console.error('Error getting document:', error);
+      throw error;
+    }
+  }
+
+  async updateDocument(collectionId: string, documentId: string, data: any) {
+    try {
+      const response = await databases.updateDocument(
+        APPWRITE_CONFIG.databaseId,
+        collectionId,
+        documentId,
+        data
+      );
+      return response;
+    } catch (error) {
+      console.error('Error updating document:', error);
+      throw error;
+    }
+  }
+
+  async deleteDocument(collectionId: string, documentId: string) {
+    try {
+      await databases.deleteDocument(
+        APPWRITE_CONFIG.databaseId,
+        collectionId,
+        documentId
+      );
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      throw error;
+    }
+  }
+
+  async listDocuments(collectionId: string, queries?: string[]) {
+    try {
+      const response = await databases.listDocuments(
+        APPWRITE_CONFIG.databaseId,
+        collectionId,
+        queries || []
+      );
+      return response;
+    } catch (error) {
+      console.error('Error listing documents:', error);
+      throw error;
+    }
+  }
+
+  async getUserById(userId: string): Promise<UserDocument | null> {
+    try {
+      const response = await databases.listDocuments(
+        APPWRITE_CONFIG.databaseId,
+        COLLECTIONS.USERS,
+        [Query.equal('userId', userId)]
+      );
+      return (response.documents[0] as unknown as UserDocument) || null;
+    } catch (error) {
+      console.error('Error getting user by ID:', error);
+      return null;
     }
   }
 

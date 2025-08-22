@@ -1,29 +1,30 @@
-import React, { useState, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TextInput, 
-  TouchableOpacity, 
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Animated
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ChevronLeft, Mail, Lock, CheckCircle } from 'lucide-react-native';
-import { RootStackParamList } from '../types';
-import { useAuth } from '../contexts/AuthContext';
-import { colors, spacing, borderRadius, shadows, iconSizes, globalStyles } from '../theme';
-import { EyeIcon } from '../components/icons';
+import { CheckCircle, ChevronLeft, Lock, Mail } from 'lucide-react-native';
+import React, { useRef, useState } from 'react';
+import {
+    Alert,
+    Animated,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import ForgotPasswordModal from '../components/ForgotPasswordModal';
+import { EyeIcon } from '../components/icons';
+import KotaPayLogo from '../components/icons/KotaPayLogo';
 import LoadingOverlay from '../components/LoadingOverlay';
 import PageLoadingOverlay from '../components/PageLoadingOverlay';
+import { useAuth } from '../contexts/AuthContext';
 import { useLoading } from '../hooks/useLoading';
 import { usePageLoading } from '../hooks/usePageLoading';
+import { borderRadius, colors, globalStyles, iconSizes, shadows, spacing } from '../theme';
+import { RootStackParamList } from '../types';
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -117,9 +118,7 @@ const LoginScreen: React.FC = () => {
               <ChevronLeft size={iconSizes.md} color={colors.text} />
             </TouchableOpacity>
             <View style={styles.headerContent}>
-              <View style={styles.logoContainer}>
-                <Text style={styles.logoText}>K</Text>
-              </View>
+              <KotaPayLogo size={80} animated={true} />
               <Text style={styles.title}>Welcome Back!</Text>
               <Text style={styles.subtitle}>Sign in to continue to KotaPay</Text>
             </View>
@@ -231,6 +230,7 @@ const LoginScreen: React.FC = () => {
         visible={isLoading}
         type={loadingState}
         message={loadingMessage}
+        transparent={true}
       />
 
       {/* Success Animation */}
@@ -284,25 +284,11 @@ const styles = StyleSheet.create({
   headerContent: {
     alignItems: 'center',
   },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
-    ...shadows.medium,
-  },
-  logoText: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: colors.white,
-  },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: colors.text,
+    marginTop: spacing.lg,
     marginBottom: spacing.sm,
     textAlign: 'center',
   },

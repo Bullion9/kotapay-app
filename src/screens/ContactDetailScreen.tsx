@@ -1,16 +1,16 @@
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { ChevronLeft, HandCoins, Mail, Phone, QrCode, Send, Trash2 } from 'lucide-react-native';
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
-  Alert,
-  Linking,
-  Image,
+    Alert,
+    Image,
+    Linking,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { ChevronLeft, Phone, Mail, Send, QrCode, Trash2, HandCoins } from 'lucide-react-native';
 import { colors, globalStyles } from '../theme';
 
 interface Contact {

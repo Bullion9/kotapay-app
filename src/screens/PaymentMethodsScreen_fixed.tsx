@@ -1,35 +1,35 @@
+import { StackNavigationProp } from '@react-navigation/stack';
+import {
+    ArrowLeft,
+    Building2,
+    CheckCircle,
+    CreditCard,
+    Eye,
+    EyeOff,
+    Lock,
+    Plus,
+    Trash2,
+    X,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  StatusBar,
-  Modal,
-  TextInput,
-  SafeAreaView,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { ProfileParamList } from '../types';
-import {
-  ArrowLeft,
-  Plus,
-  CreditCard,
-  Building2,
-  X,
-  Trash2,
-  CheckCircle,
-  Lock,
-  Eye,
-  EyeOff,
-} from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows } from '../theme';
 import { useAuth } from '../contexts/AuthContext';
+import { borderRadius, colors, shadows, spacing } from '../theme';
+import { ProfileParamList } from '../types';
 
 interface PaymentMethod {
   id: string;

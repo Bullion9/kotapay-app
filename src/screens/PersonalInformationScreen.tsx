@@ -1,37 +1,37 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
-  TextInput,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Modal,
-  Image,
-} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import {
-  User,
-  Mail,
-  Phone,
-  MapPin,
-  Calendar,
-  Edit3,
-  Save,
-  X,
-  ChevronLeft,
-  Camera,
+    Calendar,
+    Camera,
+    ChevronLeft,
+    Edit3,
+    Mail,
+    MapPin,
+    Phone,
+    Save,
+    User,
+    X,
 } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
-import { theme } from '../theme';
-import { useProfileImage } from '../contexts/ProfileImageContext';
+import React, { useState } from 'react';
+import {
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { useProfileImage } from '../contexts/ProfileImageContext';
+import { theme } from '../theme';
 
 const { colors, spacing, borderRadius } = theme;
 

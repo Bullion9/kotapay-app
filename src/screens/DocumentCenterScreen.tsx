@@ -1,34 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  StatusBar,
-  Alert,
-  Modal,
-  Image,
-  Dimensions,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { ProfileParamList } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors as globalColors } from '../theme';
+import { StackNavigationProp } from '@react-navigation/stack';
 import {
-  ChevronLeft,
-  FileText,
-  Download,
-  Eye,
-  Trash2,
-  Calendar,
-  Shield,
-  CheckCircle,
-  X,
+    Calendar,
+    CheckCircle,
+    ChevronLeft,
+    Download,
+    Eye,
+    FileText,
+    Shield,
+    Trash2,
+    X,
 } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import {
+    Alert,
+    Dimensions,
+    Image,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { colors as globalColors } from '../theme';
+import { ProfileParamList } from '../types';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 

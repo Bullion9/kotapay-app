@@ -1,26 +1,26 @@
-import React, { useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  RefreshControl,
-  Animated,
-} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ChevronLeft,
-  Zap,
-  CheckCircle,
-  Users,
+    CheckCircle,
+    ChevronLeft,
+    Users,
+    Zap,
 } from 'lucide-react-native';
+import React, { useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    Animated,
+    KeyboardAvoidingView,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme';
 
 interface ElectricityProvider {

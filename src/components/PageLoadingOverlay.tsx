@@ -1,11 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  View,
-  StyleSheet,
-  Animated,
+    Animated,
+    StyleSheet,
+    View,
 } from 'react-native';
-import LoadingSpinner from './LoadingSpinner';
 import { colors } from '../theme';
+import LoadingSpinner from './LoadingSpinner';
 
 interface PageLoadingOverlayProps {
   visible: boolean;

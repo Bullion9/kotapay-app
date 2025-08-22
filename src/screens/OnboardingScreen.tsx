@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Shield, Zap, QrCode, ArrowRight, Smartphone, CreditCard } from 'lucide-react-native';
-import { RootStackParamList } from '../types';
-import { globalStyles, colors, spacing, iconSizes, shadows, borderRadius } from '../theme';
+import { ArrowRight, CreditCard, QrCode, Shield, Smartphone, Zap } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import PageLoadingOverlay from '../components/PageLoadingOverlay';
+import KotaPayLogo from '../components/icons/KotaPayLogo';
 import { usePageLoading } from '../hooks/usePageLoading';
+import { borderRadius, colors, globalStyles, iconSizes, shadows, spacing } from '../theme';
+import { RootStackParamList } from '../types';
 
 type OnboardingScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Onboarding'>;
 
@@ -57,9 +58,7 @@ const OnboardingScreen: React.FC = () => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>K</Text>
-          </View>
+          <KotaPayLogo size={100} animated={true} />
           <Text style={styles.brandName}>KotaPay</Text>
           <Text style={styles.tagline}>Digital Payment Made Simple</Text>
         </View>
@@ -144,25 +143,11 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xxl,
     marginBottom: spacing.xxl,
   },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-    ...shadows.medium,
-  },
-  logoText: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: colors.white,
-  },
   brandName: {
     fontSize: 32,
     fontWeight: 'bold',
     color: colors.text,
+    marginTop: spacing.md,
     marginBottom: spacing.xs,
   },
   tagline: {

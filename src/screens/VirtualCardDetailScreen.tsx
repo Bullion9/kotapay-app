@@ -1,39 +1,39 @@
-import React, { useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  Animated,
-  Clipboard,
-} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import {
-  ChevronLeft,
-  ArrowLeft,
-  MoreHorizontal,
-  Plus,
-  Snowflake,
-  Unlock,
-  ArrowDown,
-  Edit3,
-  Check,
-  X,
-  Copy,
+    ArrowDown,
+    ArrowLeft,
+    Check,
+    ChevronLeft,
+    Copy,
+    Edit3,
+    MoreHorizontal,
+    Plus,
+    Snowflake,
+    Unlock,
+    X,
 } from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows, globalStyles } from '../theme';
-import { EyeIcon } from '../components/icons';
-import { useAuth } from '../contexts/AuthContext';
-import PinEntryModal from '../components/PinEntryModal';
-import FreezeCardModal from '../components/FreezeCardModal';
+import React, { useRef, useState } from 'react';
+import {
+    Alert,
+    Animated,
+    Clipboard,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import DeleteCardModal from '../components/DeleteCardModal';
+import FreezeCardModal from '../components/FreezeCardModal';
+import { EyeIcon } from '../components/icons';
 import LoadingOverlay from '../components/LoadingOverlay';
+import PinEntryModal from '../components/PinEntryModal';
+import { useAuth } from '../contexts/AuthContext';
 import { useLoading } from '../hooks/useLoading';
+import { borderRadius, colors, globalStyles, shadows, spacing } from '../theme';
 
 type RootStackParamList = {
   TopUpVirtualCardScreen: { cardId: string };

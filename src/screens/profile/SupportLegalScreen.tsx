@@ -1,27 +1,27 @@
+import * as Haptics from 'expo-haptics';
+import {
+    ArrowLeft,
+    Clock,
+    ExternalLink,
+    FileText,
+    HelpCircle,
+    Mail,
+    MessageCircle,
+    Phone,
+    Shield,
+} from 'lucide-react-native';
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  StatusBar,
-  Linking,
-  Alert,
+    Alert,
+    Linking,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import {
-  ArrowLeft,
-  HelpCircle,
-  MessageCircle,
-  Mail,
-  Phone,
-  Shield,
-  FileText,
-  ExternalLink,
-  Clock,
-} from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
 
 const SupportLegalScreen: React.FC = () => {
   const supportOptions = [

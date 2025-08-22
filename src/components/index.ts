@@ -27,5 +27,8 @@ export { default as TransactionRow } from './TransactionRow';
 export { default as VirtualCardTransactionSection } from './VirtualCardTransactionSection';
 export { default as WithdrawalModal } from './WithdrawalModal';
 
+// Export icon components
+export { default as KotaPayLogo } from './icons/KotaPayLogo';
+
 // Export loading utilities
 export * from './loading';

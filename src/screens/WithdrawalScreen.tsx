@@ -1,21 +1,21 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
-import { ChevronLeft } from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { colors, spacing, borderRadius, shadows, globalStyles } from '../theme';
+import { ChevronLeft } from 'lucide-react-native';
+import React, { useState } from 'react';
+import {
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import PinEntryModal from '../components/PinEntryModal';
+import { borderRadius, colors, globalStyles, shadows, spacing } from '../theme';
 import { CardStackParamList } from '../types/navigation';
 
 type WithdrawalScreenNavigationProp = StackNavigationProp<CardStackParamList, 'WithdrawalScreen'>;

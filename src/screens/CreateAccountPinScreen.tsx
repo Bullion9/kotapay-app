@@ -1,24 +1,24 @@
-import React, { useState, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Alert,
-  Vibration,
-  Animated
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ArrowLeft, Shield, Fingerprint, X, CheckCircle } from 'lucide-react-native';
-import { RootStackParamList } from '../types';
-import { useAuth } from '../contexts/AuthContext';
-import { globalStyles, colors, spacing, iconSizes, shadows } from '../theme';
+import { ArrowLeft, CheckCircle, Fingerprint, Shield, X } from 'lucide-react-native';
+import React, { useRef, useState } from 'react';
+import {
+    Alert,
+    Animated,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    Vibration,
+    View
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingOverlay from '../components/LoadingOverlay';
 import PageLoadingOverlay from '../components/PageLoadingOverlay';
+import { useAuth } from '../contexts/AuthContext';
 import { useLoading } from '../hooks/useLoading';
 import { usePageLoading } from '../hooks/usePageLoading';
+import { colors, globalStyles, iconSizes, shadows, spacing } from '../theme';
+import { RootStackParamList } from '../types';
 
 type CreateAccountPinScreenNavigationProp = StackNavigationProp<RootStackParamList, 'CreateAccountPin'>;
 

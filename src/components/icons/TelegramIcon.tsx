@@ -1,5 +1,5 @@
 import React from 'react';
-import Svg, { Circle, Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 interface TelegramIconProps {
   size?: number;

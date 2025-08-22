@@ -1,33 +1,33 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  Switch,
-  Alert,
-  ActivityIndicator,
-  Platform,
-} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ProfileParamList } from '../types';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import {
-  ChevronLeft,
-  KeyRound,
-  Fingerprint,
-  Bell,
-  Eye,
-  Shield,
-  ChevronRight,
-  Globe,
-  CheckCircle,
+    Bell,
+    CheckCircle,
+    ChevronLeft,
+    ChevronRight,
+    Eye,
+    Fingerprint,
+    Globe,
+    KeyRound,
+    Shield,
 } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius, shadows } from '../theme';
+import React, { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { borderRadius, colors, shadows, spacing, typography } from '../theme';
+import { ProfileParamList } from '../types';
 
 interface SecuritySettings {
   biometricsEnabled: boolean;

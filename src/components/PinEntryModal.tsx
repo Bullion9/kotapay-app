@@ -1,21 +1,21 @@
-import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
+    Delete,
+    Fingerprint,
+    Lock,
+    X,
+} from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import {
+    Modal,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  X,
-  Lock,
-  Delete,
-  Fingerprint,
-} from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows, iconSizes } from '../theme';
-import LoadingOverlay from './LoadingOverlay';
 import { useLoading } from '../hooks/useLoading';
+import { borderRadius, colors, iconSizes, shadows, spacing } from '../theme';
+import LoadingOverlay from './LoadingOverlay';
 
 interface PinEntryModalProps {
   visible: boolean;

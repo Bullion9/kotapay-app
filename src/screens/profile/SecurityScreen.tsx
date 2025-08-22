@@ -1,27 +1,27 @@
 import { useNavigation } from '@react-navigation/native';
+import * as Haptics from 'expo-haptics';
 import {
-  AlertTriangle,
-  ArrowLeft,
-  ChevronRight,
-  Fingerprint,
-  LogOut,
-  Shield,
+    AlertTriangle,
+    ArrowLeft,
+    ChevronRight,
+    Fingerprint,
+    LogOut,
+    Shield,
 } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  Alert,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
-import * as Haptics from 'expo-haptics';
 
 const SecurityScreen: React.FC = () => {
   const navigation = useNavigation();

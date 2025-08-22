@@ -9,11 +9,6 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "jsEngine": "hermes",
-    "extra": {
-      "eas": {
-        "projectId": "kotapay-dev-2025"
-      }
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kotapay.app"

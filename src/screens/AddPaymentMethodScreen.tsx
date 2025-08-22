@@ -1,23 +1,23 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
+import { ChevronDown, ChevronLeft, CreditCard, Landmark, Search, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  Modal,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { CreditCard, ChevronLeft, Landmark, Search, ChevronDown, X } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors, spacing, typography, borderRadius, iconSizes } from '../theme';
 import type { PaymentMethod } from '../services/PaymentMethodService';
+import { borderRadius, colors, iconSizes, spacing, typography } from '../theme';
 
 // Nigerian banks list
 const NIGERIAN_BANKS = [

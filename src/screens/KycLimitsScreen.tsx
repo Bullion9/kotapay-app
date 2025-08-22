@@ -1,22 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  Alert,
-} from 'react-native';
-import {
-  CheckCircle,
-  UploadCloud,
-  ChevronLeft,
-} from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import * as ImagePicker from 'expo-image-picker';
+import {
+    CheckCircle,
+    ChevronLeft,
+    UploadCloud,
+} from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import {
+    Alert,
+    Image,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import { theme } from '../theme';
 import { ProfileParamList } from '../types';
 

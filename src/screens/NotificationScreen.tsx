@@ -1,24 +1,24 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
-  FlatList,
-  RefreshControl,
-  ScrollView,
-} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { 
-  ChevronLeft,
-  Mail, 
-  Check,
-  Trash2,
-} from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { colors, spacing, borderRadius, iconSizes, globalStyles } from '../theme';
+import {
+    Check,
+    ChevronLeft,
+    Mail,
+    Trash2,
+} from 'lucide-react-native';
+import React, { useState } from 'react';
+import {
+    FlatList,
+    RefreshControl,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { borderRadius, colors, globalStyles, iconSizes, spacing } from '../theme';
 
 interface Notification {
   id: string;

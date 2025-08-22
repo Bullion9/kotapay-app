@@ -1,37 +1,37 @@
+import type { NavigationProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import {
+    ArrowUpRight,
+    BarChart3,
+    Bell,
+    Camera,
+    ChevronLeft,
+    CreditCard,
+    DollarSign,
+    Eye,
+    FileText,
+    HelpCircle,
+    Key,
+    Lock,
+    Mail,
+    MessageCircle,
+    Settings,
+    Shield,
+    TrendingUp,
+    User,
+    UserCheck,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  Alert,
-  Switch,
+    Alert,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import {
-  ChevronLeft,
-  UserCheck,
-  Bell,
-  HelpCircle,
-  FileText,
-  Shield,
-  ArrowUpRight,
-  Mail,
-  MessageCircle,
-  Lock,
-  Key,
-  Eye,
-  User,
-  Camera,
-  CreditCard,
-  DollarSign,
-  TrendingUp,
-  Settings,
-  BarChart3,
-} from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { NavigationProp } from '@react-navigation/native';
 
 interface SettingsItemProps {
   icon: React.ComponentType<any>;

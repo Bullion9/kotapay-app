@@ -1,29 +1,29 @@
+import { useNavigation } from '@react-navigation/native';
+import {
+    CheckCircle,
+    ChevronLeft,
+    Copy,
+    MessageSquare,
+    QrCode,
+    ShareIcon,
+    Users,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  RefreshControl,
-  KeyboardAvoidingView,
-  Platform,
-  Share,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    Share,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  ChevronLeft,
-  Users,
-  QrCode,
-  MessageSquare,
-  CheckCircle,
-  Copy,
-  ShareIcon,
-} from 'lucide-react-native';
 import { colors } from '../theme';
 
 interface Contact {

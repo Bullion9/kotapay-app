@@ -1,20 +1,20 @@
-import React, { useState, useCallback } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { ChevronLeft, CreditCard, Plus, Star, Trash2 } from 'lucide-react-native';
+import React, { useCallback, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  RefreshControl,
+    ActivityIndicator,
+    Alert,
+    RefreshControl,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { CreditCard, Trash2, Plus, ChevronLeft, Star } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius, shadows, iconSizes } from '../theme';
 import DeleteCardModal from '../components/DeleteCardModal';
 import PaymentMethodService, { PaymentMethod } from '../services/PaymentMethodService';
+import { borderRadius, colors, iconSizes, shadows, spacing, typography } from '../theme';
 
 const PaymentMethodsScreen: React.FC = () => {
   const navigation = useNavigation();

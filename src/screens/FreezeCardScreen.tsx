@@ -1,26 +1,26 @@
-import React, { useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
-  ChevronLeft,
-  Snowflake,
-  Shield,
-  AlertTriangle,
-  CreditCard,
-  CheckCircle,
+    AlertTriangle,
+    CheckCircle,
+    ChevronLeft,
+    CreditCard,
+    Shield,
+    Snowflake,
 } from 'lucide-react-native';
-import { colors, spacing, borderRadius, shadows } from '../theme';
+import React, { useRef, useState } from 'react';
+import {
+    Alert,
+    Animated,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { borderRadius, colors, shadows, spacing } from '../theme';
 
 const FreezeCardScreen: React.FC = () => {
   const navigation = useNavigation();
